@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BC Elite QC</title>
+  <!-- Google Fonts: Inter, JetBrains Mono for Console -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+    rel="stylesheet">
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="index.css">
+</head>
+
+<body>
+  <div class="app-container">
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo-area">
+          <img src="app_logo.png" class="logo-image">
+          <span class="logo-text">BC Elite QC</span>
+        </div>
+        <span class="version-badge">SYSTEM V1.0.2</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="nav-section-title">Hub Diagnostics</div>
+        <a href="#" class="nav-item active" id="nav-system-health">
+          <div class="sidebar-icon-wrapper icon-laptop">
+            <i class="fa-solid fa-gauge-high"></i>
+          </div>
+          <span>System Health</span>
+        </a>
+        <a href="#" class="nav-item" id="nav-ram-details">
+          <div class="sidebar-icon-wrapper icon-ram">
+            <i class="fa-solid fa-microchip"></i>
+          </div>
+          <span>RAM Details</span>
+        </a>
+        <a href="#" class="nav-item" id="nav-ssd-details">
+          <div class="sidebar-icon-wrapper icon-ssd">
+            <i class="fa-solid fa-hard-drive"></i>
+          </div>
+          <span>SSD Details</span>
+        </a>
+        <a href="#" class="nav-item" id="nav-graphics-details">
+          <div class="sidebar-icon-wrapper icon-graphics">
+            <i class="fa-solid fa-image"></i>
+          </div>
+          <span>Graphics Details</span>
+        </a>
+        <a href="#" class="nav-item" id="nav-battery-details">
+          <div class="sidebar-icon-wrapper icon-battery-health">
+            <i class="fa-solid fa-battery-three-quarters"></i>
+          </div>
+          <span>Battery Details</span>
+        </a>
+        <a href="#" class="nav-item" id="nav-console-details">
+          <div class="sidebar-icon-wrapper icon-console">
+            <i class="fa-solid fa-terminal"></i>
+          </div>
+          <span>Console Logs</span>
+        </a>
+        <a href="#" class="nav-item" id="nav-settings-details">
+          <div class="sidebar-icon-wrapper icon-serial">
+            <i class="fa-solid fa-gear"></i>
+          </div>
+          <span>Settings</span>
+        </a>
+        <a href="#" class="nav-item" id="nav-support-details">
+          <div class="sidebar-icon-wrapper icon-display">
+            <i class="fa-solid fa-circle-question"></i>
+          </div>
+          <span>Support</span>
+        </a>
+        <a href="#" class="nav-item" id="nav-update-check">
+          <div class="sidebar-icon-wrapper icon-os">
+            <i class="fa-solid fa-cloud-arrow-down"></i>
+          </div>
+          <span>Check Updates</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="theme-switch-container">
+          <button id="theme-btn-dark" class="theme-btn" title="Switch to Dark Theme">
+            <i class="fa-solid fa-moon"></i>
+            <span>Dark</span>
+          </button>
+          <button id="theme-btn-light" class="theme-btn active" title="Switch to Light Theme">
+            <i class="fa-solid fa-sun"></i>
+            <span>Light</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN APP CONTENT -->
+    <main class="main-content">
+
+      <!-- WINDOW TITLE BAR -->
+      <header class="title-bar">
+        <div class="title-bar-left">
+          <span class="window-title">Bizz Co Hub Quality Checking Software</span>
+          <div class="status-indicator">
+            <span class="dot pulse-green"></span>
+            <span class="status-text">SYSTEM READY</span>
+            <span class="divider">|</span>
+            <span class="session-id">SESSION ID: <span id="session-id-val">BH-7742-X</span></span>
+          </div>
+        </div>
+        <div class="title-bar-right">
+          <div class="mac-window-controls">
+            <button class="mac-btn close" id="win-close" title="Close"></button>
+            <button class="mac-btn minimize" id="win-minimize" title="Minimize"></button>
+            <button class="mac-btn maximize" id="win-maximize" title="Maximize"></button>
+          </div>
+        </div>
+      </header>
+
+      <!-- DASHBOARD BODY (GRID) -->
+      <div class="dashboard-body app-view active" id="view-system-health">
+        <div class="view-header">
+          <h1 class="view-title">System Health</h1>
+          <p class="view-subtitle">Monitor hardware diagnostics, specifications, and test suites.</p>
+        </div>
+
+        <!-- TOP INFO PANEL: SPECIFICATIONS -->
+        <div class="specifications-grid">
+
+          <!-- PRIMARY CORE INFO -->
+          <div class="spec-card">
+            <div class="card-header">
+              <span class="card-title">Primary Core Info</span>
+              <i class="fa-solid fa-microchip card-header-icon"></i>
+            </div>
+            <div class="card-body">
+              <div class="spec-row">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div class="row-icon-wrapper icon-laptop">
+                    <i class="fa-solid fa-laptop"></i>
+                  </div>
+                  <span class="spec-label">Product Name</span>
+                </div>
+                <span class="spec-value" id="spec-product-name">Detecting...</span>
+              </div>
+              <div class="spec-row">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div class="row-icon-wrapper icon-cpu">
+                    <i class="fa-solid fa-microchip"></i>
+                  </div>
+                  <span class="spec-label">Core & Gen</span>
+                </div>
+                <span class="spec-value" id="spec-cpu">Detecting...</span>
+              </div>
+              <div class="spec-row">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div class="row-icon-wrapper icon-ram">
+                    <i class="fa-solid fa-memory"></i>
+                  </div>
+                  <span class="spec-label">RAM</span>
+                </div>
+                <span class="spec-value" id="spec-ram">Detecting...</span>
+              </div>
+              <div class="spec-row">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div class="row-icon-wrapper icon-ssd">
+                    <i class="fa-solid fa-database"></i>
+                  </div>
+                  <span class="spec-label">SSD</span>
+                </div>
+                <span class="spec-value" id="spec-ssd">Detecting...</span>
+              </div>
+              <div class="spec-row">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div class="row-icon-wrapper icon-battery-health">
+                    <i class="fa-solid fa-heart-pulse"></i>
+                  </div>
+                  <span class="spec-label">Battery Health</span>
+                </div>
+                <span class="spec-value" id="spec-battery-health">Detecting...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- GRAPHICS & ENVIRONMENT -->
+          <div class="spec-card">
+            <div class="card-header">
+              <span class="card-title">Graphics & Environment</span>
+              <i class="fa-solid fa-temperature-three-quarters card-header-icon"></i>
+            </div>
+            <div class="card-body">
+              <div class="spec-row">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div class="row-icon-wrapper icon-graphics">
+                    <i class="fa-solid fa-gamepad"></i>
+                  </div>
+                  <span class="spec-label">Graphics</span>
+                </div>
+                <span class="spec-value" id="spec-graphics">Detecting...</span>
+              </div>
+              <div class="spec-row">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div class="row-icon-wrapper icon-display">
+                    <i class="fa-solid fa-crop-simple"></i>
+                  </div>
+                  <span class="spec-label">Display Res</span>
+                </div>
+                <span class="spec-value" id="spec-display">Detecting...</span>
+              </div>
+              <div class="spec-row">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div class="row-icon-wrapper icon-serial">
+                    <i class="fa-solid fa-barcode"></i>
+                  </div>
+                  <span class="spec-label">Serial Number</span>
+                </div>
+                <span class="spec-value" id="spec-serial">Detecting...</span>
+              </div>
+              <div class="spec-row">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div class="row-icon-wrapper icon-os">
+                    <i class="fa-brands fa-windows"></i>
+                  </div>
+                  <span class="spec-label">Windows Ver</span>
+                </div>
+                <span class="spec-value" id="spec-windows">Detecting...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ACTIONS PANEL -->
+        <div class="actions-panel">
+          <button class="btn-action bg-blue" id="btn-create-table">
+            <i class="fa-solid fa-file-csv"></i>
+            <span>Create Table</span>
+          </button>
+          <button class="btn-action bg-dark" id="btn-view-table">
+            <i class="fa-solid fa-table-list"></i>
+            <span>View Table</span>
+          </button>
+          <button class="btn-action bg-purple" id="btn-submit-server">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <span>Submit to Server</span>
+          </button>
+          <button class="btn-action bg-dark" id="btn-search-mfg">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <span>Search MFG</span>
+          </button>
+        </div>
+
+        <!-- DIAGNOSTICS & RUN SECTION -->
+        <div class="diagnostics-section">
+
+          <!-- HARDWARE COMPONENT TESTS -->
+          <div class="tests-container">
+            <div class="section-subtitle">Hardware Component Tests</div>
+            <div class="tests-grid">
+
+              <!-- HD Sentinel -->
+              <button class="test-btn" id="test-hd-sentinel">
+                <div class="test-icon-wrapper icon-storage">
+                  <i class="fa-solid fa-hard-drive"></i>
+                </div>
+                <div class="test-info">
+                  <span class="test-name">HD Sentinel</span>
+                  <span class="test-desc">Storage Health & Speed</span>
+                </div>
+                <span class="test-status status-pending">Idle</span>
+              </button>
+
+              <!-- LCD Test -->
+              <button class="test-btn" id="test-lcd">
+                <div class="test-icon-wrapper icon-display">
+                  <i class="fa-solid fa-desktop"></i>
+                </div>
+                <div class="test-info">
+                  <span class="test-name">LCD Test</span>
+                  <span class="test-desc">Dead Pixel & Color Grid</span>
+                </div>
+                <span class="test-status status-pending">Idle</span>
+              </button>
+
+              <!-- CPU-Z -->
+              <button class="test-btn" id="test-cpuz">
+                <div class="test-icon-wrapper icon-processor">
+                  <i class="fa-solid fa-microchip"></i>
+                </div>
+                <div class="test-info">
+                  <span class="test-name">CPU-Z</span>
+                  <span class="test-desc">Processor Clock & Cores</span>
+                </div>
+                <span class="test-status status-pending">Idle</span>
+              </button>
+
+              <!-- Battery Info -->
+              <button class="test-btn" id="test-battery">
+                <div class="test-icon-wrapper icon-battery">
+                  <i class="fa-solid fa-battery"></i>
+                </div>
+                <div class="test-info">
+                  <span class="test-name">Battery Info</span>
+                  <span class="test-desc">Wear Level & Cycles</span>
+                </div>
+                <span class="test-status status-pending">Idle</span>
+              </button>
+
+              <!-- Keyboard Test -->
+              <button class="test-btn" id="test-keyboard">
+                <div class="test-icon-wrapper icon-keyboard">
+                  <i class="fa-solid fa-keyboard"></i>
+                </div>
+                <div class="test-info">
+                  <span class="test-name">Keyboard Test</span>
+                  <span class="test-desc">Key Press & Latency</span>
+                </div>
+                <span class="test-status status-pending">Idle</span>
+              </button>
+
+              <!-- Sound Test -->
+              <button class="test-btn" id="test-sound">
+                <div class="test-icon-wrapper icon-audio">
+                  <i class="fa-solid fa-volume-high"></i>
+                </div>
+                <div class="test-info">
+                  <span class="test-name">Sound Test</span>
+                  <span class="test-desc">Audio Channel Output</span>
+                </div>
+                <span class="test-status status-pending">Idle</span>
+              </button>
+
+            </div>
+          </div>
+
+          <!-- ALL AUTO RUN PANEL -->
+          <div class="auto-run-card" id="btn-auto-run">
+            <div class="auto-run-glow"></div>
+            <div class="auto-run-content">
+              <div class="play-icon-container">
+                <i class="fa-solid fa-play"></i>
+              </div>
+              <div class="auto-run-text">
+                <span class="auto-run-title">All Auto Run</span>
+                <span class="auto-run-desc">Execute Full Sequence</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- RAM DETAILS VIEW -->
+      <div class="dashboard-body app-view" id="view-ram-details" style="display: none;">
+        <div class="view-header">
+          <h1 class="view-title">Memory Configuration</h1>
+          <p class="view-subtitle">Review installed RAM modules, bank speeds, and voltages.</p>
+        </div>
+
+        <div class="specifications-grid" style="grid-template-columns: 1fr;">
+          <div class="spec-card">
+            <div class="card-header">
+              <span class="card-title">Detailed RAM Configuration</span>
+              <i class="fa-solid fa-microchip card-header-icon"></i>
+            </div>
+            <div class="card-body">
+              <div class="spec-row">
+                <span class="spec-label">Total Installed Memory</span>
+                <span class="spec-value" id="detail-ram-total">Loading...</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="spec-card">
+            <div class="card-header">
+              <span class="card-title">Physical Memory Slots</span>
+              <button class="btn-refresh" id="btn-refresh-ram">
+                <i class="fa-solid fa-arrows-rotate"></i> Refresh
+              </button>
+            </div>
+            <div class="card-body" id="detail-ram-slots">
+              <div class="spec-row">
+                <span class="spec-label">Loading detailed memory modules...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SSD DETAILS VIEW -->
+      <div class="dashboard-body app-view" id="view-ssd-details" style="display: none;">
+        <div class="view-header">
+          <h1 class="view-title">Storage Information</h1>
+          <p class="view-subtitle">Analyze solid state drives, partitions, and health metrics.</p>
+        </div>
+
+        <div class="specifications-grid" style="grid-template-columns: 1fr;">
+          <div class="spec-card">
+            <div class="card-header">
+              <span class="card-title">Total Disk Space Summary</span>
+              <i class="fa-solid fa-database card-header-icon"></i>
+            </div>
+            <div class="card-body">
+              <div class="spec-row">
+                <span class="spec-label">Total Capacity</span>
+                <span class="spec-value" id="detail-ssd-total">Loading...</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="spec-card">
+            <div class="card-header">
+              <span class="card-title">Storage Drive Devices</span>
+              <button class="btn-refresh" id="btn-refresh-ssd">
+                <i class="fa-solid fa-arrows-rotate"></i> Refresh
+              </button>
+            </div>
+            <div class="card-body" id="detail-ssd-list">
+              <div class="spec-row">
+                <span class="spec-label">Loading detailed physical disks...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- GRAPHICS DETAILS VIEW -->
+      <div class="dashboard-body app-view" id="view-graphics-details" style="display: none;">
+        <div class="view-header">
+          <h1 class="view-title">Graphics Adapters</h1>
+          <p class="view-subtitle">Inspect GPU hardware details, modes, and display resolutions.</p>
+        </div>
+
+        <div class="specifications-grid" style="grid-template-columns: 1fr;">
+          <div class="spec-card">
+            <div class="card-header">
+              <span class="card-title">Graphics Adapters Summary</span>
+              <i class="fa-solid fa-desktop card-header-icon"></i>
+            </div>
+            <div class="card-body">
+              <div class="spec-row">
+                <span class="spec-label">Detected Cards</span>
+                <span class="spec-value" id="detail-graphics-summary">Loading...</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="spec-card">
+            <div class="card-header">
+              <span class="card-title">GPU Adapters</span>
+              <button class="btn-refresh" id="btn-refresh-graphics">
+                <i class="fa-solid fa-arrows-rotate"></i> Refresh
+              </button>
+            </div>
+            <div class="card-body" id="detail-graphics-list">
+              <div class="spec-row">
+                <span class="spec-label">Loading detailed GPU specifications...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BATTERY DETAILS VIEW -->
+      <div class="dashboard-body app-view" id="view-battery-details" style="display: none;">
+        <div class="view-header">
+          <h1 class="view-title">Power Diagnostics</h1>
+          <p class="view-subtitle">Track battery health condition, charge cycles, and hardware parameters.</p>
+        </div>
+
+        <div class="specifications-grid" style="grid-template-columns: 1fr;">
+          <div class="spec-card">
+            <div class="card-header">
+              <span class="card-title">Detailed Battery Configuration</span>
+              <button class="btn-refresh" id="btn-refresh-battery-detail">
+                <i class="fa-solid fa-arrows-rotate"></i> Refresh
+              </button>
+            </div>
+            <div class="card-body" id="detail-battery-list">
+              <div class="spec-row">
+                <span class="spec-label">Loading detailed battery parameters...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SYSTEM DIAGNOSTICS CONSOLE VIEW -->
+      <div class="dashboard-body app-view" id="view-console-details" style="display: none;">
+        <div class="view-header">
+          <h1 class="view-title">Diagnostics Console</h1>
+          <p class="view-subtitle">View real-time event logs, system commands, and checker outputs.</p>
+        </div>
+
+        <div class="console-container" style="flex-grow: 1; height: 100%;">
+          <div class="console-header">
+            <div class="console-header-left">
+              <span class="dot red"></span>
+              <span class="dot yellow"></span>
+              <span class="dot green"></span>
+              <span class="console-title">System Diagnostics Console</span>
+            </div>
+            <i class="fa-solid fa-terminal console-header-icon"></i>
+          </div>
+          <div class="console-body" id="console-logs">
+            <!-- Logs will be appended here dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- SETTINGS VIEW -->
+      <div class="dashboard-body app-view" id="view-settings-details" style="display: none;">
+        <div class="view-header">
+          <h1 class="view-title">System Settings</h1>
+          <p class="view-subtitle">Configure diagnostic thresholds and automated launch sequences.</p>
+        </div>
+
+        <div class="specifications-grid" style="grid-template-columns: 1fr;">
+          <!-- Card 2: Diagnostic & Rule Engine -->
+          <div class="spec-card">
+            <div class="card-header">
+              <span class="card-title">Diagnostic Rule Thresholds</span>
+              <i class="fa-solid fa-sliders card-header-icon"></i>
+            </div>
+            <div class="card-body">
+              <div class="spec-row"
+                style="flex-direction: column; align-items: stretch; gap: 10px; padding-bottom: 14px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div class="row-icon-wrapper icon-battery-health">
+                    <i class="fa-solid fa-heart-pulse"></i>
+                  </div>
+                  <span class="spec-label" style="font-weight: 600;">Battery Health Rule Thresholds</span>
+                </div>
+                <div
+                  style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 4px;">
+                  <!-- Bad Health -->
+                  <div
+                    style="background: rgba(120, 120, 128, 0.12); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 6px;">
+                    <span
+                      style="font-size: 11px; font-weight: 700; color: var(--color-red); text-transform: uppercase; letter-spacing: 0.3px;">Bad
+                      Health</span>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <input type="number" id="setting-bad-min" value="0" class="btn-action bg-dark"
+                        style="width: 100%; padding: 4px 6px; font-size: 11px; text-align: center; border-radius: 4px; border: none; outline: none; font-weight: 600;">
+                      <span style="font-size: 11px; color: var(--text-secondary);">to</span>
+                      <input type="number" id="setting-bad-max" value="49" class="btn-action bg-dark"
+                        style="width: 100%; padding: 4px 6px; font-size: 11px; text-align: center; border-radius: 4px; border: none; outline: none; font-weight: 600;">
+                    </div>
+                  </div>
+                  <!-- Good Health -->
+                  <div
+                    style="background: rgba(120, 120, 128, 0.12); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 6px;">
+                    <span
+                      style="font-size: 11px; font-weight: 700; color: var(--color-orange); text-transform: uppercase; letter-spacing: 0.3px;">Good
+                      Health</span>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <input type="number" id="setting-good-min" value="50" class="btn-action bg-dark"
+                        style="width: 100%; padding: 4px 6px; font-size: 11px; text-align: center; border-radius: 4px; border: none; outline: none; font-weight: 600;">
+                      <span style="font-size: 11px; color: var(--text-secondary);">to</span>
+                      <input type="number" id="setting-good-max" value="79" class="btn-action bg-dark"
+                        style="width: 100%; padding: 4px 6px; font-size: 11px; text-align: center; border-radius: 4px; border: none; outline: none; font-weight: 600;">
+                    </div>
+                  </div>
+                  <!-- Excellent Health -->
+                  <div
+                    style="background: rgba(120, 120, 128, 0.12); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 6px;">
+                    <span
+                      style="font-size: 11px; font-weight: 700; color: var(--color-green); text-transform: uppercase; letter-spacing: 0.3px;">Excellent
+                      Health</span>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <input type="number" id="setting-excellent-min" value="80" class="btn-action bg-dark"
+                        style="width: 100%; padding: 4px 6px; font-size: 11px; text-align: center; border-radius: 4px; border: none; outline: none; font-weight: 600;">
+                      <span style="font-size: 11px; color: var(--text-secondary);">to</span>
+                      <input type="number" id="setting-excellent-max" value="100" class="btn-action bg-dark"
+                        style="width: 100%; padding: 4px 6px; font-size: 11px; text-align: center; border-radius: 4px; border: none; outline: none; font-weight: 600;">
+                    </div>
+                  </div>
+                </div>
+                <div class="spec-row">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="row-icon-wrapper icon-ram">
+                      <i class="fa-solid fa-database"></i>
+                    </div>
+                    <span class="spec-label">Hardware Discovery Cache</span>
+                  </div>
+                  <select id="setting-cache-mode" class="btn-action bg-dark"
+                    style="padding: 6px 12px; cursor: pointer; border-radius: 6px; outline: none; font-size: 12px; font-weight: 600;">
+                    <option value="permanently">Permanently (Default)</option>
+                    <option value="autoclear">Auto-Clear on Launch</option>
+                    <option value="temporary">Temporary (No Cache)</option>
+                  </select>
+                </div>
+                <div class="spec-row" style="border-bottom: none;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="row-icon-wrapper icon-cpu">
+                      <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <span class="spec-label">Auto Run Diagnostic Checks on Launch</span>
+                  </div>
+                  <input type="checkbox" id="setting-auto-run" checked
+                    style="width: 16px; height: 16px; cursor: pointer;">
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Save button -->
+            <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+              <button id="btn-save-settings" class="btn-action bg-blue"
+                style="padding: 10px 30px; font-weight: 600; border-radius: 8px;">
+                <i class="fa-solid fa-circle-check"></i> Save Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUPPORT VIEW -->
+      <div class="dashboard-body app-view" id="view-support-details" style="display: none;">
+        <div class="view-header">
+          <h1 class="view-title">Support Center</h1>
+          <p class="view-subtitle">Access user manuals, diagnostic FAQs, and synchronization logs troubleshooting.</p>
+        </div>
+
+        <div class="specifications-grid" style="grid-template-columns: 1fr;">
+          <!-- Card 1: Resources -->
+          <div class="spec-card">
+            <div class="card-header">
+              <span class="card-title">Documentation & Help Desk</span>
+              <i class="fa-solid fa-circle-question card-header-icon"></i>
+            </div>
+            <div class="card-body">
+              <div class="spec-row">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div class="row-icon-wrapper icon-graphics">
+                    <i class="fa-solid fa-envelope"></i>
+                  </div>
+                  <span class="spec-label">Contact Bizz Co Hub Support</span>
+                </div>
+                <button class="btn-refresh" id="btn-support-ticket" style="font-weight: 600; font-size: 11.5px;">
+                  <i class="fa-solid fa-envelope"></i> Contact Support
+                </button>
+              </div>
+              <div class="spec-row">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div class="row-icon-wrapper icon-laptop">
+                    <i class="fa-solid fa-building"></i>
+                  </div>
+                  <span class="spec-label">Company Name</span>
+                </div>
+                <span class="spec-value" style="font-weight: 600;">Bizz Co Hub LLC</span>
+              </div>
+              <div class="spec-row">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div class="row-icon-wrapper icon-battery-health">
+                    <i class="fa-solid fa-phone"></i>
+                  </div>
+                  <span class="spec-label">Support Hotlines</span>
+                </div>
+                <span class="spec-value"
+                  style="font-weight: 600; font-size: 12px; text-align: right; line-height: 1.45;">
+                  +971 52 714 6582
+                </span>
+              </div>
+              <div class="spec-row" style="border-bottom: none;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                  <div class="row-icon-wrapper icon-serial">
+                    <i class="fa-solid fa-location-dot"></i>
+                  </div>
+                  <span class="spec-label">Company Address</span>
+                </div>
+                <span class="spec-value"
+                  style="font-weight: 500; font-size: 11.5px; text-align: right; max-width: 380px; line-height: 1.45;">
+                  Sharjah Media City (Shams), Al Messaned, Al Bataeh, Sharjah, United Arab Emirates
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- UPDATE CHECKING VIEW -->
+      <div class="dashboard-body app-view" id="view-update-check" style="display: none;">
+        <div class="view-header">
+          <h1 class="view-title">Software Update</h1>
+          <p class="view-subtitle">Check and install system update releases from the repository.</p>
+        </div>
+
+        <div class="specifications-grid" style="grid-template-columns: 1fr;">
+          <div class="spec-card">
+            <div class="card-header">
+              <span class="card-title">Software Updates</span>
+            </div>
+            <div class="card-body update-card-body">
+              <div class="update-icon-wrapper">
+                <i class="fa-solid fa-cloud-arrow-down" id="update-status-icon"></i>
+              </div>
+              <h2 id="update-status-title" class="update-title">BC Elite QC</h2>
+              <p id="update-status-desc" class="update-desc">
+                Current Version: <strong id="update-current-version-label">1.0.2</strong><br>
+                Checking for updates will verify if a newer release is published on GitHub.
+              </p>
+
+              <!-- Progress bar inline (hidden initially) -->
+              <div id="inline-update-progress-container" class="update-progress-container" style="display: none;">
+                <div class="update-progress-info">
+                  <span id="inline-update-progress-status">Downloading update files...</span>
+                  <span id="inline-update-progress-percent">Please wait</span>
+                </div>
+                <div class="progress-bar-track">
+                  <div id="inline-update-progress-bar" class="progress-bar-fill"></div>
+                </div>
+              </div>
+
+              <button class="modal-btn-action btn-blue-accent" id="btn-manual-check-update">
+                <i class="fa-solid fa-arrows-rotate"></i> Check for Updates
+              </button>
+
+              <button class="modal-btn-action btn-green-accent" id="btn-manual-start-update" style="display: none;">
+                <i class="fa-solid fa-download"></i> Install Update Now
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FOOTER STATUS BAR -->
+      <footer class="app-footer">
+        <div class="footer-left">
+          <span class="copyright">&copy; 2026 Bizz Co Hub Systems.</span>
+          <span class="server-status">SERVER STATUS: <span class="text-green"
+              id="server-status-val">ONLINE</span></span>
+        </div>
+        <div class="footer-right">
+          <span>APP VERSION: <span class="text-blue" id="app-version-val">1.0.2</span></span>
+        </div>
+      </footer>
+
+    </main>
+
+  </div>
+
+  <!-- VIEW TABLE MODAL (MODERN ACCENT OVERLAY) -->
+  <div class="modal-overlay" id="table-modal">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-table"></i> Diagnostic Records Table</h3>
+        <button class="modal-close-btn" id="btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="table-actions">
+          <button class="modal-btn-action" id="btn-modal-refresh"><i class="fa-solid fa-rotate"></i> Refresh</button>
+          <button class="modal-btn-action" id="btn-modal-clear"><i class="fa-solid fa-trash"></i> Clear
+            Database</button>
+        </div>
+        <div class="table-wrapper">
+          <table id="records-table">
+            <thead>
+              <tr>
+                <th>Date & Time</th>
+                <th>Serial Number</th>
+                <th>Product Name</th>
+                <th>CPU</th>
+                <th>RAM</th>
+                <th>SSD</th>
+                <th>Battery</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="table-body">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTO-UPDATER MODAL -->
+  <div class="modal-overlay modal-alert-overlay" id="modal-update-prompt" style="display: none;">
+    <div class="modal-container modal-alert-container">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-cloud-arrow-down"></i> Software Update Available</h3>
+        <button class="modal-close-btn" id="btn-close-update-prompt"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <p class="update-alert-text">
+          A newer version of the software (<strong id="update-modal-ver"
+            style="color: var(--color-green);">v1.0.2</strong>) is available.
+        </p>
+        <p class="update-alert-subtext">
+          Would you like to download and install this update automatically?
+        </p>
+
+        <!-- Progress Indicator -->
+        <div id="update-progress-container" class="update-progress-container" style="display: none;">
+          <div class="update-progress-info">
+            <span id="update-progress-status">Downloading update...</span>
+            <span id="update-progress-percent">Please wait</span>
+          </div>
+          <div class="progress-bar-track">
+            <div id="update-progress-bar" class="progress-bar-fill fill-green"></div>
+          </div>
+        </div>
+
+        <div class="modal-actions-wrapper">
+          <button class="modal-btn-action" id="btn-cancel-update">Not Now</button>
+          <button class="modal-btn-action btn-green-accent" id="btn-start-update">Update Now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CUSTOM ALERT MODAL -->
+  <div class="modal-overlay modal-alert-overlay" id="custom-alert-modal">
+    <div class="modal-container modal-alert-container">
+      <div class="modal-body"
+        style="padding: 24px; display: flex; flex-direction: column; align-items: center; text-align: center;">
+        <div style="font-size: 32px; margin-bottom: 12px; display: flex; align-items: center; justify-content: center;">
+          <i class="fa-solid fa-circle-info" id="custom-alert-icon" style="color: var(--color-blue);"></i>
+        </div>
+        <h3 id="custom-alert-title" style="font-size: 15px; margin-bottom: 8px; font-weight: 600;">System Notification
+        </h3>
+        <p id="custom-alert-message"
+          style="font-size: 12.5px; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.55; max-width: 320px; word-break: break-word;">
+          System settings: diagnostic limits, API credentials, and server ports are configured automatically.
+        </p>
+        <div style="display: flex; gap: 10px; justify-content: center; width: 100%;">
+          <button class="modal-btn-action btn-blue-accent" id="btn-custom-alert-ok"
+            style="padding: 6px 24px; margin: 0; min-width: 80px;">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js" defer></script>
+</body>
+
+</html>

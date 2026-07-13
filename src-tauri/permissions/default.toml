@@ -1,0 +1,52 @@
+[[permission]]
+identifier = "allow-get-system-spec"
+description = "Allow get_system_spec command"
+commands.allow = ["get_system_spec"]
+
+[[permission]]
+identifier = "allow-launch-tool"
+description = "Allow launch_tool command"
+commands.allow = ["launch_tool"]
+
+[[permission]]
+identifier = "allow-check-tool-exists"
+description = "Allow check_tool_exists command"
+commands.allow = ["check_tool_exists"]
+
+[[permission]]
+identifier = "allow-launch-system-tool"
+description = "Allow launch_system_tool command"
+commands.allow = ["launch_system_tool"]
+
+[[permission]]
+identifier = "allow-run-battery-diagnostics"
+description = "Allow run_battery_diagnostics command"
+commands.allow = ["run_battery_diagnostics"]
+
+[[permission]]
+identifier = "allow-save-table-file"
+description = "Allow save_table_file command"
+commands.allow = ["save_table_file"]
+
+[[permission]]
+identifier = "allow-read-file-content"
+description = "Allow read_file_content command"
+commands.allow = ["read_file_content"]
+
+[[permission]]
+identifier = "allow-window-control"
+description = "Allow window_control command"
+commands.allow = ["window_control"]
+
+[default]
+description = "Allow all custom commands"
+permissions = [
+  "allow-get-system-spec",
+  "allow-launch-tool",
+  "allow-check-tool-exists",
+  "allow-launch-system-tool",
+  "allow-run-battery-diagnostics",
+  "allow-save-table-file",
+  "allow-read-file-content",
+  "allow-window-control"
+]

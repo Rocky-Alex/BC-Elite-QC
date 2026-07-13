@@ -1,0 +1,47 @@
+# Node modules
+node_modules/
+
+# Tauri build output
+src-tauri/target/
+
+# Electron/old build output
+BizzCoHubQC-win32-x64/
+
+# Compiled installer output
+QC_Setup.exe
+
+# Third-party diagnostic tool binaries
+cpuz_x64.exe
+cpuz.ini
+Battery_checking.exe
+Battery_checking.cfg
+LCD_checking.exe
+Keyboard_checking.exe
+Sound_checking.mp4
+HDSentinel.exe
+HDSAction.exe
+HDSCtrl.exe
+HDSentinelTray.exe
+harddisksentinelupdate.exe
+BizzCoHub QC File.bat
+
+# HDSentinel runtime cache and data files
+*.hdd
+*.hdi
+*.icd
+*.sta
+*.vsh
+*.vsx
+*.dll
+*.dlz
+*.dat
+*.dat
+*.chm
+*.lng
+log.txt
+DriveAddRemoveLog.txt
+winsched.txt
+hdsversion.txt
+hds_eula_en.txt
+hds_eula_en.txt
+README.md

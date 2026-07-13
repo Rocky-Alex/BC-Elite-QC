@@ -1,0 +1,20 @@
+{
+  "name": "bc-elite-qc",
+  "version": "1.0.2",
+  "description": "BC Elite QC - Quality Checking Suite",
+  "scripts": {
+    "start": "tauri dev",
+    "tauri": "tauri",
+    "build": "tauri build"
+  },
+  "keywords": [
+    "bizzcohub",
+    "qc",
+    "diagnostic"
+  ],
+  "author": "Bizz Co Hub LLC",
+  "license": "ISC",
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4"
+  }
+}
