@@ -314,39 +314,8 @@ document.addEventListener('DOMContentLoaded', () => {
     return { text: 'Excellent', color: 'var(--color-green)' };
   }
 
-  // Retrieve all specifications on load
-  async function loadSpecifications() {
-    // Clear cache based on settings
-    const cacheMode = localStorage.getItem('setting_cache_mode') || 'permanently';
-    if (cacheMode === 'autoclear' || cacheMode === 'temporary') {
-      localStorage.removeItem('qc_detailed_ram');
-      localStorage.removeItem('qc_detailed_ssd');
-      localStorage.removeItem('qc_detailed_graphics');
-      localStorage.removeItem('qc_detailed_battery');
-    }
-
-    log('System diagnostics console initialized.', 'info');
-    log('Starting hardware discovery...', 'debug');
-
-    // 1. Product Name
-    await querySpec(
-      'Get-WmiObject -Class Win32_ComputerSystemProduct | Select-Object -ExpandProperty Name',
-      specProduct,
-      'productName',
-      'Generic Laptop'
-    );
-    log(`Product detected: ${systemSpecs.productName}`, 'debug');
-
-    // 2. CPU
-    await querySpec(
-      'Get-WmiObject -Class Win32_Processor | Select-Object -ExpandProperty Name',
-      specCpu,
-      'cpu',
-      'Intel Core i7'
-    );
-    log(`CPU detected: ${systemSpecs.cpu}`, 'debug');
-
-    // 3. RAM (Format Total Capacity GB)
+  // Basic spec fetchers
+  async function fetchRamBasic() {
     try {
       const ramResult = await electronAPI.getSystemSpec(
         'Get-WmiObject Win32_PhysicalMemory | Measure-Object -Property Capacity -Sum | ForEach-Object { "$([Math]::Round($_.Sum / 1GB)) GB" }'
@@ -355,21 +324,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalRam = ramResult.data.trim();
         specRam.textContent = totalRam;
         systemSpecs.ram = totalRam;
+        const detailRamTotal = document.getElementById('detail-ram-total');
+        if (detailRamTotal) detailRamTotal.textContent = totalRam;
       } else {
         throw new Error('RAM query failed');
       }
     } catch (err) {
-      // Fallback
       await querySpec(
         "Get-WmiObject -Class Win32_ComputerSystem | Select-Object @{Name='RAM';Expression={'{0:N0} GB' -f ($_.TotalPhysicalMemory/1GB)}} | ft -HideTableHeaders",
         specRam,
         'ram',
         '8 GB'
       );
+      const detailRamTotal = document.getElementById('detail-ram-total');
+      if (detailRamTotal) detailRamTotal.textContent = systemSpecs.ram;
     }
     log(`System RAM: ${systemSpecs.ram}`, 'debug');
+    const cacheMode = localStorage.getItem('setting_cache_mode') || 'permanently';
+    if (cacheMode === 'permanently') {
+      localStorage.setItem('qc_basic_specs', JSON.stringify(systemSpecs));
+    }
+  }
 
-    // 4. SSD (Total Capacity GB/TB)
+  async function fetchSsdBasic() {
     try {
       const ssdResult = await electronAPI.getSystemSpec(
         'Get-WmiObject -Class Win32_DiskDrive | Measure-Object -Property Size -Sum | ForEach-Object { [Math]::Round($_.Sum / 1GB) }'
@@ -388,6 +365,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         specSsd.textContent = displaySize;
         systemSpecs.ssd = displaySize;
+        const detailSsdTotal = document.getElementById('detail-ssd-total');
+        if (detailSsdTotal) detailSsdTotal.textContent = displaySize;
       } else {
         throw new Error('SSD Query empty');
       }
@@ -398,10 +377,17 @@ document.addEventListener('DOMContentLoaded', () => {
         'ssd',
         '256 GB'
       );
+      const detailSsdTotal = document.getElementById('detail-ssd-total');
+      if (detailSsdTotal) detailSsdTotal.textContent = systemSpecs.ssd;
     }
     log(`Disk Drive detected: ${systemSpecs.ssd}`, 'debug');
+    const cacheMode = localStorage.getItem('setting_cache_mode') || 'permanently';
+    if (cacheMode === 'permanently') {
+      localStorage.setItem('qc_basic_specs', JSON.stringify(systemSpecs));
+    }
+  }
 
-    // 5. Graphics Card
+  async function fetchGraphicsBasic() {
     try {
       const gpuResult = await electronAPI.getSystemSpec(
         `Get-WmiObject -Class Win32_VideoController | Group-Object Name | ForEach-Object {
@@ -421,8 +407,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (gpuResult.success && gpuResult.data) {
         const gpus = gpuResult.data.split('\n').map(g => g.trim()).filter(g => g);
         if (gpus.length > 0) {
-          specGraphics.textContent = gpus.join(' + ');
-          systemSpecs.graphics = gpus.join(' + ');
+          const resGpus = gpus.join(' + ');
+          specGraphics.textContent = resGpus;
+          systemSpecs.graphics = resGpus;
+          const detailGraphicsSummary = document.getElementById('detail-graphics-summary');
+          if (detailGraphicsSummary) detailGraphicsSummary.textContent = resGpus;
         } else {
           throw new Error('GPU empty');
         }
@@ -436,10 +425,17 @@ document.addEventListener('DOMContentLoaded', () => {
         'graphics',
         'Intel HD Graphics'
       );
+      const detailGraphicsSummary = document.getElementById('detail-graphics-summary');
+      if (detailGraphicsSummary) detailGraphicsSummary.textContent = systemSpecs.graphics;
     }
     log(`GPU detection: ${systemSpecs.graphics} active`, 'debug');
+    const cacheMode = localStorage.getItem('setting_cache_mode') || 'permanently';
+    if (cacheMode === 'permanently') {
+      localStorage.setItem('qc_basic_specs', JSON.stringify(systemSpecs));
+    }
+  }
 
-    // 6. Display Resolution
+  async function fetchDisplayBasic() {
     try {
       const resResult = await electronAPI.getSystemSpec(
         `try {
@@ -481,24 +477,21 @@ document.addEventListener('DOMContentLoaded', () => {
       systemSpecs.displayRes = '1920 x 1080 FHD';
     }
     log(`Display Resolution: ${systemSpecs.displayRes}`, 'debug');
+    const cacheMode = localStorage.getItem('setting_cache_mode') || 'permanently';
+    if (cacheMode === 'permanently') {
+      localStorage.setItem('qc_basic_specs', JSON.stringify(systemSpecs));
+    }
+  }
 
-    // 7. Serial Number
-    await querySpec(
-      'Get-WmiObject -Class Win32_BIOS | Select-Object -ExpandProperty SerialNumber',
-      specSerial,
-      'serialNumber',
-      'PC1356548'
-    );
-    log(`Serial Number: ${systemSpecs.serialNumber}`, 'debug');
-
-    // 8. Windows Version
+  async function fetchWindowsBasic() {
     try {
       const winResult = await electronAPI.getSystemSpec(
         '(Get-WmiObject -Class Win32_OperatingSystem).Caption + " (Build " + (Get-WmiObject -Class Win32_OperatingSystem).BuildNumber + ")"'
       );
       if (winResult.success && winResult.data) {
-        specWindows.textContent = winResult.data.replace('Microsoft ', '').trim();
-        systemSpecs.windowsVer = winResult.data.replace('Microsoft ', '').trim();
+        const cleanedWin = winResult.data.replace('Microsoft ', '').trim();
+        specWindows.textContent = cleanedWin;
+        systemSpecs.windowsVer = cleanedWin;
       } else {
         specWindows.textContent = 'Windows 11';
         systemSpecs.windowsVer = 'Windows 11';
@@ -508,8 +501,13 @@ document.addEventListener('DOMContentLoaded', () => {
       systemSpecs.windowsVer = 'Windows 11';
     }
     log(`OS Version: ${systemSpecs.windowsVer}`, 'debug');
+    const cacheMode = localStorage.getItem('setting_cache_mode') || 'permanently';
+    if (cacheMode === 'permanently') {
+      localStorage.setItem('qc_basic_specs', JSON.stringify(systemSpecs));
+    }
+  }
 
-    // 9. Battery Health & Cycle Count
+  async function fetchBatteryBasic() {
     try {
       const batResult = await electronAPI.getSystemSpec(
         `try {
@@ -540,7 +538,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }`
       );
       if (batResult.success && batResult.data && batResult.data.trim() !== 'N/A') {
-        const cleanData = batResult.data.trim(); // e.g. "72% (271 cycles)"
+        const cleanData = batResult.data.trim();
         const match = cleanData.match(/(\d+)%/);
         if (match) {
           const percent = parseInt(match[1], 10);
@@ -549,46 +547,175 @@ document.addEventListener('DOMContentLoaded', () => {
           const cyclesStr = cyclesMatch ? ` (${cyclesMatch[1]})` : '';
 
           const specElement = document.getElementById('spec-battery-health');
-          specElement.className = 'spec-value';
-          specElement.innerHTML = `<span style="color: ${status.color}; font-weight: 700;">${percent}% (${status.text})</span>${cyclesStr}`;
+          if (specElement) {
+            specElement.className = 'spec-value';
+            specElement.innerHTML = `<span style="color: ${status.color}; font-weight: 700;">${percent}% (${status.text})</span>${cyclesStr}`;
+          }
           systemSpecs.battery = `${percent}% (${status.text})${cyclesStr}`;
         } else {
-          document.getElementById('spec-battery-health').textContent = cleanData;
+          const specElement = document.getElementById('spec-battery-health');
+          if (specElement) specElement.textContent = cleanData;
           systemSpecs.battery = cleanData;
         }
       } else {
-        document.getElementById('spec-battery-health').textContent = 'N/A (Desktop)';
+        const specElement = document.getElementById('spec-battery-health');
+        if (specElement) specElement.textContent = 'N/A (Desktop)';
         systemSpecs.battery = 'N/A (Desktop)';
       }
     } catch (e) {
-      document.getElementById('spec-battery-health').textContent = 'N/A';
+      const specElement = document.getElementById('spec-battery-health');
+      if (specElement) specElement.textContent = 'N/A';
       systemSpecs.battery = 'N/A';
     }
     log(`Battery Status: ${systemSpecs.battery}`, 'debug');
+    const cacheMode = localStorage.getItem('setting_cache_mode') || 'permanently';
+    if (cacheMode === 'permanently') {
+      localStorage.setItem('qc_basic_specs', JSON.stringify(systemSpecs));
+    }
+  }
 
-    // Finished Hardware Discovery
-    log('Diagnostic modules loaded. Waiting for command input.', 'info');
-    log('System Ready.', 'ready');
+  // Retrieve all specifications on load
+  async function loadSpecifications() {
+    // Clear cache based on settings
+    const cacheMode = localStorage.getItem('setting_cache_mode') || 'permanently';
+    if (cacheMode === 'autoclear' || cacheMode === 'temporary') {
+      localStorage.removeItem('qc_detailed_ram');
+      localStorage.removeItem('qc_detailed_ssd');
+      localStorage.removeItem('qc_detailed_graphics');
+      localStorage.removeItem('qc_detailed_battery');
+      localStorage.removeItem('qc_basic_specs');
+    }
+
+    log('System diagnostics console initialized.', 'info');
+    log('Starting hardware discovery...', 'debug');
 
     // Save record to history database automatically on start
     saveRecordToHistory('Initialized');
 
-    // Pre-fetch all detailed hardware diagnostics in background sequentially on start
-    setTimeout(async () => {
+    const cachedBasic = cacheMode === 'permanently' ? localStorage.getItem('qc_basic_specs') : null;
+    if (cachedBasic) {
       try {
-        log('Pre-fetching detailed RAM configurations in background...', 'debug');
-        await loadDetailedRAM(true);
-        log('Pre-fetching detailed SSD configurations in background...', 'debug');
-        await loadDetailedSSD(true);
-        log('Pre-fetching detailed Graphics configurations in background...', 'debug');
-        await loadDetailedGraphics(true);
-        log('Pre-fetching detailed Battery configurations in background...', 'debug');
-        await loadDetailedBattery(true);
-        log('All detailed hardware specifications pre-fetched and cached successfully.', 'debug');
-      } catch (err) {
-        log(`Error pre-fetching detailed hardware parameters: ${err.message}`, 'error');
+        const specs = JSON.parse(cachedBasic);
+        Object.assign(systemSpecs, specs);
+
+        if (specProduct) specProduct.textContent = systemSpecs.productName;
+        if (specCpu) specCpu.textContent = systemSpecs.cpu;
+        if (specRam) specRam.textContent = systemSpecs.ram;
+        if (specSsd) specSsd.textContent = systemSpecs.ssd;
+        if (specGraphics) specGraphics.textContent = systemSpecs.graphics;
+        if (specDisplay) specDisplay.textContent = systemSpecs.displayRes;
+        if (specSerial) specSerial.textContent = systemSpecs.serialNumber;
+        if (specWindows) specWindows.textContent = systemSpecs.windowsVer;
+
+        const specBatteryHealth = document.getElementById('spec-battery-health');
+        if (specBatteryHealth && systemSpecs.battery) {
+          const match = systemSpecs.battery.match(/(\d+)%/);
+          if (match) {
+            const percent = parseInt(match[1], 10);
+            const status = getBatteryStatus(percent);
+            const cyclesMatch = systemSpecs.battery.match(/\(([^)]+)\)/);
+            const cyclesStr = cyclesMatch ? ` (${cyclesMatch[1]})` : '';
+            specBatteryHealth.innerHTML = `<span style="color: ${status.color}; font-weight: 700;">${percent}% (${status.text})</span>${cyclesStr}`;
+          } else {
+            specBatteryHealth.textContent = systemSpecs.battery;
+          }
+        }
+
+        log('Loaded primary specifications from cache.', 'debug');
+
+        // Detailed loaders in background (will load from cache instantly)
+        Promise.all([
+          loadDetailedRAM(false),
+          loadDetailedSSD(false),
+          loadDetailedGraphics(false),
+          loadDetailedBattery(false)
+        ]).then(() => {
+          log('All detailed hardware specifications loaded from cache.', 'debug');
+          log('Diagnostic modules loaded. Waiting for command input.', 'info');
+          log('System Ready.', 'ready');
+        }).catch(err => {
+          log(`Error loading detailed hardware parameters: ${err.message}`, 'error');
+          log('Diagnostic modules loaded. Waiting for command input.', 'info');
+          log('System Ready.', 'ready');
+        });
+
+        return;
+      } catch (e) {
+        log('Error parsing basic specifications cache: ' + e.message, 'warn');
       }
-    }, 100);
+    }
+
+    // If cache not found or disabled, query all specs concurrently
+    log('Pre-fetching detailed hardware configurations in parallel...', 'debug');
+
+    const fetchBasicSpecs = async () => {
+      const basicPromises = [];
+
+      // 1. Product Name
+      basicPromises.push(querySpec(
+        'Get-WmiObject -Class Win32_ComputerSystemProduct | Select-Object -ExpandProperty Name',
+        specProduct,
+        'productName',
+        'Generic Laptop'
+      ).then(() => log(`Product detected: ${systemSpecs.productName}`, 'debug')));
+
+      // 2. CPU
+      basicPromises.push(querySpec(
+        'Get-WmiObject -Class Win32_Processor | Select-Object -ExpandProperty Name',
+        specCpu,
+        'cpu',
+        'Intel Core i7'
+      ).then(() => log(`CPU detected: ${systemSpecs.cpu}`, 'debug')));
+
+      // 3. RAM
+      basicPromises.push(fetchRamBasic());
+
+      // 4. SSD
+      basicPromises.push(fetchSsdBasic());
+
+      // 5. Graphics Card
+      basicPromises.push(fetchGraphicsBasic());
+
+      // 6. Display Resolution
+      basicPromises.push(fetchDisplayBasic());
+
+      // 7. Serial Number
+      basicPromises.push(querySpec(
+        'Get-WmiObject -Class Win32_BIOS | Select-Object -ExpandProperty SerialNumber',
+        specSerial,
+        'serialNumber',
+        'PC1356548'
+      ).then(() => log(`Serial Number: ${systemSpecs.serialNumber}`, 'debug')));
+
+      // 8. Windows Version
+      basicPromises.push(fetchWindowsBasic());
+
+      // 9. Battery Health
+      basicPromises.push(fetchBatteryBasic());
+
+      await Promise.all(basicPromises);
+
+      if (cacheMode === 'permanently') {
+        localStorage.setItem('qc_basic_specs', JSON.stringify(systemSpecs));
+      }
+    };
+
+    // Load basic and detailed concurrently
+    Promise.all([
+      fetchBasicSpecs(),
+      loadDetailedRAM(false),
+      loadDetailedSSD(false),
+      loadDetailedGraphics(false),
+      loadDetailedBattery(false)
+    ]).then(() => {
+      log('All detailed hardware specifications pre-fetched and cached successfully.', 'debug');
+      log('Diagnostic modules loaded. Waiting for command input.', 'info');
+      log('System Ready.', 'ready');
+    }).catch(err => {
+      log(`Error pre-fetching detailed hardware parameters: ${err.message}`, 'error');
+      log('Diagnostic modules loaded. Waiting for command input.', 'info');
+      log('System Ready.', 'ready');
+    });
   }
 
   // Query and update version
@@ -1067,30 +1194,42 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnRefreshBatteryDetail = document.getElementById('btn-refresh-battery-detail');
 
   if (btnRefreshRam) {
-    btnRefreshRam.addEventListener('click', () => {
-      log('Refreshing detailed RAM specs...', 'info');
-      loadDetailedRAM(true);
+    btnRefreshRam.addEventListener('click', async () => {
+      log('Refreshing RAM specs...', 'info');
+      await Promise.all([
+        loadDetailedRAM(true),
+        fetchRamBasic()
+      ]);
     });
   }
 
   if (btnRefreshSsd) {
-    btnRefreshSsd.addEventListener('click', () => {
-      log('Refreshing detailed drive specs...', 'info');
-      loadDetailedSSD(true);
+    btnRefreshSsd.addEventListener('click', async () => {
+      log('Refreshing drive specs...', 'info');
+      await Promise.all([
+        loadDetailedSSD(true),
+        fetchSsdBasic()
+      ]);
     });
   }
 
   if (btnRefreshGraphics) {
-    btnRefreshGraphics.addEventListener('click', () => {
-      log('Refreshing detailed graphics specs...', 'info');
-      loadDetailedGraphics(true);
+    btnRefreshGraphics.addEventListener('click', async () => {
+      log('Refreshing graphics specs...', 'info');
+      await Promise.all([
+        loadDetailedGraphics(true),
+        fetchGraphicsBasic()
+      ]);
     });
   }
 
   if (btnRefreshBatteryDetail) {
-    btnRefreshBatteryDetail.addEventListener('click', () => {
-      log('Refreshing detailed battery specs...', 'info');
-      loadDetailedBattery(true);
+    btnRefreshBatteryDetail.addEventListener('click', async () => {
+      log('Refreshing battery specs...', 'info');
+      await Promise.all([
+        loadDetailedBattery(true),
+        fetchBatteryBasic()
+      ]);
     });
   }
 
@@ -1495,7 +1634,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function loadUpdateView(force = false) {
     const currentVersionLabel = document.getElementById('update-current-version-label');
     if (currentVersionLabel) {
-      currentVersionLabel.textContent = systemSpecs.appVersion || '1.0.2';
+      currentVersionLabel.textContent = systemSpecs.appVersion || '1.0.3';
     }
   }
 
@@ -1527,7 +1666,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const repoOwner = 'Rocky-Alex';
         const repoName = 'BC-Elite-QC';
-        const currentVer = systemSpecs.appVersion || '1.0.2';
+        const currentVer = systemSpecs.appVersion || '1.0.3';
 
         const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/releases/latest`);
         if (!response.ok) {
@@ -1680,6 +1819,7 @@ document.addEventListener('DOMContentLoaded', () => {
         localStorage.removeItem('qc_detailed_ssd');
         localStorage.removeItem('qc_detailed_graphics');
         localStorage.removeItem('qc_detailed_battery');
+        localStorage.removeItem('qc_basic_specs');
       }
 
       log('Configuration profiles successfully synchronized locally.', 'ready');

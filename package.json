@@ -1,6 +1,6 @@
 {
   "name": "bc-elite-qc",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "BC Elite QC - Quality Checking Suite",
   "scripts": {
     "start": "tauri dev",
