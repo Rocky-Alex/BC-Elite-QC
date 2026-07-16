@@ -60,23 +60,55 @@ fn resolve_tool_path(file_name: &str, folder_name: &str) -> PathBuf {
 // 1. WMI/PowerShell system specs querying
 #[tauri::command]
 fn get_system_spec(command: String) -> Result<String, String> {
-    let output = Command::new("powershell")
-        .arg("-NoProfile")
-        .arg("-Command")
-        .arg(&command)
-        .output();
-    
-    match output {
-        Ok(out) => {
-            if out.status.success() {
-                let stdout = String::from_utf8_lossy(&out.stdout).to_string();
-                Ok(stdout.trim().to_string())
-            } else {
-                let stderr = String::from_utf8_lossy(&out.stderr).to_string();
-                Err(stderr.trim().to_string())
-            }
+    if command.len() > 1000 || command.contains('\n') {
+        let temp_dir = std::env::temp_dir();
+        let temp_file_path = temp_dir.join(format!("qc_script_{}.ps1", std::process::id()));
+        
+        if let Err(e) = fs::write(&temp_file_path, &command) {
+            return Err(format!("Failed to write temp script file: {}", e));
         }
-        Err(err) => Err(err.to_string()),
+        
+        let output = Command::new("powershell")
+            .arg("-NoProfile")
+            .arg("-ExecutionPolicy")
+            .arg("Bypass")
+            .arg("-File")
+            .arg(&temp_file_path)
+            .output();
+            
+        let _ = fs::remove_file(&temp_file_path);
+        
+        match output {
+            Ok(out) => {
+                if out.status.success() {
+                    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+                    Ok(stdout.trim().to_string())
+                } else {
+                    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+                    Err(stderr.trim().to_string())
+                }
+            }
+            Err(err) => Err(err.to_string()),
+        }
+    } else {
+        let output = Command::new("powershell")
+            .arg("-NoProfile")
+            .arg("-Command")
+            .arg(&command)
+            .output();
+            
+        match output {
+            Ok(out) => {
+                if out.status.success() {
+                    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+                    Ok(stdout.trim().to_string())
+                } else {
+                    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+                    Err(stderr.trim().to_string())
+                }
+            }
+            Err(err) => Err(err.to_string()),
+        }
     }
 }
 
@@ -220,6 +252,50 @@ fn get_app_version(app: tauri::AppHandle) -> String {
     app.package_info().version.to_string()
 }
 
+// 9. HTTP POST proxy — sends JSON payload to external API (bypasses WebView fetch restrictions)
+#[tauri::command]
+async fn http_post(url: String, body: String, token: String) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .header("Authorization", format!("Bearer {}", token))
+        .body(body)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let status = response.status().as_u16();
+    let text = response.text().await.map_err(|e| e.to_string())?;
+
+    if status >= 200 && status < 300 {
+        Ok(text)
+    } else {
+        Err(format!("HTTP {}: {}", status, text))
+    }
+}
+
+// 10. HTTP GET proxy — retrieves data from external API (bypasses WebView fetch restrictions)
+#[tauri::command]
+async fn http_get(url: String, token: String) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let response = client
+        .get(&url)
+        .header("Authorization", format!("Bearer {}", token))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let status = response.status().as_u16();
+    let text = response.text().await.map_err(|e| e.to_string())?;
+
+    if status >= 200 && status < 300 {
+        Ok(text)
+    } else {
+        Err(format!("HTTP {}: {}", status, text))
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -242,7 +318,9 @@ pub fn run() {
             save_table_file,
             read_file_content,
             window_control,
-            get_app_version
+            get_app_version,
+            http_post,
+            http_get
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

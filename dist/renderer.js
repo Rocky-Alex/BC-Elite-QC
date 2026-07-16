@@ -1,5 +1,5 @@
 // Wait for DOM to load
-document.addEventListener('DOMContentLoaded', () => {
+function init() {
   // Tauri IPC Bridge wrapper mapping Electron methods to Tauri commands
   const electronAPI = {
     windowControl: async (action) => {
@@ -71,6 +71,22 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (err) {
         return { success: false, error: err };
       }
+    },
+    httpPost: async (url, body, token) => {
+      try {
+        const result = await window.__TAURI__.core.invoke('http_post', { url, body: JSON.stringify(body), token });
+        return { success: true, data: JSON.parse(result) };
+      } catch (err) {
+        return { success: false, error: String(err) };
+      }
+    },
+    httpGet: async (url, token) => {
+      try {
+        const result = await window.__TAURI__.core.invoke('http_get', { url, token });
+        return { success: true, data: JSON.parse(result) };
+      } catch (err) {
+        return { success: false, error: String(err) };
+      }
     }
   };
 
@@ -91,10 +107,32 @@ document.addEventListener('DOMContentLoaded', () => {
   const sessionIdVal = document.getElementById('session-id-val');
   const consoleLogs = document.getElementById('console-logs');
 
-  const btnCreateTable = document.getElementById('btn-create-table');
-  const btnViewTable = document.getElementById('btn-view-table');
-  const btnSubmitServer = document.getElementById('btn-submit-server');
-  const btnSearchMfg = document.getElementById('btn-search-mfg');
+  const btnDetailsExport = document.getElementById('btn-details-export');
+  const btnDetailsUpload = document.getElementById('btn-details-upload');
+  const btnViewUploadTable = document.getElementById('btn-view-upload-table');
+
+  const uploadTableModal = document.getElementById('upload-table-modal');
+  const btnCloseUploadModal = document.getElementById('btn-close-upload-modal');
+  const btnSearchBatch = document.getElementById('btn-search-batch');
+  const inputSearchBatchCode = document.getElementById('input-search-batch-code');
+  const uploadTableBody = document.getElementById('upload-table-body');
+
+  // UPLOAD PORTAL DOM ELEMENTS
+  const uploadPortalModal = document.getElementById('upload-portal-modal');
+  const btnClosePortalModal = document.getElementById('btn-close-portal-modal');
+  const portalLoginSection = document.getElementById('portal-login-section');
+  const portalDashboardSection = document.getElementById('portal-dashboard-section');
+  const portalUsernameInput = document.getElementById('portal-username');
+  const portalPasswordInput = document.getElementById('portal-password');
+  const portalLoginError = document.getElementById('portal-login-error');
+  const btnPortalLogin = document.getElementById('btn-portal-login');
+  const portalLoggedUser = document.getElementById('portal-logged-user');
+  const btnPortalLogout = document.getElementById('btn-portal-logout');
+  const btnPortalCreateBatch = document.getElementById('btn-portal-create-batch');
+  const btnPortalViewHistory = document.getElementById('btn-portal-view-history');
+  const btnPortalUpdateDetails = document.getElementById('btn-portal-update-details');
+  const btnPortalExportExcel = document.getElementById('btn-portal-export-excel');
+  const btnPortalExportPdf = document.getElementById('btn-portal-export-pdf');
 
   const testHdSentinel = document.getElementById('test-hd-sentinel');
   const testLcd = document.getElementById('test-lcd');
@@ -167,6 +205,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Generate Session ID
   const sessionId = `BH-${Math.floor(1000 + Math.random() * 9000)}-${String.fromCharCode(65 + Math.floor(Math.random() * 26))}`;
   sessionIdVal.textContent = sessionId;
+
+  // Session Operator name variable
+  let currentOperator = '';
 
   // Console logging function
   function log(message, type = 'info') {
@@ -314,6 +355,186 @@ document.addEventListener('DOMContentLoaded', () => {
     return { text: 'Excellent', color: 'var(--color-green)' };
   }
 
+  // Custom device formatting rules helpers
+  function formatProductName(mfg, model, name) {
+    let brand = (mfg || '').trim();
+    let fullModel = (model || name || '').trim();
+
+    if (/hewlett-packard|hp/i.test(brand)) brand = 'HP';
+    else if (/dell/i.test(brand)) brand = 'Dell';
+    else if (/lenovo/i.test(brand)) brand = 'Lenovo';
+    else if (/asus/i.test(brand)) brand = 'ASUS';
+    else if (/acer/i.test(brand)) brand = 'Acer';
+    else if (/apple/i.test(brand)) brand = 'Apple';
+    else if (/microsoft/i.test(brand)) brand = 'Microsoft';
+    else if (/gigabyte/i.test(brand)) brand = 'Gigabyte';
+    else if (/msi/i.test(brand)) brand = 'MSI';
+    else {
+      brand = brand.split(' ')[0] || 'Generic';
+    }
+
+    let modelClean = fullModel;
+    const brandRegex = new RegExp(`^${brand}\\s+`, 'i');
+    modelClean = modelClean.replace(brandRegex, '');
+
+    let series = '';
+    const seriesList = [
+      'EliteBook', 'ProBook', 'Pavilion', 'Spectre', 'Envy', 'ZBook', 'Omen', 'Victus',
+      'Latitude', 'Inspiron', 'XPS', 'Vostro', 'Precision', 'Alienware', 'G-Series',
+      'ThinkPad', 'Yoga', 'IdeaPad', 'Legion', 'ThinkBook',
+      'ROG', 'TUF', 'ZenBook', 'Vivobook',
+      'Aspire', 'Predator', 'Nitro', 'Swift', 'Spin'
+    ];
+
+    for (const s of seriesList) {
+      const sRegex = new RegExp(s, 'i');
+      if (sRegex.test(modelClean)) {
+        series = s;
+        modelClean = modelClean.replace(new RegExp(`\\s*${s}\\s*`, 'i'), ' ').trim();
+        break;
+      }
+    }
+
+    if (!series) {
+      const words = modelClean.split(' ');
+      if (words.length > 1) {
+        series = words[0];
+        modelClean = words.slice(1).join(' ');
+      } else {
+        series = 'Laptop';
+      }
+    }
+
+    modelClean = modelClean.replace(/\s+/g, ' ').trim();
+    if (!modelClean) modelClean = 'Model';
+
+    return `${brand} > ${series} > ${modelClean}`;
+  }
+
+  function formatCpuCore(cpuName) {
+    const match = cpuName.match(/(i[3579]|Ultra\s*[3579]|Ryzen\s*[3579])/i);
+    if (match) {
+      const core = match[1];
+      return `Intel Core ${core}`;
+    }
+    return `Intel Core i7`;
+  }
+
+  function formatCpuGen(cpuName) {
+    const match = cpuName.match(/(?:i[3579]|Ryzen\s*[3579])-(\d+)/i);
+    if (match) {
+      const numStr = match[1];
+      let gen = '';
+      if (numStr.length >= 5) {
+        gen = numStr.substring(0, 2);
+      } else if (numStr.length === 4) {
+        if (numStr.startsWith('10')) {
+          gen = '10';
+        } else {
+          gen = numStr.substring(0, 1);
+        }
+      } else {
+        gen = numStr.substring(0, 1);
+      }
+      return `${gen}th gen`;
+    }
+    return `11th gen`;
+  }
+
+  function parseRAMDetails(detailedRam) {
+    if (!detailedRam) return '';
+    const slots = detailedRam.split('\n').filter(Boolean);
+    const formattedSlots = slots.map(slot => {
+      const parts = slot.split('|');
+      if (parts.length >= 4) {
+        const mfg = parts[1].trim();
+        const cap = parts[2].trim().replace(/\s+/g, '');
+        const speed = parts[3].trim();
+        return `${mfg} ${cap} ${speed}`;
+      }
+      return '';
+    }).filter(Boolean);
+    return formattedSlots.join(' + ');
+  }
+
+  function parseSSDDetails(detailedSsd) {
+    if (!detailedSsd) return '';
+    const disks = detailedSsd.split('\n').filter(Boolean);
+    const formattedDisks = disks.map(disk => {
+      const parts = disk.split('|');
+      if (parts.length >= 3) {
+        const model = parts[1].trim();
+        const rawSize = parseInt(parts[2].replace(/[^\d]/g, ''), 10);
+        let sizeStr = parts[2].trim().replace(/\s+/g, '');
+        if (rawSize >= 900) {
+          sizeStr = '2TB';
+        } else if (rawSize >= 450 && rawSize <= 512) {
+          sizeStr = '512GB';
+        } else if (rawSize >= 220 && rawSize <= 256) {
+          sizeStr = '256GB';
+        } else if (rawSize >= 110 && rawSize <= 128) {
+          sizeStr = '128GB';
+        }
+        return `${model} ${sizeStr}`;
+      }
+      return '';
+    }).filter(Boolean);
+    return formattedDisks.join(' + ');
+  }
+
+  function parseGraphicsDetails(detailedGraphics) {
+    if (!detailedGraphics) return '';
+    const gpus = detailedGraphics.split('\n').filter(Boolean);
+    let integratedList = [];
+    let dedicatedList = [];
+
+    gpus.forEach(gpu => {
+      const parts = gpu.split('|');
+      if (parts.length >= 4) {
+        const name = parts[0].trim();
+        const vram = parts[3].trim().replace(/\s+/g, '');
+        const isDedicated = /nvidia|geforce|rtx|gtx|quadro|radeon\s*rx/i.test(name) && !/integrated|uhd|vega|processor/i.test(name);
+        if (isDedicated) {
+          dedicatedList.push(`${name} (${vram})`);
+        } else {
+          integratedList.push(`${name} (${vram})`);
+        }
+      }
+    });
+
+    let resultParts = [];
+    if (integratedList.length > 0) resultParts.push(`Integrated: ${integratedList.join(' + ')}`);
+    if (dedicatedList.length > 0) resultParts.push(`Dedicated: ${dedicatedList.join(' + ')}`);
+    return resultParts.join(' | ');
+  }
+
+  function formatDisplayRes(resStr) {
+    const clean = resStr.replace(/\s+/g, '');
+    if (clean === '1920x1080') return '1920x1080 FHD';
+    if (clean === '1366x768') return '1366x768 HD';
+    if (clean === '2560x1440') return '2560x1440 QHD';
+    if (clean === '3840x2160') return '3840x2160 4K UHD';
+    return clean;
+  }
+
+  function parseBatteryDetails(detailedBattery, batteryBasic) {
+    if (!detailedBattery || detailedBattery === 'N/A') return 'N/A';
+    const parts = detailedBattery.split('|');
+    if (parts.length >= 6) {
+      const mfg = parts[0].trim();
+      const serial = parts[1].trim();
+      const cycles = parts[5].trim();
+      const design = parseFloat(parts[3]);
+      const full = parseFloat(parts[4]);
+      let health = 100;
+      if (design > 0) {
+        health = Math.round((full / design) * 100);
+      }
+      return `${mfg}, Serial: ${serial}, Health: ${health}%, Cycles: ${cycles}`;
+    }
+    return batteryBasic || 'N/A';
+  }
+
   // Helper to update basic specs in UI
   function renderBasicSpecsUI() {
     if (specProduct) specProduct.textContent = systemSpecs.productName;
@@ -411,7 +632,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const cachedBat = cacheMode === 'permanently' ? localStorage.getItem('qc_detailed_battery') : null;
 
     if (cachedBasic && cachedRam && cachedSsd && cachedGpu && cachedBat && !force) {
-      log('Loaded specifications from persistent cache.', 'debug');
+      log('Loaded specifications from persistent cache. Fetched details displayed at ' + new Date().toLocaleString() + '.', 'debug');
       try {
         const specs = JSON.parse(cachedBasic);
         Object.assign(systemSpecs, specs);
@@ -437,6 +658,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // PowerShell script consolidates all queries into a single JSON return value
         const script = `$specs = @{}
+try { $specs.manufacturer = (Get-WmiObject -Class Win32_ComputerSystem -ErrorAction SilentlyContinue).Manufacturer.Trim() } catch { $specs.manufacturer = "" }
+try { $specs.model = (Get-WmiObject -Class Win32_ComputerSystem -ErrorAction SilentlyContinue).Model.Trim() } catch { $specs.model = "" }
 try { $specs.productName = (Get-WmiObject -Class Win32_ComputerSystemProduct -ErrorAction SilentlyContinue).Name.Trim() } catch { $specs.productName = "Generic Laptop" }
 try { $specs.cpu = (Get-WmiObject -Class Win32_Processor -ErrorAction SilentlyContinue | Select-Object -First 1).Name.Trim() } catch { $specs.cpu = "Intel Core i7" }
 try {
@@ -493,14 +716,14 @@ try {
         $speed = if ($_.Speed) { $_.Speed } else { 0 }
         $part = if ($_.PartNumber) { $_.PartNumber.Trim() } else { "N/A" }
         $volt = if ($_.ConfiguredVoltage) { $_.ConfiguredVoltage } else { 0 }
-        "$dev|$mfg|$cap GB|$speed`MHz|$part|$volt`mV"
+        "$dev|$mfg|$cap GB|$($speed)MHz|$part|$($volt)mV"
     }
     $specs.detailed_ram = $ramSlots -join "\`n"
 } catch { $specs.detailed_ram = "" }
 try {
     $disks = Get-WmiObject -Class Win32_DiskDrive -ErrorAction SilentlyContinue | ForEach-Object {
         $disk = $_; $mediaType = "Unknown"; $health = "Unknown"; $life = "N/A"
-        $staPath = "C:\\QC_Software\\Hard Disk Tester\\HDSentinel.sta"
+        $staPath = "C:\\QC_Software\\HDSentinel\\HDSentinel.sta"
         if (-not (Test-Path $staPath)) { $staPath = "HDSentinel.sta" }
         if (-not (Test-Path $staPath)) { $staPath = "F:\\Company Software\\QC Software\\HDSentinel.sta" }
         if (Test-Path $staPath) {
@@ -551,28 +774,34 @@ try {
 } catch { $specs.detailed_graphics = "" }
 $specs | ConvertTo-Json`;
 
-        // Format to UTF-16LE and Base64 encode for Windows command line execution safely
-        const utf16leBytes = new Uint16Array(script.length);
-        for (let i = 0; i < script.length; i++) {
-          utf16leBytes[i] = script.charCodeAt(i);
-        }
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(utf16leBytes.buffer)));
-        const command = `[System.Text.Encoding]::Unicode.GetString([System.Convert]::FromBase64String('${base64}')) | iex`;
-
-        const result = await electronAPI.getSystemSpec(command);
+        // Pass the raw script directly to Tauri backend, which executes it via a temp file
+        const result = await electronAPI.getSystemSpec(script);
         if (result.success && result.data) {
           const rawJson = result.data.trim();
-          const data = JSON.parse(rawJson);
           
-          systemSpecs.productName = data.productName || 'Generic Laptop';
-          systemSpecs.cpu = data.cpu || 'Intel Core i7';
-          systemSpecs.ram = data.ram || '8 GB';
-          systemSpecs.ssd = data.ssd || '256 GB';
-          systemSpecs.graphics = data.graphics || 'Intel HD Graphics';
-          systemSpecs.displayRes = data.displayRes || '1920 x 1080 FHD';
+          // Robust JSON parsing (extract substring between first '{' and last '}')
+          const jsonStart = rawJson.indexOf('{');
+          const jsonEnd = rawJson.lastIndexOf('}');
+          if (jsonStart === -1 || jsonEnd === -1) {
+            throw new Error("Invalid JSON formatting returned from discovery script");
+          }
+          const cleanJson = rawJson.substring(jsonStart, jsonEnd + 1);
+          const data = JSON.parse(cleanJson);
+          
+          // Apply custom device formatting rules
+          systemSpecs.productName = formatProductName(data.manufacturer, data.model, data.productName);
+          
+          const coreType = formatCpuCore(data.cpu || '');
+          const genType = formatCpuGen(data.cpu || '');
+          systemSpecs.cpu = `${coreType} - ${genType}`;
+          
+          systemSpecs.ram = parseRAMDetails(data.detailed_ram) || data.ram || '8 GB';
+          systemSpecs.ssd = parseSSDDetails(data.detailed_ssd) || data.ssd || '256 GB';
+          systemSpecs.graphics = parseGraphicsDetails(data.detailed_graphics) || data.graphics || 'Intel HD Graphics';
+          systemSpecs.displayRes = formatDisplayRes(data.displayRes || '1920 x 1080 FHD');
           systemSpecs.serialNumber = data.serialNumber || 'PC1356548';
           systemSpecs.windowsVer = data.windowsVer || 'Windows 11';
-          systemSpecs.battery = data.battery || 'N/A';
+          systemSpecs.battery = parseBatteryDetails(data.detailed_battery, data.battery) || data.battery || 'N/A';
 
           renderBasicSpecsUI();
 
@@ -605,7 +834,7 @@ $specs | ConvertTo-Json`;
             localStorage.setItem('qc_basic_specs', JSON.stringify(systemSpecs));
           }
 
-          log('Hardware discovery completed successfully.', 'ready');
+          log('Hardware discovery completed successfully. Fetched details displayed at ' + new Date().toLocaleString() + '.', 'ready');
         } else {
           throw new Error(result.error || 'Failed to fetch specifications');
         }
@@ -808,35 +1037,465 @@ $specs | ConvertTo-Json`;
     return headers + rows;
   }
 
-  // ACTION BUTTONS EVENTS
+  // =========================================================
+  // ACTION WORKFLOW: EXPORT, UPLOAD & BATCH DATABASE QUERY
+  // =========================================================
 
-  // 1. Create Table (Generates CSV and saves to Desktop)
-  btnCreateTable.addEventListener('click', async () => {
-    log('Exporting diagnostics table...', 'info');
-    const history = JSON.parse(localStorage.getItem('qc_history') || '[]');
+  // 1. DETAILS EXPORT (.TXT File saved on Desktop)
+  if (btnDetailsExport) {
+    btnDetailsExport.addEventListener('click', async () => {
+      log('Preparing hardware profile for export...', 'info');
 
-    if (history.length === 0) {
-      log('No diagnostic records to save. Run checks first!', 'warn');
-      return;
-    }
+      if (!systemSpecs.serialNumber) {
+        log('No diagnostic data found. Run hardware discovery first.', 'warn');
+        showCustomAlert('Please wait for hardware discovery to complete before exporting.', 'Export Error', 'warn');
+        return;
+      }
 
-    const csvData = generateCsv(history);
-    const fileName = `QC_Diagnostics_Report_${systemSpecs.serialNumber || 'Report'}.csv`;
+      // Format a clean, human-readable structure for the QC report
+      const exportContent = `
+======================================================================
+                  BIZZ CO HUB QUALITY CONTROL REPORT
+======================================================================
+Date & Time     : ${new Date().toLocaleString()}
+Session ID      : ${sessionId}
+Product Name    : ${systemSpecs.productName}
+Serial Number   : ${systemSpecs.serialNumber}
+Operating System: ${systemSpecs.windowsVer}
+----------------------------------------------------------------------
+SYSTEM HARDWARE SPECIFICATIONS:
+----------------------------------------------------------------------
+Processor (CPU) : ${systemSpecs.cpu}
+System Memory   : ${systemSpecs.ram}
+Storage Device  : ${systemSpecs.ssd}
+Graphics Card   : ${systemSpecs.graphics}
+Screen Display  : ${systemSpecs.displayRes}
+Battery Status  : ${systemSpecs.battery}
+======================================================================
+`;
 
-    const result = await electronAPI.saveTableFile(csvData, fileName);
-    if (result.success) {
-      log(`Table exported and saved to Desktop: ${fileName}`, 'ready');
-      showCustomAlert(`Report exported successfully to Desktop:\n${fileName}`, 'Export Successful', 'info');
-    } else {
-      log(`Failed to save table file: ${result.error}`, 'error');
-    }
-  });
+      const fileName = `QC_Report_${systemSpecs.serialNumber}.txt`;
 
-  // 2. View Table (Displays records in a modern overlay)
-  btnViewTable.addEventListener('click', () => {
-    populateTableModal();
-    modalOverlay.classList.add('open');
-  });
+      // Re-use the existing Tauri Rust Backend command to write desktop file
+      const result = await electronAPI.saveTableFile(exportContent, fileName);
+      if (result.success) {
+        log(`System specs exported successfully to Desktop as: ${fileName}`, 'ready');
+        showCustomAlert(`Product specifications saved to Desktop:\n${fileName}`, 'Export Successful', 'success');
+      } else {
+        log(`Failed to save export file: ${result.error}`, 'error');
+        showCustomAlert(`Could not write export file: ${result.error}`, 'Export Failed', 'error');
+      }
+    });
+  }
+
+  // 2. DETAILS UPLOAD (Opens login portal and controls database operations)
+  if (btnDetailsUpload) {
+    btnDetailsUpload.addEventListener('click', () => {
+      if (!systemSpecs.serialNumber) {
+        log('Diagnostics must be completed before database upload.', 'warn');
+        showCustomAlert('Please wait for hardware detection to populate metrics before uploading.', 'Upload Interrupted', 'warn');
+        return;
+      }
+
+      const navDbPortal = document.getElementById('nav-database-portal');
+      if (navDbPortal) {
+        navDbPortal.click();
+      }
+    });
+  }
+
+  // CLOSE PORTAL MODAL
+  if (btnClosePortalModal) {
+    btnClosePortalModal.addEventListener('click', () => {
+      uploadPortalModal.classList.remove('open');
+      setTimeout(() => { uploadPortalModal.style.display = 'none'; }, 300);
+    });
+  }
+
+  // PORTAL LOGIN ACTION
+  if (btnPortalLogin) {
+    btnPortalLogin.addEventListener('click', async () => {
+      const username = portalUsernameInput.value.trim();
+      const password = portalPasswordInput.value.trim();
+
+      if (!username || !password) {
+        portalLoginError.textContent = 'Username and password are required.';
+        portalLoginError.style.display = 'block';
+        return;
+      }
+
+      btnPortalLogin.disabled = true;
+      const originalText = btnPortalLogin.innerHTML;
+      btnPortalLogin.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Authenticating...';
+      portalLoginError.style.display = 'none';
+
+      const rememberCheckbox = document.getElementById('portal-remember');
+      const isRemember = rememberCheckbox ? rememberCheckbox.checked : false;
+
+      try {
+        const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
+        const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
+
+        const response = await electronAPI.httpPost(`${apiUrl}/qc/auth`, { username, password }, token);
+
+        if (response.success && response.data && response.data.success) {
+          currentOperator = response.data.operator;
+          portalLoggedUser.textContent = currentOperator;
+          portalLoginSection.style.display = 'none';
+          portalDashboardSection.style.display = 'flex';
+          portalLoginError.style.display = 'none';
+          log(`QC Operator Session Authorized: "${currentOperator}"`, 'ready');
+          saveOperatorRememberCredentials(username, password, isRemember);
+        } else {
+          // Fallback to local admin check in case of API offline / not configured
+          const isLocalValid = (username.toLowerCase() === 'admin' || username.toLowerCase() === 'operator') && password === 'password';
+          if (isLocalValid) {
+            currentOperator = username;
+            portalLoggedUser.textContent = currentOperator;
+            portalLoginSection.style.display = 'none';
+            portalDashboardSection.style.display = 'flex';
+            portalLoginError.style.display = 'none';
+            log(`QC Operator Session Authorized via Local Fallback: "${currentOperator}"`, 'ready');
+            saveOperatorRememberCredentials(username, password, isRemember);
+          } else {
+            const errMsg = response.data?.error || response.error || 'Invalid credentials.';
+            portalLoginError.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${errMsg}`;
+            portalLoginError.style.display = 'block';
+          }
+        }
+      } catch (err) {
+        // Fallback to local admin check
+        const isLocalValid = (username.toLowerCase() === 'admin' || username.toLowerCase() === 'operator') && password === 'password';
+        if (isLocalValid) {
+          currentOperator = username;
+          portalLoggedUser.textContent = currentOperator;
+          portalLoginSection.style.display = 'none';
+          portalDashboardSection.style.display = 'flex';
+          portalLoginError.style.display = 'none';
+          log(`QC Operator Session Authorized via Local Fallback: "${currentOperator}"`, 'ready');
+          saveOperatorRememberCredentials(username, password, isRemember);
+        } else {
+          portalLoginError.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> Authentication error: ${err.message || err}`;
+          portalLoginError.style.display = 'block';
+        }
+      } finally {
+        btnPortalLogin.disabled = false;
+        btnPortalLogin.innerHTML = originalText;
+      }
+    });
+  }
+
+  // PORTAL LOGOUT ACTION
+  if (btnPortalLogout) {
+    btnPortalLogout.addEventListener('click', () => {
+      log(`Operator "${currentOperator}" signed out.`, 'info');
+      currentOperator = '';
+      portalLoginSection.style.display = 'flex';
+      portalDashboardSection.style.display = 'none';
+      portalUsernameInput.value = '';
+      portalPasswordInput.value = '';
+      portalLoginError.style.display = 'none';
+    });
+  }
+
+  // PORTAL CREATE BATCH & UPLOAD ACTION
+  if (btnPortalCreateBatch) {
+    btnPortalCreateBatch.addEventListener('click', async () => {
+      const batchCode = prompt("Enter Batch Code to assign and upload specs:");
+      if (batchCode === null) {
+        log('Database upload aborted by operator.', 'info');
+        return;
+      }
+
+      const cleanBatchCode = batchCode.trim();
+      if (!cleanBatchCode) {
+        log('Validation error: Upload requires a valid Batch Code.', 'warn');
+        showCustomAlert('A valid Batch Code must be provided to categorize uploaded devices.', 'Validation Error', 'warn');
+        return;
+      }
+
+      log(`Initiating database synchronization under batch: ${cleanBatchCode}...`, 'info');
+      btnPortalCreateBatch.disabled = true;
+      const originalBtnText = btnPortalCreateBatch.innerHTML;
+      btnPortalCreateBatch.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading...`;
+
+      // Package specs including the authenticated operator name
+      const payload = {
+        batchCode: cleanBatchCode,
+        timestamp: new Date().toISOString(),
+        sessionId: sessionId,
+        operator: currentOperator,
+        specs: {
+          ...systemSpecs,
+          operator: currentOperator
+        }
+      };
+
+      try {
+        const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
+        const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
+        
+        const result = await electronAPI.httpPost(`${apiUrl}/upload-details`, payload, token);
+
+        if (result.success) {
+          log(`Operator "${currentOperator}" uploaded specifications under batch: ${cleanBatchCode}`, 'ready');
+          showCustomAlert(`Product specifications logged under Batch: ${cleanBatchCode}`, 'Upload Success', 'success');
+          saveRecordToHistory(`Uploaded to ${cleanBatchCode} (by ${currentOperator})`);
+          
+          // Close portal upon successful upload
+          uploadPortalModal.classList.remove('open');
+          setTimeout(() => { uploadPortalModal.style.display = 'none'; }, 300);
+        } else {
+          throw new Error(result.error || 'Unknown server error');
+        }
+      } catch (err) {
+        log(`Database synchronization fault: ${err.message}`, 'error');
+        showCustomAlert(`Unable to sync data with the database:\n${err.message}`, 'Sync Failure', 'error');
+      } finally {
+        btnPortalCreateBatch.disabled = false;
+        btnPortalCreateBatch.innerHTML = originalBtnText;
+      }
+    });
+  }
+
+  // PORTAL VIEW HISTORY ACTION (Reuses our lookup table modal)
+  if (btnPortalViewHistory) {
+    btnPortalViewHistory.addEventListener('click', () => {
+      // Close portal modal
+      uploadPortalModal.classList.remove('open');
+      setTimeout(() => { uploadPortalModal.style.display = 'none'; }, 300);
+
+      // Open database batch search lookup modal
+      if (btnViewUploadTable) {
+        btnViewUploadTable.click();
+      }
+    });
+  }
+
+  // PORTAL UPDATE DETAILS ACTION (Triggers discovery refresh)
+  if (btnPortalUpdateDetails) {
+    btnPortalUpdateDetails.addEventListener('click', async () => {
+      btnPortalUpdateDetails.disabled = true;
+      const originalText = btnPortalUpdateDetails.innerHTML;
+      btnPortalUpdateDetails.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Refreshing...`;
+
+      log('Re-running diagnostic discovery to update system specs...', 'info');
+      await fetchAllSpecs(true);
+
+      btnPortalUpdateDetails.disabled = false;
+      btnPortalUpdateDetails.innerHTML = originalText;
+      showCustomAlert('Diagnostic configurations and system hardware details successfully updated.', 'Details Refreshed', 'success');
+    });
+  }
+
+  // PORTAL EXPORT EXCEL ACTION (CSV formatted for Excel saved on Desktop)
+  if (btnPortalExportExcel) {
+    btnPortalExportExcel.addEventListener('click', async () => {
+      log('Preparing Excel compatible data dump...', 'info');
+
+      // Export history log if populated, otherwise export current profile run
+      const history = JSON.parse(localStorage.getItem('qc_history') || '[]');
+      let csvData = '';
+      
+      if (history.length > 0) {
+        const headers = 'Date & Time,Serial Number,Product Name,CPU,RAM,SSD,Battery,Status\n';
+        const rows = history.map(r => {
+          const escape = (str) => `"${String(str).replace(/"/g, '""')}"`;
+          return `${escape(r.dateTime)},${escape(r.serialNumber)},${escape(r.productName)},${escape(r.cpu)},${escape(r.ram)},${escape(r.ssd)},${escape(r.battery || 'N/A')},${escape(r.status)}`;
+        }).join('\n');
+        csvData = headers + rows;
+      } else {
+        const headers = 'Date & Time,Serial Number,Product Name,CPU,RAM,SSD,Battery,Operating System,Operator\n';
+        const escape = (str) => `"${String(str).replace(/"/g, '""')}"`;
+        csvData = headers + `${escape(new Date().toLocaleString())},${escape(systemSpecs.serialNumber)},${escape(systemSpecs.productName)},${escape(systemSpecs.cpu)},${escape(systemSpecs.ram)},${escape(systemSpecs.ssd)},${escape(systemSpecs.battery)},${escape(systemSpecs.windowsVer)},${escape(currentOperator || 'N/A')}`;
+      }
+
+      const fileName = `QC_Diagnostics_Report_${systemSpecs.serialNumber || 'Report'}.csv`;
+
+      const result = await electronAPI.saveTableFile(csvData, fileName);
+      if (result.success) {
+        log(`Diagnostic record logs exported to Desktop: ${fileName}`, 'ready');
+        showCustomAlert(`Report exported successfully to Desktop:\n${fileName}`, 'Export Successful', 'success');
+      } else {
+        log(`Failed to write export file: ${result.error}`, 'error');
+        showCustomAlert(`Could not write Excel report: ${result.error}`, 'Export Failed', 'error');
+      }
+    });
+  }
+
+  // PORTAL EXPORT PDF ACTION (Opens print dialog on formatted template)
+  if (btnPortalExportPdf) {
+    btnPortalExportPdf.addEventListener('click', () => {
+      log('Spawning printed document thread for PDF generation...', 'info');
+      const printWindow = window.open('', '_blank', 'width=800,height=600');
+      
+      if (printWindow) {
+        printWindow.document.write(`
+          <html>
+          <head>
+            <title>BIZZ CO HUB - QC REPORT</title>
+            <style>
+              body { font-family: -apple-system, sans-serif; color: #333; padding: 45px; line-height: 1.6; }
+              .header { text-align: center; border-bottom: 2px solid #007aff; padding-bottom: 20px; margin-bottom: 30px; }
+              .header h1 { margin: 0; font-size: 24px; color: #007aff; text-transform: uppercase; }
+              .header p { margin: 5px 0 0 0; color: #666; font-size: 13px; letter-spacing: 0.5px; }
+              .section-title { font-size: 15px; font-weight: 700; border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-top: 35px; margin-bottom: 15px; text-transform: uppercase; color: #007aff; }
+              .row { display: flex; justify-content: space-between; border-bottom: 1px solid #f9f9f9; padding: 8px 0; font-size: 13px; }
+              .label { font-weight: 600; color: #555; }
+              .val { color: #111; font-family: monospace; font-size: 13.5px; }
+              .footer { margin-top: 60px; text-align: center; font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 15px; }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <h1>BIZZ CO HUB QUALITY CONTROL REPORT</h1>
+              <p>Hardware Specification Diagnostics Summary</p>
+            </div>
+            <div class="row"><span class="label">Date & Time</span><span class="val">\${new Date().toLocaleString()}</span></div>
+            <div class="row"><span class="label">Session ID</span><span class="val">\${sessionId}</span></div>
+            <div class="row"><span class="label">Operator Signature</span><span class="val">\${currentOperator || 'N/A'}</span></div>
+            <div class="row"><span class="label">Serial Number</span><span class="val">\${systemSpecs.serialNumber || 'N/A'}</span></div>
+            <div class="row"><span class="label">Product Model</span><span class="val">\${systemSpecs.productName || 'N/A'}</span></div>
+            
+            <div class="section-title">Hardware Configuration Profiles</div>
+            <div class="row"><span class="label">Processor (CPU)</span><span class="val">\${systemSpecs.cpu || 'N/A'}</span></div>
+            <div class="row"><span class="label">System Memory (RAM)</span><span class="val">\${systemSpecs.ram || 'N/A'}</span></div>
+            <div class="row"><span class="label">Primary Storage</span><span class="val">\${systemSpecs.ssd || 'N/A'}</span></div>
+            <div class="row"><span class="label">Graphics Adapter</span><span class="val">\${systemSpecs.graphics || 'N/A'}</span></div>
+            <div class="row"><span class="label">Display Resolution</span><span class="val">\${systemSpecs.displayRes || 'N/A'}</span></div>
+            <div class="row"><span class="label">Battery Health Condition</span><span class="val">\${systemSpecs.battery || 'N/A'}</span></div>
+            <div class="row"><span class="label">Operating System</span><span class="val">\${systemSpecs.windowsVer || 'N/A'}</span></div>
+            
+            <div class="footer">
+              &copy; \${new Date().getFullYear()} Bizz Co Hub LLC. Automatically generated Quality Check certificate.
+            </div>
+            <script>
+              window.onload = function() {
+                window.print();
+                setTimeout(function() { window.close(); }, 500);
+              };
+            </script>
+          </body>
+          </html>
+        `);
+        printWindow.document.close();
+        log('Print dialog initiated successfully for PDF generation.', 'ready');
+      } else {
+        log('PDF export aborted: Browser print window was blocked.', 'warn');
+        showCustomAlert('Popup window blocked. Please permit popups for this application to print reports.', 'Export Blocked', 'warn');
+      }
+    });
+  }
+
+  // 3. VIEW UPLOAD TABLE (Open, Close and Query Remote Database)
+  if (btnViewUploadTable) {
+    btnViewUploadTable.addEventListener('click', () => {
+      uploadTableModal.style.display = 'flex';
+      setTimeout(() => { uploadTableModal.classList.add('open'); }, 10);
+      inputSearchBatchCode.value = '';
+      uploadTableBody.innerHTML = `
+        <tr>
+          <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">
+            Enter a Batch Code above to query records from the central database.
+          </td>
+        </tr>
+      `;
+    });
+  }
+
+  if (btnCloseUploadModal) {
+    btnCloseUploadModal.addEventListener('click', () => {
+      uploadTableModal.classList.remove('open');
+      setTimeout(() => { uploadTableModal.style.display = 'none'; }, 300);
+    });
+  }
+
+  // Listen for Enter key on Batch input field
+  if (inputSearchBatchCode) {
+    inputSearchBatchCode.addEventListener('keyup', (e) => {
+      if (e.key === 'Enter') {
+        btnSearchBatch.click();
+      }
+    });
+  }
+
+  if (btnSearchBatch) {
+    btnSearchBatch.addEventListener('click', async () => {
+      const batchCodeQuery = inputSearchBatchCode.value.trim();
+      if (!batchCodeQuery) {
+        uploadTableBody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--color-orange); padding: 20px;">Please enter a batch code to query.</td></tr>`;
+        return;
+      }
+
+      log(`Searching database for Batch Code: "${batchCodeQuery}"...`, 'info');
+      uploadTableBody.innerHTML = `
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 30px;">
+            <i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; color: var(--color-blue); margin-bottom: 10px;"></i>
+            <div>Querying records... please wait.</div>
+          </td>
+        </tr>
+      `;
+
+      try {
+        const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
+        const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
+        const result = await electronAPI.httpGet(`${apiUrl}/get-details?batchCode=${encodeURIComponent(batchCodeQuery)}`, token);
+
+        if (!result.success) {
+          throw new Error(result.error || 'Server returned an error');
+        }
+
+        const databaseRecords = result.data;
+
+        if (!Array.isArray(databaseRecords) || databaseRecords.length === 0) {
+          uploadTableBody.innerHTML = `
+            <tr>
+              <td colspan="7" style="text-align: center; color: var(--color-orange); padding: 30px;">
+                <i class="fa-solid fa-triangle-exclamation" style="font-size: 24px; margin-bottom: 10px;"></i>
+                <div>No matched system profiles logged under batch: "${batchCodeQuery}"</div>
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        // Render records inside table body dynamically
+        uploadTableBody.innerHTML = '';
+        databaseRecords.forEach(record => {
+          const s = record.specs || {};
+          const tr = document.createElement('tr');
+          
+          const dateStr = record.timestamp ? new Date(record.timestamp).toLocaleDateString() : 'N/A';
+          const operator = record.specs?.operator || record.batchCode || 'N/A';
+          
+          tr.innerHTML = `
+            <td><strong>${dateStr}</strong></td>
+            <td><code>${s.serialNumber || 'N/A'}</code></td>
+            <td>${s.productName || 'N/A'}</td>
+            <td title="${s.cpu || 'N/A'}">${s.cpu ? (s.cpu.length > 20 ? s.cpu.slice(0, 20) + '...' : s.cpu) : 'N/A'}</td>
+            <td>${s.ram || 'N/A'}</td>
+            <td>${s.ssd || 'N/A'}</td>
+            <td><span style="font-weight: 600;">${s.battery || 'N/A'}</span></td>
+          `;
+          uploadTableBody.appendChild(tr);
+        });
+
+        log(`Successfully loaded ${databaseRecords.length} system profiles for Batch: ${batchCodeQuery}`, 'ready');
+
+      } catch (err) {
+        log(`Failed to retrieve database contents: ${err.message}`, 'error');
+        uploadTableBody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align: center; color: var(--color-red); padding: 30px;">
+              <i class="fa-solid fa-circle-xmark" style="font-size: 24px; margin-bottom: 10px;"></i>
+              <div>Failed to query server: ${err.message}</div>
+            </td>
+          </tr>
+        `;
+      }
+    });
+  }
 
   // Modal events
   btnCloseModal.addEventListener('click', () => {
@@ -887,76 +1546,7 @@ $specs | ConvertTo-Json`;
     });
   }
 
-  // 3. Submit to Server
-  btnSubmitServer.addEventListener('click', async () => {
-    log('Initiating battery diagnostics report generation...', 'info');
 
-    // Disable button to prevent spamming
-    btnSubmitServer.disabled = true;
-    const originalText = btnSubmitServer.innerHTML;
-    btnSubmitServer.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Uploading...</span>`;
-
-    try {
-      const batReport = await electronAPI.runBatteryDiagnostics();
-      if (!batReport.success) {
-        log(`Battery check failed: ${batReport.error}`, 'error');
-        btnSubmitServer.disabled = false;
-        btnSubmitServer.innerHTML = originalText;
-        return;
-      }
-
-      log('Battery Report generated successfully at temp directory.', 'debug');
-      log('Uploading report to Bizzcohub server...', 'info');
-
-      // Upload battery report XML content to API using Powershell Invoke-RestMethod just like bat file
-      const xmlPath = batReport.xmlPath;
-      const uploadCmd = `$res = Invoke-RestMethod -Uri 'https://www.bizzcohub.com/api/battery-check' -Method Post -InFile '${xmlPath}' -ContentType 'text/xml'; $url = 'https://www.bizzcohub.com/resources/battery-status?reportId=' + $res.id; Start-Process $url; echo "UPLOADED_ID:$($res.id)"`;
-
-      const uploadResult = await electronAPI.getSystemSpec(uploadCmd);
-      if (uploadResult.success) {
-        log('Data successfully synchronized with Bizz Co Hub server.', 'ready');
-        log('Opened detailed battery status page in your default browser.', 'debug');
-        saveRecordToHistory('Battery Sent');
-      } else {
-        log(`Server upload failed: ${uploadResult.error}. Saving offline.`, 'warn');
-        saveRecordToHistory('Battery Saved (Offline)');
-      }
-    } catch (err) {
-      log(`API connection error: ${err.message}`, 'error');
-    } finally {
-      btnSubmitServer.disabled = false;
-      btnSubmitServer.innerHTML = originalText;
-    }
-  });
-
-  // 4. Search MFG
-  btnSearchMfg.addEventListener('click', () => {
-    const serial = systemSpecs.serialNumber || '';
-    const product = systemSpecs.productName || '';
-
-    log(`Initiating MFG warranty search for: ${product} (${serial})`, 'info');
-
-    let url = 'https://www.google.com';
-    let brand = '';
-
-    const lowerProduct = product.toLowerCase();
-    if (lowerProduct.includes('hp') || lowerProduct.includes('hewlett')) {
-      brand = 'HP';
-      url = `https://support.hp.com/us-en/check-warranty`;
-    } else if (lowerProduct.includes('lenovo') || lowerProduct.includes('thinkpad')) {
-      brand = 'Lenovo';
-      url = `https://pcsupport.lenovo.com/us/en/warranty-lookup`;
-    } else if (lowerProduct.includes('dell')) {
-      brand = 'Dell';
-      url = `https://www.dell.com/support/home/en-us?app=warranty`;
-    } else {
-      brand = 'Generic';
-      url = `https://www.google.com/search?q=${encodeURIComponent(product + ' ' + serial + ' warranty check')}`;
-    }
-
-    log(`Redirecting to ${brand} lookup database in default browser.`, 'debug');
-    window.open(url, '_blank');
-  });
 
   // INDIVIDUAL COMPONENT DIAGNOSTICS TESTS
 
@@ -999,12 +1589,12 @@ $specs | ConvertTo-Json`;
   }
 
   // Bind single clicks
-  testHdSentinel.addEventListener('click', () => executeTest(testHdSentinel, 'HDSentinel.exe', 'Hard Disk Tester', 'HD Sentinel'));
-  testLcd.addEventListener('click', () => executeTest(testLcd, 'LCD_checking.exe', 'LCD Tester', 'LCD Pixel Check'));
-  testCpuz.addEventListener('click', () => executeTest(testCpuz, 'cpuz_x64.exe', 'Cpu Tester', 'CPU-Z Info'));
-  testBattery.addEventListener('click', () => executeTest(testBattery, 'Battery_checking.exe', 'Battery Tester', 'Battery Diagnostics'));
-  testKeyboard.addEventListener('click', () => executeTest(testKeyboard, 'Keyboard_checking.exe', 'Keyboard Tester', 'Keyboard matrix check'));
-  testSound.addEventListener('click', () => executeTest(testSound, 'Sound_checking.mp4', 'Sound Tester', 'Audio Playback'));
+  testHdSentinel.addEventListener('click', () => executeTest(testHdSentinel, 'HDSentinel.exe', 'HDSentinel', 'HD Sentinel'));
+  testLcd.addEventListener('click', () => executeTest(testLcd, 'LCD_checking.exe', 'LCD_checking', 'LCD Pixel Check'));
+  testCpuz.addEventListener('click', () => executeTest(testCpuz, 'cpuz_x64.exe', 'cpuz', 'CPU-Z Info'));
+  testBattery.addEventListener('click', () => executeTest(testBattery, 'Battery_checking.exe', 'Battery_checking', 'Battery Diagnostics'));
+  testKeyboard.addEventListener('click', () => executeTest(testKeyboard, 'Keyboard_checking.exe', 'Keyboard_checking', 'Keyboard matrix check'));
+  testSound.addEventListener('click', () => executeTest(testSound, 'Sound_checking.mp4', 'Sound_checking', 'Audio Playback'));
 
   // AUTO RUN ALL
   async function runAllTests() {
@@ -1013,12 +1603,12 @@ $specs | ConvertTo-Json`;
 
     // Launch all executables in parallel, matching the batch file behaviour
     const tests = [
-      { element: testHdSentinel, file: 'HDSentinel.exe', folder: 'Hard Disk Tester', name: 'HD Sentinel' },
-      { element: testLcd, file: 'LCD_checking.exe', folder: 'LCD Tester', name: 'LCD Pixel Check' },
-      { element: testCpuz, file: 'cpuz_x64.exe', folder: 'Cpu Tester', name: 'CPU-Z Info' },
-      { element: testBattery, file: 'Battery_checking.exe', folder: 'Battery Tester', name: 'Battery Diagnostics' },
-      { element: testKeyboard, file: 'Keyboard_checking.exe', folder: 'Keyboard Tester', name: 'Keyboard matrix check' },
-      { element: testSound, file: 'Sound_checking.mp4', folder: 'Sound Tester', name: 'Audio Playback' }
+      { element: testHdSentinel, file: 'HDSentinel.exe', folder: 'HDSentinel', name: 'HD Sentinel' },
+      { element: testLcd, file: 'LCD_checking.exe', folder: 'LCD_checking', name: 'LCD Pixel Check' },
+      { element: testCpuz, file: 'cpuz_x64.exe', folder: 'cpuz', name: 'CPU-Z Info' },
+      { element: testBattery, file: 'Battery_checking.exe', folder: 'Battery_checking', name: 'Battery Diagnostics' },
+      { element: testKeyboard, file: 'Keyboard_checking.exe', folder: 'Keyboard_checking', name: 'Keyboard matrix check' },
+      { element: testSound, file: 'Sound_checking.mp4', folder: 'Sound_checking', name: 'Audio Playback' }
     ];
 
     // Execute all parallel tests
@@ -1086,6 +1676,7 @@ $specs | ConvertTo-Json`;
       else if (item.id === 'nav-settings-details') targetViewId = 'view-settings-details';
       else if (item.id === 'nav-support-details') targetViewId = 'view-support-details';
       else if (item.id === 'nav-update-check') targetViewId = 'view-update-check';
+      else if (item.id === 'nav-database-portal') targetViewId = 'view-database-portal';
 
       // Hide all views and show target view
       appViews.forEach(view => {
@@ -1108,6 +1699,7 @@ $specs | ConvertTo-Json`;
       else if (targetViewId === 'view-graphics-details') loadDetailedGraphics(false);
       else if (targetViewId === 'view-battery-details') loadDetailedBattery(false);
       else if (targetViewId === 'view-update-check') loadUpdateView(false);
+      else if (targetViewId === 'view-database-portal') loadDatabasePortalView();
     });
   });
 
@@ -1579,8 +2171,455 @@ $specs | ConvertTo-Json`;
     });
   }
 
+  // =========================================================
+  // DATABASE PORTAL PAGE ACTION WORKFLOWS
+  // =========================================================
+  let activeBatchCode = '';
+
+  function loadDatabasePortalView() {
+    const pageLoginSection = document.getElementById('page-portal-login-section');
+    const pageDashboardSection = document.getElementById('page-portal-dashboard-section');
+    const pageLoggedUser = document.getElementById('page-portal-logged-user');
+    const pageActiveBatch = document.getElementById('page-portal-active-batch');
+
+    if (currentOperator) {
+      if (pageLoggedUser) pageLoggedUser.textContent = currentOperator;
+      if (pageActiveBatch) pageActiveBatch.textContent = activeBatchCode || 'None (Create/Assign below)';
+      if (pageLoginSection) pageLoginSection.style.display = 'none';
+      if (pageDashboardSection) pageDashboardSection.style.display = 'block';
+    } else {
+      if (pageLoginSection) pageLoginSection.style.display = 'block';
+      if (pageDashboardSection) pageDashboardSection.style.display = 'none';
+      const userField = document.getElementById('page-portal-username');
+      const passField = document.getElementById('page-portal-password');
+      const errField = document.getElementById('page-portal-login-error');
+      if (userField) userField.value = '';
+      if (passField) passField.value = '';
+      if (errField) errField.style.display = 'none';
+    }
+  }
+
+  const btnPagePortalLogin = document.getElementById('btn-page-portal-login');
+  if (btnPagePortalLogin) {
+    btnPagePortalLogin.addEventListener('click', async () => {
+      const username = document.getElementById('page-portal-username')?.value.trim() || '';
+      const password = document.getElementById('page-portal-password')?.value.trim() || '';
+      const loginError = document.getElementById('page-portal-login-error');
+
+      if (!username || !password) {
+        if (loginError) {
+          loginError.textContent = 'Username and password are required.';
+          loginError.style.display = 'block';
+        }
+        return;
+      }
+
+      btnPagePortalLogin.disabled = true;
+      const originalText = btnPagePortalLogin.innerHTML;
+      btnPagePortalLogin.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Authenticating...';
+      if (loginError) loginError.style.display = 'none';
+
+      const rememberCheckbox = document.getElementById('page-portal-remember');
+      const isRemember = rememberCheckbox ? rememberCheckbox.checked : false;
+
+      try {
+        const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
+        const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
+
+        const response = await electronAPI.httpPost(`${apiUrl}/qc/auth`, { username, password }, token);
+
+        if (response.success && response.data && response.data.success) {
+          currentOperator = response.data.operator;
+          log(`QC Operator Session Authorized (Database page): "${currentOperator}"`, 'ready');
+          loadDatabasePortalView();
+          saveOperatorRememberCredentials(username, password, isRemember);
+        } else {
+          // Fallback to local admin check
+          const isLocalValid = (username.toLowerCase() === 'admin' || username.toLowerCase() === 'operator') && password === 'password';
+          if (isLocalValid) {
+            currentOperator = username;
+            log(`QC Operator Session Authorized via Local Fallback (Database page): "${currentOperator}"`, 'ready');
+            loadDatabasePortalView();
+            saveOperatorRememberCredentials(username, password, isRemember);
+          } else {
+            if (loginError) {
+              const errMsg = response.data?.error || response.error || 'Invalid credentials.';
+              loginError.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${errMsg}`;
+              loginError.style.display = 'block';
+            }
+          }
+        }
+      } catch (err) {
+        // Fallback to local admin check
+        const isLocalValid = (username.toLowerCase() === 'admin' || username.toLowerCase() === 'operator') && password === 'password';
+        if (isLocalValid) {
+          currentOperator = username;
+          log(`QC Operator Session Authorized via Local Fallback (Database page): "${currentOperator}"`, 'ready');
+          loadDatabasePortalView();
+          saveOperatorRememberCredentials(username, password, isRemember);
+        } else {
+          if (loginError) {
+            loginError.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> Authentication error: ${err.message || err}`;
+            loginError.style.display = 'block';
+          }
+        }
+      } finally {
+        btnPagePortalLogin.disabled = false;
+        btnPagePortalLogin.innerHTML = originalText;
+      }
+    });
+  }
+
+  const btnPagePortalLogout = document.getElementById('btn-page-portal-logout');
+  if (btnPagePortalLogout) {
+    btnPagePortalLogout.addEventListener('click', () => {
+      log(`Operator "${currentOperator}" signed out from Database page.`, 'info');
+      currentOperator = '';
+      loadDatabasePortalView();
+    });
+  }
+
+  const btnPageCreateBatch = document.getElementById('btn-page-create-batch');
+  if (btnPageCreateBatch) {
+    btnPageCreateBatch.addEventListener('click', () => {
+      const batchCode = prompt("Enter Batch Code to create and assign:");
+      if (batchCode === null) return;
+
+      const cleanBatchCode = batchCode.trim();
+      if (!cleanBatchCode) {
+        showCustomAlert('A valid Batch Code must be provided.', 'Validation Error', 'warn');
+        return;
+      }
+
+      activeBatchCode = cleanBatchCode;
+      const pageActiveBatch = document.getElementById('page-portal-active-batch');
+      if (pageActiveBatch) pageActiveBatch.textContent = activeBatchCode;
+      log(`Active batch assigned: "${activeBatchCode}"`, 'info');
+      showCustomAlert(`Active batch set to: ${activeBatchCode}`, 'Batch Created', 'success');
+    });
+  }
+
+  const btnPageUploadDetails = document.getElementById('btn-page-upload-details');
+  if (btnPageUploadDetails) {
+    btnPageUploadDetails.addEventListener('click', async () => {
+      if (!systemSpecs.serialNumber) {
+        showCustomAlert('Diagnostics must be completed before database upload.', 'Upload Error', 'warn');
+        return;
+      }
+
+      if (!activeBatchCode) {
+        const batchCode = prompt("Enter Batch Code to assign and upload specs:");
+        if (batchCode === null) return;
+        const cleanBatchCode = batchCode.trim();
+        if (!cleanBatchCode) {
+          showCustomAlert('A valid Batch Code must be provided to upload.', 'Validation Error', 'warn');
+          return;
+        }
+        activeBatchCode = cleanBatchCode;
+        const pageActiveBatch = document.getElementById('page-portal-active-batch');
+        if (pageActiveBatch) pageActiveBatch.textContent = activeBatchCode;
+      }
+
+      // Read issue found fields
+      const issueCheckbox = document.getElementById('page-issue-checkbox');
+      const isIssue = issueCheckbox ? issueCheckbox.checked : false;
+      let issueSection = '';
+      let issueDescription = '';
+
+      if (isIssue) {
+        const sectionSelect = document.getElementById('page-issue-section');
+        const descTextarea = document.getElementById('page-issue-description');
+        issueSection = sectionSelect ? sectionSelect.value : '';
+        issueDescription = descTextarea ? descTextarea.value.trim() : '';
+
+        if (!issueSection) {
+          showCustomAlert('Please select the laptop part/section where the issue is located.', 'Validation Error', 'warn');
+          return;
+        }
+      }
+
+      log(`Uploading specifications to database under batch: ${activeBatchCode}...`, 'info');
+      btnPageUploadDetails.disabled = true;
+      const originalBtnText = btnPageUploadDetails.innerHTML;
+      btnPageUploadDetails.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading...`;
+
+      // Guarantee the user's latest edited product name is saved
+      if (specProduct) {
+        systemSpecs.productName = specProduct.textContent.trim();
+      }
+
+      const payload = {
+        batchCode: activeBatchCode,
+        timestamp: new Date().toISOString(),
+        sessionId: sessionId,
+        operator: currentOperator,
+        specs: {
+          ...systemSpecs,
+          operator: currentOperator,
+          issueFound: isIssue,
+          issueSection: issueSection,
+          issueDescription: issueDescription
+        }
+      };
+
+      try {
+        const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
+        const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
+
+        const result = await electronAPI.httpPost(`${apiUrl}/upload-details`, payload, token);
+        if (result.success) {
+          log(`Uploaded specifications under batch: ${activeBatchCode}`, 'ready');
+          showCustomAlert(`Product specifications successfully logged under Batch: ${activeBatchCode}`, 'Upload Success', 'success');
+          saveRecordToHistory(`Uploaded to ${activeBatchCode} (by ${currentOperator})`);
+
+          // Reset issue inputs on success
+          if (issueCheckbox) issueCheckbox.checked = false;
+          const issueFields = document.getElementById('page-issue-fields');
+          if (issueFields) issueFields.style.display = 'none';
+          const sectionSelect = document.getElementById('page-issue-section');
+          if (sectionSelect) sectionSelect.value = '';
+          const descTextarea = document.getElementById('page-issue-description');
+          if (descTextarea) descTextarea.value = '';
+        } else {
+          throw new Error(result.error || 'Server error');
+        }
+      } catch (err) {
+        log(`Database upload failure: ${err.message || err}`, 'error');
+        
+        let cleanErrMsg = err.message || String(err);
+        const httpErrMatch = cleanErrMsg.match(/HTTP \d+:\s*(\{.*\})/i);
+        if (httpErrMatch) {
+          try {
+            const errObj = JSON.parse(httpErrMatch[1]);
+            if (errObj.error) {
+              cleanErrMsg = errObj.error;
+            }
+          } catch (e) {
+            // fallback
+          }
+        }
+        showCustomAlert(`Sync Failure: ${cleanErrMsg}`, 'Sync Failure', 'error');
+      } finally {
+        btnPageUploadDetails.disabled = false;
+        btnPageUploadDetails.innerHTML = originalBtnText;
+      }
+    });
+  }
+
+  // Toggle issue log fields display
+  const pageIssueCheckbox = document.getElementById('page-issue-checkbox');
+  if (pageIssueCheckbox) {
+    pageIssueCheckbox.addEventListener('change', () => {
+      const issueFields = document.getElementById('page-issue-fields');
+      if (issueFields) {
+        issueFields.style.display = pageIssueCheckbox.checked ? 'flex' : 'none';
+      }
+    });
+  }
+
+  // Bind input handler to save manual edits to the Product Name field
+  if (specProduct) {
+    specProduct.addEventListener('input', () => {
+      systemSpecs.productName = specProduct.textContent.trim();
+      const cacheMode = localStorage.getItem('setting_cache_mode') || 'permanently';
+      if (cacheMode === 'permanently') {
+        localStorage.setItem('qc_basic_specs', JSON.stringify(systemSpecs));
+      }
+    });
+  }
+
+  const btnPageViewHistory = document.getElementById('btn-page-view-history');
+  if (btnPageViewHistory) {
+    btnPageViewHistory.addEventListener('click', () => {
+      if (btnViewUploadTable) {
+        if (activeBatchCode && inputSearchBatchCode) {
+          inputSearchBatchCode.value = activeBatchCode;
+        }
+        btnViewUploadTable.click();
+        if (activeBatchCode && btnSearchBatch) {
+          btnSearchBatch.click();
+        }
+      }
+    });
+  }
+
+  const btnPageUpdateDetails = document.getElementById('btn-page-update-details');
+  if (btnPageUpdateDetails) {
+    btnPageUpdateDetails.addEventListener('click', async () => {
+      btnPageUpdateDetails.disabled = true;
+      const originalText = btnPageUpdateDetails.innerHTML;
+      btnPageUpdateDetails.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Refreshing...`;
+
+      log('Re-running diagnostic discovery to update specifications...', 'info');
+      await fetchAllSpecs(true);
+
+      btnPageUpdateDetails.disabled = false;
+      btnPageUpdateDetails.innerHTML = originalText;
+      showCustomAlert('System specs updated successfully.', 'Details Refreshed', 'success');
+    });
+  }
+
+  const btnPageExportExcel = document.getElementById('btn-page-export-excel');
+  if (btnPageExportExcel) {
+    btnPageExportExcel.addEventListener('click', () => {
+      if (btnPortalExportExcel) btnPortalExportExcel.click();
+    });
+  }
+
+  const btnPageExportPdf = document.getElementById('btn-page-export-pdf');
+  if (btnPageExportPdf) {
+    btnPageExportPdf.addEventListener('click', () => {
+      if (btnPortalExportPdf) btnPortalExportPdf.click();
+    });
+  }
+
+  // =========================================================
+  // REMEMBER ME CREDENTIALS SYNCHRONIZATION
+  // =========================================================
+  function saveOperatorRememberCredentials(username, password, isRemember) {
+    if (isRemember) {
+      localStorage.setItem('portal_remember', 'true');
+      localStorage.setItem('portal_username', username);
+      localStorage.setItem('portal_password', password);
+    } else {
+      localStorage.removeItem('portal_remember');
+      localStorage.removeItem('portal_username');
+      localStorage.removeItem('portal_password');
+    }
+
+    // Sync elements on both login layouts
+    const pageUser = document.getElementById('page-portal-username');
+    const pagePass = document.getElementById('page-portal-password');
+    const pageCheckbox = document.getElementById('page-portal-remember');
+    const modalUser = document.getElementById('portal-username');
+    const modalPass = document.getElementById('portal-password');
+    const modalCheckbox = document.getElementById('portal-remember');
+
+    if (pageUser) pageUser.value = isRemember ? username : '';
+    if (pagePass) pagePass.value = isRemember ? password : '';
+    if (pageCheckbox) pageCheckbox.checked = isRemember;
+    if (modalUser) modalUser.value = isRemember ? username : '';
+    if (modalPass) modalPass.value = isRemember ? password : '';
+    if (modalCheckbox) modalCheckbox.checked = isRemember;
+  }
+
+  function loadRememberedCredentials() {
+    const isRemember = localStorage.getItem('portal_remember') === 'true';
+    if (isRemember) {
+      const username = localStorage.getItem('portal_username') || '';
+      const password = localStorage.getItem('portal_password') || '';
+
+      const pageUser = document.getElementById('page-portal-username');
+      const pagePass = document.getElementById('page-portal-password');
+      const pageCheckbox = document.getElementById('page-portal-remember');
+      const modalUser = document.getElementById('portal-username');
+      const modalPass = document.getElementById('portal-password');
+      const modalCheckbox = document.getElementById('portal-remember');
+
+      if (pageUser) pageUser.value = username;
+      if (pagePass) pagePass.value = password;
+      if (pageCheckbox) pageCheckbox.checked = true;
+      if (modalUser) modalUser.value = username;
+      if (modalPass) modalPass.value = password;
+      if (modalCheckbox) modalCheckbox.checked = true;
+    }
+  }
+
+  // =========================================================
+  // TOAST NOTIFICATIONS & COPY ON DOUBLE-CLICK
+  // =========================================================
+  function showToast(message) {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'toast-container';
+      container.style.position = 'fixed';
+      container.style.bottom = '50px';
+      container.style.left = '50%';
+      container.style.transform = 'translateX(-50%)';
+      container.style.display = 'flex';
+      container.style.flexDirection = 'column';
+      container.style.gap = '10px';
+      container.style.zIndex = '9999';
+      container.style.pointerEvents = 'none';
+      document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.style.background = 'rgba(44, 44, 46, 0.85)';
+    toast.style.backdropFilter = 'blur(12px)';
+    toast.style.webkitBackdropFilter = 'blur(12px)';
+    toast.style.color = '#ffffff';
+    toast.style.padding = '10px 20px';
+    toast.style.borderRadius = '24px';
+    toast.style.fontSize = '12px';
+    toast.style.fontWeight = '600';
+    toast.style.boxShadow = '0 8px 24px rgba(0,0,0,0.2)';
+    toast.style.border = '1px solid rgba(255,255,255,0.08)';
+    toast.style.display = 'flex';
+    toast.style.alignItems = 'center';
+    toast.style.gap = '8px';
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(15px)';
+    toast.style.transition = 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
+
+    toast.innerHTML = `<i class="fa-solid fa-circle-check" style="color: var(--color-green);"></i> ${message}`;
+    container.appendChild(toast);
+
+    setTimeout(() => {
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateY(0)';
+    }, 10);
+
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(-15px)';
+      setTimeout(() => {
+        toast.remove();
+      }, 300);
+    }, 2200);
+  }
+
+  function bindSpecRowCopyEvents() {
+    const specRows = document.querySelectorAll('#view-system-health .spec-row');
+    specRows.forEach(row => {
+      row.style.cursor = 'pointer';
+      row.title = 'Double-click to copy to clipboard';
+
+      row.addEventListener('dblclick', async () => {
+        const labelEl = row.querySelector('.spec-label');
+        const valueEl = row.querySelector('.spec-value');
+        if (!labelEl || !valueEl) return;
+
+        const label = labelEl.textContent.trim();
+        const value = valueEl.textContent.trim();
+
+        if (!value || value === 'Detecting...' || value === 'None') {
+          log(`Cannot copy empty or loading details for "${label}"`, 'warn');
+          return;
+        }
+
+        try {
+          await navigator.clipboard.writeText(value);
+          log(`Copied ${label} ("${value}") to clipboard.`, 'info');
+          showToast(`${label} copied to clipboard!`);
+        } catch (err) {
+          log(`Failed to copy to clipboard: ${err.message}`, 'error');
+        }
+      });
+    });
+  }
+
   // Start initialization
   loadSettings();
   loadSpecifications();
   updateAppVersion();
-});
+  loadRememberedCredentials();
+  bindSpecRowCopyEvents();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}

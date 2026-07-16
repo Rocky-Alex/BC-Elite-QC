@@ -1,3 +1,0 @@
-09/07/2026  01:32:00.258  Physical device inserted: \\?\USBSTOR#Disk&Ven__USB&Prod__SanDisk_3.2Gen1&Rev_1.00#0901cc4ec2a2439da7426c43d02e1abca650c2cc67f76b474a684ba74f23623#{53f56307-b6bf-11d0-94f2-00a0c91efb8b}
-09/07/2026  01:32:01.284  Logical disk inserted   : \\?\STORAGE#Volume#{5d4ffd6a-7b15-11f1-87be-806e6f6e6963}#0000000000100000#{53f5630d-b6bf-11d0-94f2-00a0c91efb8b}
-09/07/2026  01:32:01.328  Logical disk inserted   : \\?\STORAGE#Volume#{5d4ffd6a-7b15-11f1-87be-806e6f6e6963}#0000000728DFB000#{53f5630d-b6bf-11d0-94f2-00a0c91efb8b}

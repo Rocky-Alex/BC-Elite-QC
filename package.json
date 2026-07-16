@@ -3,9 +3,10 @@
   "version": "1.0.3",
   "description": "BC Elite QC - Quality Checking Suite",
   "scripts": {
-    "start": "tauri dev",
+    "start": "set PATH=C:\\msys64\\mingw64\\bin;%PATH%&& tauri dev",
     "tauri": "tauri",
-    "build": "tauri build"
+    "build": "set PATH=C:\\msys64\\mingw64\\bin;%PATH%&& tauri build",
+    "package": "cmd /c start /wait \"\" \"C:\\Users\\Rishad\\AppData\\Local\\Programs\\Inno Setup 6\\ISCC.exe\" setup.iss"
   },
   "keywords": [
     "bizzcohub",

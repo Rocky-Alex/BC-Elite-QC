@@ -38,6 +38,21 @@ identifier = "allow-window-control"
 description = "Allow window_control command"
 commands.allow = ["window_control"]
 
+[[permission]]
+identifier = "allow-get-app-version"
+description = "Allow get_app_version command"
+commands.allow = ["get_app_version"]
+
+[[permission]]
+identifier = "allow-http-post"
+description = "Allow http_post command"
+commands.allow = ["http_post"]
+
+[[permission]]
+identifier = "allow-http-get"
+description = "Allow http_get command"
+commands.allow = ["http_get"]
+
 [default]
 description = "Allow all custom commands"
 permissions = [
@@ -48,5 +63,8 @@ permissions = [
   "allow-run-battery-diagnostics",
   "allow-save-table-file",
   "allow-read-file-content",
-  "allow-window-control"
+  "allow-window-control",
+  "allow-get-app-version",
+  "allow-http-post",
+  "allow-http-get"
 ]

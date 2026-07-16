@@ -67,6 +67,12 @@
           </div>
           <span>Console Logs</span>
         </a>
+        <a href="#" class="nav-item" id="nav-database-portal">
+          <div class="sidebar-icon-wrapper icon-graphics" style="background: rgba(16, 185, 129, 0.15); color: var(--color-green);">
+            <i class="fa-solid fa-database"></i>
+          </div>
+          <span>Database Portal</span>
+        </a>
         <a href="#" class="nav-item" id="nav-settings-details">
           <div class="sidebar-icon-wrapper icon-serial">
             <i class="fa-solid fa-gear"></i>
@@ -148,7 +154,7 @@
                   </div>
                   <span class="spec-label">Product Name</span>
                 </div>
-                <span class="spec-value" id="spec-product-name">Detecting...</span>
+                <span class="spec-value" id="spec-product-name" contenteditable="true" style="outline: none; border-bottom: 1.5px dashed var(--color-blue); padding-bottom: 1px; cursor: text;" title="Click to edit directly">Detecting...</span>
               </div>
               <div class="spec-row">
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -238,21 +244,17 @@
 
         <!-- ACTIONS PANEL -->
         <div class="actions-panel">
-          <button class="btn-action bg-blue" id="btn-create-table">
-            <i class="fa-solid fa-file-csv"></i>
-            <span>Create Table</span>
+          <button class="btn-action bg-blue" id="btn-details-export">
+            <i class="fa-solid fa-file-export"></i>
+            <span>Details Export</span>
           </button>
-          <button class="btn-action bg-dark" id="btn-view-table">
-            <i class="fa-solid fa-table-list"></i>
-            <span>View Table</span>
-          </button>
-          <button class="btn-action bg-purple" id="btn-submit-server">
+          <button class="btn-action bg-purple" id="btn-details-upload">
             <i class="fa-solid fa-cloud-arrow-up"></i>
-            <span>Submit to Server</span>
+            <span>Details Upload</span>
           </button>
-          <button class="btn-action bg-dark" id="btn-search-mfg">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <span>Search MFG</span>
+          <button class="btn-action bg-dark" id="btn-view-upload-table">
+            <i class="fa-solid fa-table-list"></i>
+            <span>View Upload Table</span>
           </button>
         </div>
 
@@ -514,6 +516,183 @@
         </div>
       </div>
 
+      <!-- DATABASE PORTAL VIEW -->
+      <div class="dashboard-body app-view" id="view-database-portal" style="display: none; flex-direction: column;">
+        <div class="view-header">
+          <h1 class="view-title">Database Sync & Portal</h1>
+          <p class="view-subtitle">Sync diagnostic logs, manage device batch categories, and view centralized history logs.</p>
+        </div>
+
+        <div class="specifications-grid" style="grid-template-columns: 1fr; flex-grow: 1;">
+          
+          <!-- 1. Authorization Login Card -->
+          <div class="spec-card" id="page-portal-login-section" style="max-width: 500px; margin: 30px auto; width: 100%;">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-lock" style="color: var(--color-blue); margin-right: 6px;"></i> Operator Authorization</span>
+            </div>
+            <div class="card-body" style="display: flex; flex-direction: column; gap: 16px; padding: 24px;">
+              <p style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; margin-bottom: 5px;">
+                Enter credentials to authorize your QC session and sync hardware logs.
+              </p>
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">Operator Username</span>
+                  <input type="text" id="page-portal-username" placeholder="Username (admin or operator)..." 
+                    style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(120, 120, 128, 0.1); color: var(--text-main); font-size: 13px; outline: none;">
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                  <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">Access Password</span>
+                  <input type="password" id="page-portal-password" placeholder="Password..." 
+                    style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(120, 120, 128, 0.1); color: var(--text-main); font-size: 13px; outline: none;">
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; user-select: none; margin-bottom: 2px;">
+                <input type="checkbox" id="page-portal-remember" style="width: 14px; height: 14px; cursor: pointer; accent-color: var(--color-blue);">
+                <label for="page-portal-remember" style="font-size: 11.5px; color: var(--text-secondary); cursor: pointer;">Remember credentials</label>
+              </div>
+              <div id="page-portal-login-error" style="color: var(--color-red); font-size: 12px; font-weight: 600; display: none; margin-top: 5px;">
+                <i class="fa-solid fa-circle-exclamation"></i> Invalid credentials.
+              </div>
+              <button class="modal-btn-action btn-blue-accent" id="btn-page-portal-login" style="margin: 10px 0 0 0; padding: 12px; justify-content: center; font-weight: 600; width: 100%;">
+                <i class="fa-solid fa-lock-open"></i> Authorize Session
+              </button>
+            </div>
+          </div>
+
+          <!-- 2. Authorized Operator Dashboard -->
+          <div class="spec-card" id="page-portal-dashboard-section" style="display: none; width: 100%;">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+              <span class="card-title"><i class="fa-solid fa-gauge-high" style="color: var(--color-green); margin-right: 6px;"></i> QC Operations Dashboard</span>
+              <div style="display: flex; align-items: center; gap: 15px;">
+                <span style="font-size: 13px; color: var(--text-secondary);">Operator: <strong id="page-portal-logged-user" style="color: var(--color-green);">admin</strong></span>
+                <button class="btn-refresh" id="btn-page-portal-logout" style="color: var(--color-red); background: rgba(255, 69, 58, 0.08); border: 1px solid rgba(255, 69, 58, 0.2); font-weight: 600; padding: 4px 10px; font-size: 11px;">
+                  <i class="fa-solid fa-right-from-bracket"></i> Log Out
+                </button>
+              </div>
+            </div>
+            
+            <div class="card-body" style="padding: 24px; display: flex; flex-direction: column; gap: 24px;">
+              
+              <!-- Active Batch Indicator & Stats -->
+              <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(120, 120, 128, 0.08); padding: 16px 20px; border-radius: 12px; border: 1px solid var(--border-color);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div style="width: 40px; height: 40px; border-radius: 50%; background: rgba(75, 123, 255, 0.1); color: var(--color-blue); display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                    <i class="fa-solid fa-folder-open"></i>
+                  </div>
+                  <div>
+                    <span style="display: block; font-size: 11px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Active Batch Category</span>
+                    <strong style="font-size: 15px; color: var(--text-main);" id="page-portal-active-batch">None (Create/Assign below)</strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Issue Tracking Section -->
+              <div style="display: flex; flex-direction: column; gap: 12px; background: rgba(120, 120, 128, 0.05); padding: 18px; border-radius: 12px; border: 1px solid var(--border-color); margin-top: -8px;">
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                  <span style="font-size: 13px; font-weight: 600; color: var(--text-main);"><i class="fa-solid fa-triangle-exclamation" style="color: var(--color-orange); margin-right: 6px;"></i> Issue Found (Optional)</span>
+                  <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12px; color: var(--text-secondary); user-select: none;">
+                    <input type="checkbox" id="page-issue-checkbox" style="width: 14px; height: 14px; cursor: pointer; accent-color: var(--color-blue);">
+                    Log an issue for this device
+                  </label>
+                </div>
+                
+                <div id="page-issue-fields" style="display: none; flex-direction: column; gap: 12px; margin-top: 5px;">
+                  <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">Select Parts / Section where issue is located</span>
+                    <select id="page-issue-section" style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 13px; outline: none; cursor: pointer;">
+                      <option value="">-- Select Section --</option>
+                      <option value="Screen">Screen / Display</option>
+                      <option value="Keyboard">Keyboard</option>
+                      <option value="Motherboard">Motherboard / Mainboard</option>
+                      <option value="Battery">Battery</option>
+                      <option value="Trackpad">Trackpad / Mouse</option>
+                      <option value="RAM">RAM / Memory</option>
+                      <option value="SSD">SSD / Storage</option>
+                      <option value="Graphics">Graphics / GPU</option>
+                      <option value="Ports">Ports (USB, HDMI, etc.)</option>
+                      <option value="Speakers">Speakers / Audio</option>
+                      <option value="Web Camera">Web Camera</option>
+                      <option value="Wifi/Bluetooth">Wifi / Bluetooth</option>
+                      <option value="BIOS/Firmware">BIOS / Firmware</option>
+                      <option value="Chassis/Body">Chassis / Hinge / Body</option>
+                      <option value="Charger/Power">Charger / Power Input</option>
+                      <option value="Software/OS">Operating System / Software</option>
+                    </select>
+                  </div>
+                  
+                  <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">Detailed Description / Symptoms</span>
+                    <textarea id="page-issue-description" placeholder="Describe the symptoms, diagnostics result, or replacement parts needed..." rows="3"
+                      style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 13px; outline: none; font-family: var(--font-sans); resize: vertical;"></textarea>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Main Dashboard Action Grid -->
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+                
+                <!-- Action 1: Create Batch -->
+                <button class="test-btn" id="btn-page-create-batch" style="text-align: left; padding: 20px; display: flex; align-items: center; gap: 16px; border: 1px solid var(--border-color); background: rgba(120, 120, 128, 0.04); border-radius: 12px; cursor: pointer; transition: all 0.25s ease;">
+                  <div class="test-icon-wrapper" style="background: rgba(75, 123, 255, 0.1); color: var(--color-blue); width: 44px; height: 44px; font-size: 18px; border-radius: 8px;">
+                    <i class="fa-solid fa-folder-plus"></i>
+                  </div>
+                  <div class="test-info" style="display: flex; flex-direction: column; gap: 4px;">
+                    <span class="test-name" style="font-size: 14px; font-weight: 600;">Create Batch</span>
+                    <span class="test-desc" style="font-size: 11.5px; color: var(--text-secondary);">Set active Batch Code</span>
+                  </div>
+                </button>
+
+                <!-- Action 2: Upload Details -->
+                <button class="test-btn" id="btn-page-upload-details" style="text-align: left; padding: 20px; display: flex; align-items: center; gap: 16px; border: 1px solid var(--border-color); background: rgba(120, 120, 128, 0.04); border-radius: 12px; cursor: pointer; transition: all 0.25s ease;">
+                  <div class="test-icon-wrapper" style="background: rgba(16, 185, 129, 0.1); color: var(--color-green); width: 44px; height: 44px; font-size: 18px; border-radius: 8px;">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                  </div>
+                  <div class="test-info" style="display: flex; flex-direction: column; gap: 4px;">
+                    <span class="test-name" style="font-size: 14px; font-weight: 600;">Upload Details</span>
+                    <span class="test-desc" style="font-size: 11.5px; color: var(--text-secondary);">Sync profile to database</span>
+                  </div>
+                </button>
+
+                <!-- Action 3: History -->
+                <button class="test-btn" id="btn-page-view-history" style="text-align: left; padding: 20px; display: flex; align-items: center; gap: 16px; border: 1px solid var(--border-color); background: rgba(120, 120, 128, 0.04); border-radius: 12px; cursor: pointer; transition: all 0.25s ease;">
+                  <div class="test-icon-wrapper" style="background: rgba(163, 117, 240, 0.1); color: var(--color-purple); width: 44px; height: 44px; font-size: 18px; border-radius: 8px;">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                  </div>
+                  <div class="test-info" style="display: flex; flex-direction: column; gap: 4px;">
+                    <span class="test-name" style="font-size: 14px; font-weight: 600;">History Lookup</span>
+                    <span class="test-desc" style="font-size: 11.5px; color: var(--text-secondary);">Search batch spec records</span>
+                  </div>
+                </button>
+
+                <!-- Action 4: Update Details -->
+                <button class="test-btn" id="btn-page-update-details" style="text-align: left; padding: 20px; display: flex; align-items: center; gap: 16px; border: 1px solid var(--border-color); background: rgba(120, 120, 128, 0.04); border-radius: 12px; cursor: pointer; transition: all 0.25s ease;">
+                  <div class="test-icon-wrapper" style="background: rgba(255, 149, 0, 0.1); color: var(--color-orange); width: 44px; height: 44px; font-size: 18px; border-radius: 8px;">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                  </div>
+                  <div class="test-info" style="display: flex; flex-direction: column; gap: 4px;">
+                    <span class="test-name" style="font-size: 14px; font-weight: 600;">Update Details</span>
+                    <span class="test-desc" style="font-size: 11.5px; color: var(--text-secondary);">Refresh diagnostic detection</span>
+                  </div>
+                </button>
+                
+              </div>
+
+              <!-- Extra Export Actions -->
+              <div style="display: flex; gap: 12px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+                <button class="btn-action bg-dark" id="btn-page-export-excel" style="margin: 0; font-weight: 600; font-size: 12.5px;">
+                  <i class="fa-solid fa-file-excel" style="color: #107c41; margin-right: 6px;"></i> Export Active Batch to Excel
+                </button>
+                <button class="btn-action bg-dark" id="btn-page-export-pdf" style="margin: 0; font-weight: 600; font-size: 12.5px;">
+                  <i class="fa-solid fa-file-pdf" style="color: #e02424; margin-right: 6px;"></i> Print PDF QC Report
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+
       <!-- SETTINGS VIEW -->
       <div class="dashboard-body app-view" id="view-settings-details" style="display: none;">
         <div class="view-header">
@@ -522,6 +701,24 @@
         </div>
 
         <div class="specifications-grid" style="grid-template-columns: 1fr;">
+          <!-- Card 1: API Configuration -->
+          <div class="spec-card">
+            <div class="card-header">
+              <span class="card-title">API Connection Settings</span>
+              <i class="fa-solid fa-link card-header-icon"></i>
+            </div>
+            <div class="card-body">
+              <div class="spec-row" style="flex-direction: column; align-items: stretch; gap: 8px;">
+                <span class="spec-label" style="font-weight: 600;">Central Database API URL</span>
+                <input type="text" id="setting-api-url" class="btn-action bg-dark" style="width: 100%; text-align: left; padding: 10px 14px; outline: none; border: 1px solid var(--border-color); border-radius: 8px;" placeholder="https://www.bizzcohub.com/api">
+              </div>
+              <div class="spec-row" style="flex-direction: column; align-items: stretch; gap: 8px; border-bottom: none;">
+                <span class="spec-label" style="font-weight: 600;">Authorization Token</span>
+                <input type="text" id="setting-api-token" class="btn-action bg-dark" style="width: 100%; text-align: left; padding: 10px 14px; outline: none; border: 1px solid var(--border-color); border-radius: 8px;" placeholder="bch_live_secret_7742a">
+              </div>
+            </div>
+          </div>
+
           <!-- Card 2: Diagnostic & Rule Engine -->
           <div class="spec-card">
             <div class="card-header">
@@ -833,6 +1030,125 @@
         <div style="display: flex; gap: 10px; justify-content: center; width: 100%;">
           <button class="modal-btn-action btn-blue-accent" id="btn-custom-alert-ok"
             style="padding: 6px 24px; margin: 0; min-width: 80px;">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- UPLOAD PORTAL MODAL (TEMPORARY OPERATOR LOGIN & HUB) -->
+  <div class="modal-overlay" id="upload-portal-modal" style="display: none;">
+    <div class="modal-container" style="max-width: 500px; width: 90%;">
+      <div class="modal-header">
+        <h3 id="portal-modal-title"><i class="fa-solid fa-shield-halved"></i> Operator Authorization</h3>
+        <button class="modal-close-btn" id="btn-close-portal-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        
+        <!-- 1. Authorization Login Section -->
+        <div id="portal-login-section" style="display: flex; flex-direction: column; gap: 15px;">
+          <p style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; margin-bottom: 5px;">
+            Enter temporary credentials to authorize your QC session and sync hardware logs.
+          </p>
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">Operator Username</span>
+              <input type="text" id="portal-username" placeholder="Username (e.g. admin)..." 
+                style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(120, 120, 128, 0.1); color: var(--text-main); font-size: 13px; outline: none;">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">Access Password</span>
+              <input type="password" id="portal-password" placeholder="Password..." 
+                style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(120, 120, 128, 0.1); color: var(--text-main); font-size: 13px; outline: none;">
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; user-select: none; margin-bottom: 2px;">
+            <input type="checkbox" id="portal-remember" style="width: 14px; height: 14px; cursor: pointer; accent-color: var(--color-blue);">
+            <label for="portal-remember" style="font-size: 11.5px; color: var(--text-secondary); cursor: pointer;">Remember credentials</label>
+          </div>
+          <div id="portal-login-error" style="color: var(--color-red); font-size: 12px; font-weight: 600; display: none; margin-top: 5px;">
+            <i class="fa-solid fa-circle-exclamation"></i> Invalid credentials. Use <code>admin</code> / <code>password</code>.
+          </div>
+          <button class="modal-btn-action btn-blue-accent" id="btn-portal-login" style="margin: 10px 0 0 0; padding: 12px; justify-content: center; font-weight: 600; width: 100%;">
+            <i class="fa-solid fa-lock-open"></i> Authorize Session
+          </button>
+        </div>
+
+        <!-- 2. Operator Dashboard Portal Section -->
+        <div id="portal-dashboard-section" style="display: none; flex-direction: column; gap: 15px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
+            <span style="font-size: 13px; color: var(--text-secondary);">Session Operator: <strong id="portal-logged-user" style="color: var(--color-green);">admin</strong></span>
+            <button class="modal-btn-action" id="btn-portal-logout" style="padding: 4px 10px; font-size: 11px; color: var(--color-red); border-color: rgba(255, 69, 58, 0.2); background: rgba(255, 69, 58, 0.05); margin: 0; font-weight: 600;">
+              <i class="fa-solid fa-right-from-bracket"></i> Log Out
+            </button>
+          </div>
+          
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 5px;">
+            <button class="modal-btn-action btn-blue-accent" id="btn-portal-create-batch" style="padding: 16px; flex-direction: column; gap: 8px; justify-content: center; font-weight: 600; height: 95px; margin: 0; border: none;">
+              <i class="fa-solid fa-folder-plus" style="font-size: 20px;"></i>
+              <span>Create Batch</span>
+            </button>
+            
+            <button class="modal-btn-action" id="btn-portal-view-history" style="padding: 16px; flex-direction: column; gap: 8px; justify-content: center; font-weight: 600; height: 95px; margin: 0;">
+              <i class="fa-solid fa-clock-rotate-left" style="font-size: 20px; color: var(--color-purple);"></i>
+              <span>History</span>
+            </button>
+            
+            <button class="modal-btn-action" id="btn-portal-update-details" style="padding: 16px; flex-direction: column; gap: 8px; justify-content: center; font-weight: 600; height: 95px; margin: 0;">
+              <i class="fa-solid fa-arrows-rotate" style="font-size: 20px; color: var(--color-orange);"></i>
+              <span>Update Details</span>
+            </button>
+
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <button class="modal-btn-action" id="btn-portal-export-excel" style="padding: 10px 14px; font-weight: 600; font-size: 12px; width: 100%; justify-content: flex-start; margin: 0; gap: 10px; flex-grow: 1;">
+                <i class="fa-solid fa-file-excel" style="color: #107c41; font-size: 14px; width: 16px; text-align: center;"></i> Export Excel
+              </button>
+              <button class="modal-btn-action" id="btn-portal-export-pdf" style="padding: 10px 14px; font-weight: 600; font-size: 12px; width: 100%; justify-content: flex-start; margin: 0; gap: 10px; flex-grow: 1;">
+                <i class="fa-solid fa-file-pdf" style="color: #e02424; font-size: 14px; width: 16px; text-align: center;"></i> Export PDF
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="upload-table-modal" style="display: none;">
+    <div class="modal-container" style="max-width: 900px; width: 90%;">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-database"></i> Database Batch Lookup</h3>
+        <button class="modal-close-btn" id="btn-close-upload-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="table-actions" style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px;">
+          <input type="text" id="input-search-batch-code" placeholder="Enter Batch Code (e.g. BATCH-2026)..." 
+            style="flex-grow: 1; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(120, 120, 128, 0.1); color: var(--text-primary); font-size: 13px; outline: none;">
+          <button class="modal-btn-action btn-blue-accent" id="btn-search-batch" style="margin: 0; padding: 10px 24px; font-weight: 600;">
+            <i class="fa-solid fa-magnifying-glass"></i> Search Batch
+          </button>
+        </div>
+        
+        <div class="table-wrapper" style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px;">
+          <table id="uploaded-records-table">
+            <thead>
+              <tr>
+                <th>Upload Date</th>
+                <th>Serial Number</th>
+                <th>Product Name</th>
+                <th>Processor Details</th>
+                <th>Memory</th>
+                <th>Storage Size</th>
+                <th>Battery Health</th>
+              </tr>
+            </thead>
+            <tbody id="upload-table-body">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                  Enter a Batch Code above to query records from the central database.
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

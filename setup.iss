@@ -22,19 +22,19 @@ WizardSmallImageFile=f:\Company Software\QC Software - Remaster\installer_logo.b
 DisableWelcomePage=no
 
 [Files]
-Source: "f:\Company Software\QC Software - Remaster\Battery_checking.exe"; DestDir: "{app}\Battery Tester"; Flags: ignoreversion
-Source: "f:\Company Software\QC Software - Remaster\Battery_checking.cfg"; DestDir: "{app}\Battery Tester"; Flags: ignoreversion
-Source: "f:\Company Software\QC Software - Remaster\LCD_checking.exe"; DestDir: "{app}\LCD Tester"; Flags: ignoreversion
-Source: "f:\Company Software\QC Software - Remaster\Sound_checking.mp4"; DestDir: "{app}\Sound Tester"; Flags: ignoreversion
-Source: "f:\Company Software\QC Software - Remaster\Keyboard_checking.exe"; DestDir: "{app}\Keyboard Tester"; Flags: ignoreversion
-Source: "f:\Company Software\QC Software - Remaster\cpuz_x64.exe"; DestDir: "{app}\Cpu Tester"; Flags: ignoreversion
-Source: "f:\Company Software\QC Software - Remaster\cpuz.ini"; DestDir: "{app}\Cpu Tester"; Flags: ignoreversion
+Source: "f:\Company Software\QC Software - Remaster\Battery_checking\Battery_checking.exe"; DestDir: "{app}\Battery_checking"; Flags: ignoreversion
+Source: "f:\Company Software\QC Software - Remaster\Battery_checking\Battery_checking.cfg"; DestDir: "{app}\Battery_checking"; Flags: ignoreversion
+Source: "f:\Company Software\QC Software - Remaster\LCD_checking\LCD_checking.exe"; DestDir: "{app}\LCD_checking"; Flags: ignoreversion
+Source: "f:\Company Software\QC Software - Remaster\Sound_checking\Sound_checking.mp4"; DestDir: "{app}\Sound_checking"; Flags: ignoreversion
+Source: "f:\Company Software\QC Software - Remaster\Keyboard_checking\Keyboard_checking.exe"; DestDir: "{app}\Keyboard_checking"; Flags: ignoreversion
+Source: "f:\Company Software\QC Software - Remaster\cpuz\cpuz_x64.exe"; DestDir: "{app}\cpuz"; Flags: ignoreversion
+Source: "f:\Company Software\QC Software - Remaster\cpuz\cpuz.ini"; DestDir: "{app}\cpuz"; Flags: ignoreversion
 Source: "f:\Company Software\QC Software - Remaster\BizzCoHub QC File.bat"; DestDir: "{app}\Master Checker"; Flags: ignoreversion
 Source: "f:\Company Software\QC Software - Remaster\src-tauri\target\release\app.exe"; DestName: "BizzCoHubQC.exe"; DestDir: "{app}\Master Checker"; Flags: ignoreversion
 Source: "f:\Company Software\QC Software - Remaster\src-tauri\target\release\WebView2Loader.dll"; DestDir: "{app}\Master Checker"; Flags: ignoreversion
 Source: "f:\Company Software\QC Software - Remaster\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{srcexe}"; DestDir: "{app}\Setup"; DestName: "QC_Setup.exe"; Flags: external ignoreversion
-Source: "f:\Company Software\QC Software - Remaster\*"; DestDir: "{app}\Hard Disk Tester"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "QC_Setup.exe,setup.iss,unins000.*,installer_welcome.*,installer_logo.*,welcome_illustration*,finished_illustration*,sidebar_gradient.*,header_gradient.*,installation_bg.*,Battery_checking.*,LCD_checking.*,Sound_checking.*,Keyboard_checking.*,cpuz_x64.*,cpuz.ini,BizzCoHub QC File.bat,icon.ico,node_modules,node_modules\*,BizzCoHubQC-win32-x64,BizzCoHubQC-win32-x64\*,package.json,package-lock.json,main.js,preload.js,index.html,index.css,renderer.js,src-tauri,src-tauri\*,dist,dist\*"
+Source: "f:\Company Software\QC Software - Remaster\HDSentinel\*"; DestDir: "{app}\HDSentinel"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "f:\Company Software\QC Software - Remaster\installer_logo.bmp"; Flags: dontcopy
 Source: "f:\Company Software\QC Software - Remaster\installation_bg.bmp"; Flags: dontcopy
 
@@ -50,19 +50,19 @@ Name: "desktopicon\sound"; Description: "Sound Output Checker"
 
 [Icons]
 Name: "{commondesktop}\BC Elite QC"; Filename: "{app}\Master Checker\BizzCoHubQC.exe"; IconFilename: "{app}\icon.ico"; WorkingDir: "{app}\Master Checker"; Comment: "Run Quality Control Diagnostics"; Tasks: desktopicon\master
-Name: "{commondesktop}\Battery Checker"; Filename: "{app}\Battery Tester\Battery_checking.exe"; WorkingDir: "{app}\Battery Tester"; Tasks: desktopicon\battery
-Name: "{commondesktop}\CPU-Z Hardware Info"; Filename: "{app}\Cpu Tester\cpuz_x64.exe"; WorkingDir: "{app}\Cpu Tester"; Tasks: desktopicon\cpuz
-Name: "{commondesktop}\Hard Disk Sentinel"; Filename: "{app}\Hard Disk Tester\HDSentinel.exe"; WorkingDir: "{app}\Hard Disk Tester"; Tasks: desktopicon\hdsentinel
-Name: "{commondesktop}\Keyboard Checker"; Filename: "{app}\Keyboard Tester\Keyboard_checking.exe"; WorkingDir: "{app}\Keyboard Tester"; Tasks: desktopicon\keyboard
-Name: "{commondesktop}\LCD Pixel Checker"; Filename: "{app}\LCD Tester\LCD_checking.exe"; WorkingDir: "{app}\LCD Tester"; Tasks: desktopicon\lcd
-Name: "{commondesktop}\Sound Output Checker"; Filename: "{app}\Sound Tester\Sound_checking.mp4"; WorkingDir: "{app}\Sound Tester"; Tasks: desktopicon\sound
+Name: "{commondesktop}\Battery Checker"; Filename: "{app}\Battery_checking\Battery_checking.exe"; WorkingDir: "{app}\Battery_checking"; Tasks: desktopicon\battery
+Name: "{commondesktop}\CPU-Z Hardware Info"; Filename: "{app}\cpuz\cpuz_x64.exe"; WorkingDir: "{app}\cpuz"; Tasks: desktopicon\cpuz
+Name: "{commondesktop}\Hard Disk Sentinel"; Filename: "{app}\HDSentinel\HDSentinel.exe"; WorkingDir: "{app}\HDSentinel"; Tasks: desktopicon\hdsentinel
+Name: "{commondesktop}\Keyboard Checker"; Filename: "{app}\Keyboard_checking\Keyboard_checking.exe"; WorkingDir: "{app}\Keyboard_checking"; Tasks: desktopicon\keyboard
+Name: "{commondesktop}\LCD Pixel Checker"; Filename: "{app}\LCD_checking\LCD_checking.exe"; WorkingDir: "{app}\LCD_checking"; Tasks: desktopicon\lcd
+Name: "{commondesktop}\Sound Output Checker"; Filename: "{app}\Sound_checking\Sound_checking.mp4"; WorkingDir: "{app}\Sound_checking"; Tasks: desktopicon\sound
 Name: "{group}\Master Checker\BC Elite QC"; Filename: "{app}\Master Checker\BizzCoHubQC.exe"; IconFilename: "{app}\icon.ico"; WorkingDir: "{app}\Master Checker"
-Name: "{group}\Battery Tester\Battery Checker"; Filename: "{app}\Battery Tester\Battery_checking.exe"; WorkingDir: "{app}\Battery Tester"
-Name: "{group}\Cpu Tester\CPU-Z Hardware Info"; Filename: "{app}\Cpu Tester\cpuz_x64.exe"; WorkingDir: "{app}\Cpu Tester"
-Name: "{group}\Hard Disk Tester\Hard Disk Sentinel"; Filename: "{app}\Hard Disk Tester\HDSentinel.exe"; WorkingDir: "{app}\Hard Disk Tester"
-Name: "{group}\Keyboard Tester\Keyboard Checker"; Filename: "{app}\Keyboard Tester\Keyboard_checking.exe"; WorkingDir: "{app}\Keyboard Tester"
-Name: "{group}\LCD Tester\LCD Pixel Checker"; Filename: "{app}\LCD Tester\LCD_checking.exe"; WorkingDir: "{app}\LCD Tester"
-Name: "{group}\Sound Tester\Sound Output Checker"; Filename: "{app}\Sound Tester\Sound_checking.mp4"; WorkingDir: "{app}\Sound Tester"
+Name: "{group}\Battery_checking\Battery Checker"; Filename: "{app}\Battery_checking\Battery_checking.exe"; WorkingDir: "{app}\Battery_checking"
+Name: "{group}\cpuz\CPU-Z Hardware Info"; Filename: "{app}\cpuz\cpuz_x64.exe"; WorkingDir: "{app}\cpuz"
+Name: "{group}\HDSentinel\Hard Disk Sentinel"; Filename: "{app}\HDSentinel\HDSentinel.exe"; WorkingDir: "{app}\HDSentinel"
+Name: "{group}\Keyboard_checking\Keyboard Checker"; Filename: "{app}\Keyboard_checking\Keyboard_checking.exe"; WorkingDir: "{app}\Keyboard_checking"
+Name: "{group}\LCD_checking\LCD Pixel Checker"; Filename: "{app}\LCD_checking\LCD_checking.exe"; WorkingDir: "{app}\LCD_checking"
+Name: "{group}\Sound_checking\Sound Output Checker"; Filename: "{app}\Sound_checking\Sound_checking.mp4"; WorkingDir: "{app}\Sound_checking"
 Name: "{group}\Setup\QC Setup Update"; Filename: "{app}\Setup\QC_Setup.exe"; WorkingDir: "{app}\Setup"
 Name: "{group}\Uninstaller\Uninstall QC Software Suite"; Filename: "{uninstallexe}"; WorkingDir: "{app}"
 
@@ -85,6 +85,7 @@ var
   MyFinishedHeadingLabel: TLabel;
   MyFinishedLabel: TLabel;
   BypassPages: Boolean;
+  ClearAllData: Boolean;
 
 function ShouldLaunchQC: Boolean;
 begin
@@ -633,4 +634,33 @@ begin
   BypassPages := False;
   WizardForm.KeyPreview := True;
   WizardForm.OnKeyDown := @WizardFormKeyDown;
+end;
+
+function InitializeUninstall: Boolean;
+begin
+  Result := True;
+  ClearAllData := MsgBox('Do you want to clear all QC diagnostic database, logs history, and custom settings?', mbConfirmation, MB_YESNO) = idYes;
+end;
+
+procedure CurUninstallStepChanged(UninstallStep: TUninstallStep);
+var
+  LocalAppFolder: String;
+  AppFolder: String;
+begin
+  if (UninstallStep = usPostUninstall) and ClearAllData then
+  begin
+    // 1. Delete WebView2 Cache & LocalStorage folder
+    LocalAppFolder := ExpandConstant('{localappdata}\com.bcelite.qc');
+    if DirExists(LocalAppFolder) then
+    begin
+      DelTree(LocalAppFolder, True, True, True);
+    end;
+
+    // 2. Delete the entire installation folder and any residual files (e.g. HDSentinel.sta, configs, log files)
+    AppFolder := ExpandConstant('{app}');
+    if DirExists(AppFolder) then
+    begin
+      DelTree(AppFolder, True, True, True);
+    end;
+  end;
 end;
