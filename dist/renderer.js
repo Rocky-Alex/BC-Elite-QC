@@ -2199,6 +2199,12 @@ Battery Status  : ${systemSpecs.battery}
     }
   }
 
+  let portalCustomerId = null;
+  let searchBatchCode = '';
+  let records = [];
+  let localBatches = [];
+  let isQcPortalTab = true;
+
   const btnPagePortalLogin = document.getElementById('btn-page-portal-login');
   if (btnPagePortalLogin) {
     btnPagePortalLogin.addEventListener('click', async () => {
@@ -2230,7 +2236,8 @@ Battery Status  : ${systemSpecs.battery}
 
         if (response.success && response.data && response.data.success) {
           currentOperator = response.data.operator;
-          log(`QC Operator Session Authorized (Database page): "${currentOperator}"`, 'ready');
+          portalCustomerId = response.data.customerId;
+          log(`QC Operator Session Authorized (Database page): "${currentOperator}" (Customer ID: ${portalCustomerId})`, 'ready');
           loadDatabasePortalView();
           saveOperatorRememberCredentials(username, password, isRemember);
         } else {
@@ -2238,6 +2245,7 @@ Battery Status  : ${systemSpecs.battery}
           const isLocalValid = (username.toLowerCase() === 'admin' || username.toLowerCase() === 'operator') && password === 'password';
           if (isLocalValid) {
             currentOperator = username;
+            portalCustomerId = 1; // default local
             log(`QC Operator Session Authorized via Local Fallback (Database page): "${currentOperator}"`, 'ready');
             loadDatabasePortalView();
             saveOperatorRememberCredentials(username, password, isRemember);
@@ -2254,6 +2262,7 @@ Battery Status  : ${systemSpecs.battery}
         const isLocalValid = (username.toLowerCase() === 'admin' || username.toLowerCase() === 'operator') && password === 'password';
         if (isLocalValid) {
           currentOperator = username;
+          portalCustomerId = 1;
           log(`QC Operator Session Authorized via Local Fallback (Database page): "${currentOperator}"`, 'ready');
           loadDatabasePortalView();
           saveOperatorRememberCredentials(username, password, isRemember);
@@ -2275,28 +2284,734 @@ Battery Status  : ${systemSpecs.battery}
     btnPagePortalLogout.addEventListener('click', () => {
       log(`Operator "${currentOperator}" signed out from Database page.`, 'info');
       currentOperator = '';
+      portalCustomerId = null;
       loadDatabasePortalView();
     });
   }
 
-  const btnPageCreateBatch = document.getElementById('btn-page-create-batch');
-  if (btnPageCreateBatch) {
-    btnPageCreateBatch.addEventListener('click', () => {
-      const batchCode = prompt("Enter Batch Code to create and assign:");
-      if (batchCode === null) return;
+  // =========================================================
+  // TABS NAVIGATION CONTROLLERS
+  // =========================================================
+  const btnTabQcPortal = document.getElementById('btn-tab-qc-portal');
+  const btnTabQcUsers = document.getElementById('btn-tab-qc-users');
+  const sectionPortalQc = document.getElementById('section-portal-qc');
+  const sectionPortalUsers = document.getElementById('section-portal-users');
 
-      const cleanBatchCode = batchCode.trim();
-      if (!cleanBatchCode) {
-        showCustomAlert('A valid Batch Code must be provided.', 'Validation Error', 'warn');
+  if (btnTabQcPortal && btnTabQcUsers && sectionPortalQc && sectionPortalUsers) {
+    btnTabQcPortal.addEventListener('click', () => {
+      isQcPortalTab = true;
+      btnTabQcPortal.style.background = 'rgba(120, 120, 128, 0.12)';
+      btnTabQcPortal.style.color = 'var(--text-main)';
+      btnTabQcPortal.style.fontWeight = '700';
+
+      btnTabQcUsers.style.background = 'transparent';
+      btnTabQcUsers.style.color = 'var(--text-secondary)';
+      btnTabQcUsers.style.fontWeight = '600';
+
+      sectionPortalQc.style.display = 'flex';
+      sectionPortalUsers.style.display = 'none';
+      fetchBatches();
+    });
+
+    btnTabQcUsers.addEventListener('click', () => {
+      isQcPortalTab = false;
+      btnTabQcUsers.style.background = 'rgba(120, 120, 128, 0.12)';
+      btnTabQcUsers.style.color = 'var(--text-main)';
+      btnTabQcUsers.style.fontWeight = '700';
+
+      btnTabQcPortal.style.background = 'transparent';
+      btnTabQcPortal.style.color = 'var(--text-secondary)';
+      btnTabQcPortal.style.fontWeight = '600';
+
+      sectionPortalQc.style.display = 'none';
+      sectionPortalUsers.style.display = 'flex';
+
+      // Prefill user credentials config form
+      const configUser = document.getElementById('config-operator-username');
+      if (configUser && currentOperator) {
+        configUser.value = currentOperator;
+      }
+    });
+  }
+
+  // =========================================================
+  // BATCH MANAGEMENT AND CUSTOM MODALS CONTROLLERS
+  // =========================================================
+  async function fetchBatches() {
+    if (!portalCustomerId) return;
+    try {
+      const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
+      const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
+
+      // Load local created batches
+      const storedLocal = localStorage.getItem(`local_batches_${portalCustomerId}`);
+      localBatches = storedLocal ? JSON.parse(storedLocal) : [];
+
+      const result = await electronAPI.httpGet(`${apiUrl}/customer/qc-batches?customerId=${portalCustomerId}`, token);
+      if (result.success && Array.isArray(result.data)) {
+        renderBatchesList(result.data);
+      } else {
+        renderBatchesList([]);
+      }
+    } catch (err) {
+      console.error('Fetch batches error:', err);
+    }
+  }
+
+  async function fetchBatchSpecs(batchCode) {
+    if (!portalCustomerId || !batchCode) return;
+    try {
+      const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
+      const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
+
+      const result = await electronAPI.httpGet(`${apiUrl}/customer/qc-specs?customerId=${portalCustomerId}&batchCode=${encodeURIComponent(batchCode)}`, token);
+      if (result.success && Array.isArray(result.data)) {
+        records = result.data;
+        renderSpecsTable();
+      } else {
+        records = [];
+        renderSpecsTable();
+      }
+    } catch (err) {
+      console.error('Fetch specs error:', err);
+    }
+  }
+
+  function renderBatchesList(dbBatches) {
+    const listContainer = document.getElementById('page-portal-batches-list');
+    if (!listContainer) return;
+
+    // Merge local batches
+    const combined = [...dbBatches];
+    localBatches.forEach(localCode => {
+      const exists = dbBatches.some(b => b.batchCode.toLowerCase() === localCode.toLowerCase());
+      if (!exists) {
+        combined.push({
+          batchCode: localCode,
+          deviceCount: 0,
+          lastUpdated: null
+        });
+      }
+    });
+
+    if (combined.length === 0) {
+      listContainer.innerHTML = `<div style="grid-column: span 3; padding: 20px; text-align: center; border: 1px dashed var(--border-color); border-radius: 12px; color: var(--text-secondary); font-size: 13px;">No batches created yet. Click 'Create Batch' to configure one.</div>`;
+      return;
+    }
+
+    listContainer.innerHTML = combined.map(b => {
+      const isActive = activeBatchCode.toLowerCase() === b.batchCode.toLowerCase();
+      const updatedDate = b.lastUpdated ? new Date(b.lastUpdated).toLocaleDateString() : '';
+      return `
+        <div class="qc-batch-item ${isActive ? 'active' : ''}" data-code="${b.batchCode}" style="border: 1px solid ${isActive ? 'var(--color-blue)' : 'var(--border-color)'}; background: ${isActive ? 'rgba(75, 123, 255, 0.08)' : 'rgba(120, 120, 128, 0.04)'}; padding: 14px 18px; border-radius: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;">
+          <div>
+            <strong style="font-size: 13.5px; color: var(--text-main); display: block;">${b.batchCode}</strong>
+            <span style="font-size: 11.5px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; margin-top: 4px;">
+              <i class="fa-solid fa-laptop"></i> ${b.deviceCount} synced device${b.deviceCount === 1 ? '' : 's'}
+            </span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            ${updatedDate ? `<span style="font-size: 10.5px; color: var(--text-secondary);">${updatedDate}</span>` : ''}
+            <div class="batch-actions" style="display: flex; gap: 8px;">
+              <button class="qc-batch-action-btn hover-accent btn-edit-batch" data-code="${b.batchCode}" title="Rename Batch" style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px; border-radius: 4px;"><i class="fa-solid fa-pen"></i></button>
+              <button class="qc-batch-action-btn hover-red btn-delete-batch" data-code="${b.batchCode}" title="Delete Batch" style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px; border-radius: 4px;"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Bind item actions click listeners
+    const items = listContainer.querySelectorAll('.qc-batch-item');
+    items.forEach(item => {
+      const code = item.getAttribute('data-code');
+      
+      item.addEventListener('click', () => {
+        activeBatchCode = code;
+        searchBatchCode = code;
+        localStorage.setItem(`active_batch_${portalCustomerId}`, code);
+        
+        const pageActiveBatch = document.getElementById('page-portal-active-batch');
+        if (pageActiveBatch) pageActiveBatch.textContent = activeBatchCode;
+        
+        fetchBatchSpecs(code);
+        fetchBatches();
+      });
+
+      // Edit Rename click listener
+      const btnEdit = item.querySelector('.btn-edit-batch');
+      if (btnEdit) {
+        btnEdit.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const renameOldInput = document.getElementById('input-rename-old-code');
+          const renameNewInput = document.getElementById('input-rename-new-code');
+          const modalRename = document.getElementById('modal-rename-batch-custom');
+          
+          if (renameOldInput && renameNewInput && modalRename) {
+            renameOldInput.value = code;
+            renameNewInput.value = code;
+            modalRename.style.display = 'flex';
+            renameNewInput.focus();
+          }
+        });
+      }
+
+      // Delete click listener
+      const btnDelete = item.querySelector('.btn-delete-batch');
+      if (btnDelete) {
+        btnDelete.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          await handleDeleteBatchAction(code);
+        });
+      }
+    });
+  }
+
+  function renderSpecsTable() {
+    const tableContainer = document.getElementById('page-portal-specs-container');
+    const tableBody = document.getElementById('page-portal-specs-body');
+    const selectedBatchLabel = document.getElementById('page-portal-selected-batch-label');
+    const deviceCountLabel = document.getElementById('page-portal-device-count-label');
+
+    if (!tableContainer || !tableBody || !selectedBatchLabel || !deviceCountLabel) return;
+
+    selectedBatchLabel.textContent = searchBatchCode || activeBatchCode || 'N/A';
+    deviceCountLabel.textContent = records.length;
+    tableContainer.style.display = 'block';
+
+    if (records.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 30px;">This batch does not contain any device specifications yet. Set it as active and sync diagnostic logs.</td></tr>`;
+      return;
+    }
+
+    tableBody.innerHTML = records.map((r, i) => {
+      const s = r.specs || {};
+      const dateStr = new Date(r.timestamp).toLocaleString();
+      return `
+        <tr style="border-bottom: 1px solid var(--border-color); color: var(--text-main);">
+          <td style="padding: 10px 14px;"><strong>${s.productName || 'Unknown Device'}</strong></td>
+          <td style="padding: 10px 14px;"><code style="font-size: 11.5px; background: rgba(120,120,128,0.12); padding: 2px 6px; border-radius: 4px;">${s.serialNumber || 'N/A'}</code></td>
+          <td style="padding: 10px 14px; font-size: 11.5px;">${s.cpu || 'N/A'}<br><span style="color: var(--text-secondary); font-size: 11px;">${s.windowsVer || 'N/A'}</span></td>
+          <td style="padding: 10px 14px; font-size: 11.5px;">RAM: ${s.ram || 'N/A'}<br>SSD: ${s.ssd || 'N/A'}</td>
+          <td style="padding: 10px 14px;">${s.battery || 'N/A'}</td>
+          <td style="padding: 10px 14px; font-size: 11.5px; color: var(--text-secondary);">${dateStr}<br><span style="font-size: 10.5px;">by ${r.operator || 'N/A'}</span></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  async function handleDeleteBatchAction(batchCode) {
+    const check = confirm(`Are you sure you want to permanently delete batch "${batchCode}"? This will delete all synced device specifications under this batch.`);
+    if (!check) return;
+
+    try {
+      const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
+      const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
+
+      // Delete locally
+      const localExists = localBatches.some(b => b.toLowerCase() === batchCode.toLowerCase());
+      if (localExists) {
+        const updatedLocal = localBatches.filter(b => b.toLowerCase() !== batchCode.toLowerCase());
+        localBatches = updatedLocal;
+        localStorage.setItem(`local_batches_${portalCustomerId}`, JSON.stringify(updatedLocal));
+      }
+
+      // Delete from DB
+      const result = await electronAPI.httpPost(`${apiUrl}/customer/qc-batches`, {
+        customerId: portalCustomerId,
+        action: 'delete',
+        batchCode
+      }, token);
+
+      if (result.success) {
+        showCustomAlert(`Batch "${batchCode}" successfully deleted.`, 'Delete Complete', 'success');
+        
+        // Reset active batch if it matches
+        if (activeBatchCode.toLowerCase() === batchCode.toLowerCase()) {
+          activeBatchCode = '';
+          localStorage.removeItem(`active_batch_${portalCustomerId}`);
+          const pageActiveBatch = document.getElementById('page-portal-active-batch');
+          if (pageActiveBatch) pageActiveBatch.textContent = 'None (Create or assign batch below)';
+        }
+
+        if (searchBatchCode.toLowerCase() === batchCode.toLowerCase()) {
+          searchBatchCode = '';
+          records = [];
+          const tableContainer = document.getElementById('page-portal-specs-container');
+          if (tableContainer) tableContainer.style.display = 'none';
+        }
+
+        fetchBatches();
+      } else {
+        showCustomAlert('Failed to delete batch records from database.', 'Delete Failure', 'error');
+      }
+    } catch (err) {
+      console.error('Delete batch action error:', err);
+    }
+  }
+
+  // =========================================================
+  // CUSTOM MODAL TRIGGERS AND SUBMITS
+  // =========================================================
+
+  // Modal 1: Create Batch Modal togglers
+  const btnCreateBatchCustom = document.getElementById('btn-page-create-batch-custom');
+  const modalCreateBatch = document.getElementById('modal-create-batch-custom');
+  const btnCloseCreateBatch = document.getElementById('btn-close-create-batch-custom');
+  const btnCancelCreateBatch = document.getElementById('btn-cancel-create-batch-custom');
+  const formCreateBatch = document.getElementById('form-create-batch-custom');
+
+  if (btnCreateBatchCustom && modalCreateBatch && btnCloseCreateBatch && btnCancelCreateBatch && formCreateBatch) {
+    btnCreateBatchCustom.addEventListener('click', () => {
+      document.getElementById('input-create-batch-code-custom').value = '';
+      modalCreateBatch.style.display = 'flex';
+      document.getElementById('input-create-batch-code-custom').focus();
+    });
+
+    const closeCreateModal = () => { modalCreateBatch.style.display = 'none'; };
+    btnCloseCreateBatch.addEventListener('click', closeCreateModal);
+    btnCancelCreateBatch.addEventListener('click', closeCreateModal);
+
+    formCreateBatch.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const code = document.getElementById('input-create-batch-code-custom').value.trim();
+      if (!code) {
+        showCustomAlert('Batch Code cannot be empty.', 'Validation Warning', 'warn');
         return;
       }
 
-      activeBatchCode = cleanBatchCode;
+      // Add to local created batches list
+      const dbExists = localBatches.some(b => b.toLowerCase() === code.toLowerCase());
+
+      if (!dbExists) {
+        const updatedLocal = [code, ...localBatches];
+        localBatches = updatedLocal;
+        localStorage.setItem(`local_batches_${portalCustomerId}`, JSON.stringify(updatedLocal));
+      }
+
+      activeBatchCode = code;
+      searchBatchCode = code;
+      localStorage.setItem(`active_batch_${portalCustomerId}`, code);
+
       const pageActiveBatch = document.getElementById('page-portal-active-batch');
       if (pageActiveBatch) pageActiveBatch.textContent = activeBatchCode;
-      log(`Active batch assigned: "${activeBatchCode}"`, 'info');
-      showCustomAlert(`Active batch set to: ${activeBatchCode}`, 'Batch Created', 'success');
+
+      closeCreateModal();
+      showCustomAlert(`Active sync batch successfully set to: ${code}`, 'Batch Configured', 'success');
+      fetchBatchSpecs(code);
+      fetchBatches();
     });
+  }
+
+  // Modal 2: History Lookup Custom Modal
+  const btnLookupBatchCustom = document.getElementById('btn-page-lookup-batch-custom');
+  const modalLookupBatch = document.getElementById('modal-lookup-batch-custom');
+  const btnCloseLookupBatch = document.getElementById('btn-close-lookup-batch-custom');
+  const btnCancelLookupBatch = document.getElementById('btn-cancel-lookup-batch-custom');
+  const formLookupBatch = document.getElementById('form-lookup-batch-custom');
+
+  if (btnLookupBatchCustom && modalLookupBatch && btnCloseLookupBatch && btnCancelLookupBatch && formLookupBatch) {
+    btnLookupBatchCustom.addEventListener('click', () => {
+      document.getElementById('input-lookup-batch-code-custom').value = '';
+      modalLookupBatch.style.display = 'flex';
+      document.getElementById('input-lookup-batch-code-custom').focus();
+    });
+
+    const closeLookupModal = () => { modalLookupBatch.style.display = 'none'; };
+    btnCloseLookupBatch.addEventListener('click', closeLookupModal);
+    btnCancelLookupBatch.addEventListener('click', closeLookupModal);
+
+    formLookupBatch.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const code = document.getElementById('input-lookup-batch-code-custom').value.trim();
+      if (!code) return;
+
+      searchBatchCode = code;
+      closeLookupModal();
+      fetchBatchSpecs(code);
+    });
+  }
+
+  // Modal 3: Rename Batch Modal Submits
+  const modalRenameBatch = document.getElementById('modal-rename-batch-custom');
+  const btnCloseRenameBatch = document.getElementById('btn-close-rename-batch-custom');
+  const btnCancelRenameBatch = document.getElementById('btn-cancel-rename-batch-custom');
+  const formRenameBatch = document.getElementById('form-rename-batch-custom');
+
+  if (modalRenameBatch && btnCloseRenameBatch && btnCancelRenameBatch && formRenameBatch) {
+    const closeRenameModal = () => { modalRenameBatch.style.display = 'none'; };
+    btnCloseRenameBatch.addEventListener('click', closeRenameModal);
+    btnCancelRenameBatch.addEventListener('click', closeRenameModal);
+
+    formRenameBatch.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const oldCode = document.getElementById('input-rename-old-code').value;
+      const newCode = document.getElementById('input-rename-new-code').value.trim();
+
+      if (!newCode || oldCode === newCode) {
+        closeRenameModal();
+        return;
+      }
+
+      try {
+        const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
+        const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
+
+        // Rename local
+        const localExists = localBatches.some(b => b.toLowerCase() === oldCode.toLowerCase());
+        if (localExists) {
+          const updatedLocal = localBatches.map(b => b.toLowerCase() === oldCode.toLowerCase() ? newCode : b);
+          localBatches = updatedLocal;
+          localStorage.setItem(`local_batches_${portalCustomerId}`, JSON.stringify(updatedLocal));
+        }
+
+        const result = await electronAPI.httpPost(`${apiUrl}/customer/qc-batches`, {
+          customerId: portalCustomerId,
+          action: 'rename',
+          oldBatchCode: oldCode,
+          newBatchCode: newCode
+        }, token);
+
+        if (result.success) {
+          showCustomAlert(`Batch successfully renamed to "${newCode}".`, 'Rename Success', 'success');
+          
+          if (activeBatchCode.toLowerCase() === oldCode.toLowerCase()) {
+            activeBatchCode = newCode;
+            localStorage.setItem(`active_batch_${portalCustomerId}`, newCode);
+            const pageActiveBatch = document.getElementById('page-portal-active-batch');
+            if (pageActiveBatch) pageActiveBatch.textContent = activeBatchCode;
+          }
+
+          if (searchBatchCode.toLowerCase() === oldCode.toLowerCase()) {
+            searchBatchCode = newCode;
+          }
+
+          closeRenameModal();
+          fetchBatches();
+          fetchBatchSpecs(newCode);
+        } else {
+          showCustomAlert(result.data?.error || 'Failed to rename batch records.', 'Rename Error', 'error');
+        }
+      } catch (err) {
+        console.error('Rename submit error:', err);
+      }
+    });
+  }
+
+  // Modal 4: Update Device (Search & Edit specs) Custom Modal
+  const btnUpdateDeviceCustom = document.getElementById('btn-page-update-device-custom');
+  const modalUpdateDevice = document.getElementById('modal-update-device-custom');
+  const modalUpdateDeviceContainer = document.getElementById('modal-update-device-container');
+  const btnCloseUpdateDevice = document.getElementById('btn-close-update-device-custom');
+  const btnCancelUpdateDeviceSearch = document.getElementById('btn-cancel-update-device-search');
+  const btnCancelUpdateDeviceEdit = document.getElementById('btn-cancel-update-device-edit');
+  const btnBackUpdateDevice = document.getElementById('btn-back-update-device');
+  const formUpdateDeviceSearch = document.getElementById('form-update-device-search');
+  const formUpdateDeviceEdit = document.getElementById('form-update-device-edit');
+
+  let editRecordData = null;
+
+  if (btnUpdateDeviceCustom && modalUpdateDevice && btnCloseUpdateDevice && formUpdateDeviceSearch && formUpdateDeviceEdit) {
+    btnUpdateDeviceCustom.addEventListener('click', () => {
+      document.getElementById('input-update-device-serial').value = '';
+      editRecordData = null;
+      
+      // Reset views
+      formUpdateDeviceSearch.style.display = 'flex';
+      formUpdateDeviceEdit.style.display = 'none';
+      if (modalUpdateDeviceContainer) modalUpdateDeviceContainer.style.maxWidth = '440px';
+      
+      modalUpdateDevice.style.display = 'flex';
+      document.getElementById('input-update-device-serial').focus();
+    });
+
+    const closeUpdateModal = () => { modalUpdateDevice.style.display = 'none'; };
+    btnCloseUpdateDevice.addEventListener('click', closeUpdateModal);
+    if (btnCancelUpdateDeviceSearch) btnCancelUpdateDeviceSearch.addEventListener('click', closeUpdateModal);
+    if (btnCancelUpdateDeviceEdit) btnCancelUpdateDeviceEdit.addEventListener('click', closeUpdateModal);
+
+    if (btnBackUpdateDevice) {
+      btnBackUpdateDevice.addEventListener('click', () => {
+        formUpdateDeviceSearch.style.display = 'flex';
+        formUpdateDeviceEdit.style.display = 'none';
+        if (modalUpdateDeviceContainer) modalUpdateDeviceContainer.style.maxWidth = '440px';
+        document.getElementById('input-update-device-serial').focus();
+      });
+    }
+
+    formUpdateDeviceSearch.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const serial = document.getElementById('input-update-device-serial').value.trim();
+      if (!serial) return;
+
+      const btnSubmit = document.getElementById('btn-submit-update-device-search');
+      const originalText = btnSubmit.innerHTML;
+      btnSubmit.disabled = true;
+      btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
+
+      try {
+        const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
+        const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
+
+        const result = await electronAPI.httpGet(`${apiUrl}/customer/qc-device?customerId=${portalCustomerId}&serialNumber=${encodeURIComponent(serial)}`, token);
+        if (result.success && result.data && !result.data.error) {
+          editRecordData = result.data;
+          
+          // Prepopulate inputs
+          const s = editRecordData.specs || {};
+          document.getElementById('input-edit-record-id').value = editRecordData.id;
+          document.getElementById('input-edit-serial').value = s.serialNumber || '';
+          document.getElementById('input-edit-product').value = s.productName || '';
+          document.getElementById('input-edit-cpu').value = s.cpu || '';
+          document.getElementById('input-edit-ram').value = s.ram || '';
+          document.getElementById('input-edit-ssd').value = s.ssd || '';
+          document.getElementById('input-edit-graphics').value = s.graphics || '';
+          document.getElementById('input-edit-battery').value = s.battery || '';
+          document.getElementById('input-edit-windows').value = s.windowsVer || '';
+          document.getElementById('input-edit-batchcode').value = editRecordData.batchCode || '';
+
+          // Transition to Step 2
+          formUpdateDeviceSearch.style.display = 'none';
+          formUpdateDeviceEdit.style.display = 'grid';
+          if (modalUpdateDeviceContainer) modalUpdateDeviceContainer.style.maxWidth = '650px';
+        } else {
+          showCustomAlert(result.data?.error || 'Serial Number not found under your operator logs.', 'Search Failure', 'error');
+        }
+      } catch (err) {
+        console.error('Retrieve spec log error:', err);
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = originalText;
+      }
+    });
+
+    formUpdateDeviceEdit.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!editRecordData) return;
+
+      const btnSave = document.getElementById('btn-save-update-device');
+      const originalText = btnSave.innerHTML;
+      btnSave.disabled = true;
+      btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+      try {
+        const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
+        const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
+
+        const recordId = document.getElementById('input-edit-record-id').value;
+        const updatedSpecs = {
+          ...editRecordData.specs,
+          productName: document.getElementById('input-edit-product').value.trim(),
+          cpu: document.getElementById('input-edit-cpu').value.trim(),
+          ram: document.getElementById('input-edit-ram').value.trim(),
+          ssd: document.getElementById('input-edit-ssd').value.trim(),
+          graphics: document.getElementById('input-edit-graphics').value.trim(),
+          battery: document.getElementById('input-edit-battery').value.trim(),
+          windowsVer: document.getElementById('input-edit-windows').value.trim()
+        };
+        const batchCode = document.getElementById('input-edit-batchcode').value.trim();
+
+        const result = await electronAPI.httpPost(`${apiUrl}/customer/qc-device`, {
+          customerId: portalCustomerId,
+          recordId,
+          updatedSpecs,
+          batchCode
+        }, token);
+
+        if (result.success) {
+          showCustomAlert('Device diagnostics specifications updated successfully.', 'Save Complete', 'success');
+          closeUpdateModal();
+          
+          if (searchBatchCode) {
+            fetchBatchSpecs(searchBatchCode);
+          }
+          fetchBatches();
+        } else {
+          showCustomAlert(result.data?.error || 'Failed to update specifications in database.', 'Save Failure', 'error');
+        }
+      } catch (err) {
+        console.error('Save edits submit error:', err);
+      } finally {
+        btnSave.disabled = false;
+        btnSave.innerHTML = originalText;
+      }
+    });
+  }
+
+  // =========================================================
+  // OPERATOR USER CONFIG FORM SUBMIT
+  // =========================================================
+  const formPortalUserConfig = document.getElementById('form-portal-user-config');
+  if (formPortalUserConfig) {
+    formPortalUserConfig.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!portalCustomerId) return;
+
+      const btnSave = document.getElementById('btn-save-operator-config');
+      const originalText = btnSave.innerHTML;
+      btnSave.disabled = true;
+      btnSave.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+
+      const username = document.getElementById('config-operator-username').value.trim();
+      const password = document.getElementById('config-operator-password').value.trim();
+
+      try {
+        const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
+        const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
+
+        const result = await electronAPI.httpPost(`${apiUrl}/customer/qc-user`, {
+          customerId: portalCustomerId,
+          username,
+          password
+        }, token);
+
+        if (result.success && !result.data?.error) {
+          showCustomAlert('Operator credentials successfully synchronized in the database.', 'Save Success', 'success');
+          currentOperator = username;
+          
+          const pageLoggedUser = document.getElementById('page-portal-logged-user');
+          if (pageLoggedUser) pageLoggedUser.textContent = currentOperator;
+
+          // Clear password input fields for safety
+          document.getElementById('config-operator-password').value = '';
+        } else {
+          showCustomAlert(result.data?.error || 'Failed to synchronize credentials online.', 'Sync Error', 'error');
+        }
+      } catch (err) {
+        console.error('Config operator config save error:', err);
+      } finally {
+        btnSave.disabled = false;
+        btnSave.innerHTML = originalText;
+      }
+    });
+  }
+
+  // =========================================================
+  // CUSTOM EXPORTS TRIGGER ACTION BINDINGS
+  // =========================================================
+  const btnPageExportExcelCustom = document.getElementById('btn-page-export-excel-custom');
+  if (btnPageExportExcelCustom) {
+    btnPageExportExcelCustom.addEventListener('click', async () => {
+      if (records.length === 0) {
+        showCustomAlert('No records available to export. Select a batch first.', 'Export Failure', 'warn');
+        return;
+      }
+
+      log('Exporting batch records to Excel (CSV format) from custom view...', 'info');
+      const headers = 'Sync Date,Serial Number,Product Name,Processor,Memory (RAM),Storage (SSD),Battery Health,Operator\n';
+      const csvData = headers + records.map(r => {
+        const s = r.specs || {};
+        const escape = (val) => `"${String(val || '').replace(/"/g, '""')}"`;
+        return `${escape(new Date(r.timestamp).toLocaleString())},${escape(s.serialNumber)},${escape(s.productName)},${escape(s.cpu)},${escape(s.ram)},${escape(s.ssd)},${escape(s.battery)},${escape(r.operator)}`;
+      }).join('\n');
+
+      const fileName = `QC_Batch_${searchBatchCode || activeBatchCode || 'Export'}_Report.csv`;
+      const result = await electronAPI.saveTableFile(csvData, fileName);
+      if (result.success) {
+        log(`Exported batch reports saved to Desktop: ${fileName}`, 'ready');
+        showCustomAlert(`Report exported successfully to Desktop:\n${fileName}`, 'Export Success', 'success');
+      } else {
+        showCustomAlert(`Export failed: ${result.error}`, 'Export Error', 'error');
+      }
+    });
+  }
+
+  const btnPageExportPdfCustom = document.getElementById('btn-page-export-pdf-custom');
+  if (btnPageExportPdfCustom) {
+    btnPageExportPdfCustom.addEventListener('click', () => {
+      handlePrintPdfCustom();
+    });
+  }
+
+  function handlePrintPdfCustom() {
+    if (records.length === 0) {
+      showCustomAlert('No records available to print. Select a batch first.', 'Print Failure', 'warn');
+      return;
+    }
+
+    log('Opening browser print layout overlay...', 'info');
+    const printWindow = window.open('', '_blank', 'width=1100,height=800');
+    if (printWindow) {
+      const rowsHtml = records.map((r, i) => {
+        const s = r.specs || {};
+        return `
+          <tr>
+            <td>${i + 1}</td>
+            <td>${new Date(r.timestamp).toLocaleString()}</td>
+            <td>${s.serialNumber || 'N/A'}</td>
+            <td>${s.productName || 'N/A'}</td>
+            <td>${s.cpu || 'N/A'}</td>
+            <td>${s.ram || 'N/A'}</td>
+            <td>${s.ssd || 'N/A'}</td>
+            <td>${s.battery || 'N/A'}</td>
+            <td>${r.operator || 'N/A'}</td>
+          </tr>
+        `;
+      }).join('');
+
+      printWindow.document.write(`
+        <html>
+        <head>
+          <title>BIZZ CO HUB - QC BATCH REPORT</title>
+          <style>
+            body { font-family: system-ui, -apple-system, sans-serif; color: #1e293b; padding: 40px; }
+            .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3b82f6; padding-bottom: 20px; margin-bottom: 30px; }
+            .logo-title { margin: 0; font-size: 24px; color: #2563eb; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; }
+            .subtitle { margin: 5px 0 0 0; color: #64748b; font-size: 13px; }
+            .batch-info { font-size: 14px; color: #334155; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
+            th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; }
+            th { background-color: #f8fafc; font-weight: 700; color: #475569; }
+            tr:nth-child(even) { background-color: #f8fafc; }
+            .footer { text-align: center; font-size: 11px; color: #94a3b8; margin-top: 50px; border-top: 1px solid #e2e8f0; padding-top: 15px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div>
+              <h1 class="logo-title">Bizz Co Hub</h1>
+              <p class="subtitle">Hardware Diagnostics & Batch Sync Report</p>
+            </div>
+            <div class="batch-info" style="text-align: right;">
+              <strong>Batch Code:</strong> ${searchBatchCode || activeBatchCode || 'N/A'}<br>
+              <strong>Total Devices:</strong> ${records.length}<br>
+              <strong>Date Generated:</strong> ${new Date().toLocaleDateString()}
+            </div>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Sync Date</th>
+                <th>Serial Number</th>
+                <th>Product Name</th>
+                <th>Processor</th>
+                <th>Memory (RAM)</th>
+                <th>Storage (SSD)</th>
+                <th>Battery Health</th>
+                <th>Operator</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+          
+          <div class="footer">
+            © ${new Date().getFullYear()} Bizz Co Hub Systems. All hardware diagnostic results synced via BC Elite QC Client.
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() { window.close(); }, 500);
+            };
+          </script>
+        </body>
+        </html>
+      `);
+      printWindow.document.close();
+    }
   }
 
   const btnPageUploadDetails = document.getElementById('btn-page-upload-details');
@@ -2308,16 +3023,9 @@ Battery Status  : ${systemSpecs.battery}
       }
 
       if (!activeBatchCode) {
-        const batchCode = prompt("Enter Batch Code to assign and upload specs:");
-        if (batchCode === null) return;
-        const cleanBatchCode = batchCode.trim();
-        if (!cleanBatchCode) {
-          showCustomAlert('A valid Batch Code must be provided to upload.', 'Validation Error', 'warn');
-          return;
-        }
-        activeBatchCode = cleanBatchCode;
-        const pageActiveBatch = document.getElementById('page-portal-active-batch');
-        if (pageActiveBatch) pageActiveBatch.textContent = activeBatchCode;
+        const btnCreateCustom = document.getElementById('btn-page-create-batch-custom');
+        if (btnCreateCustom) btnCreateCustom.click();
+        return;
       }
 
       // Read issue found fields
@@ -2380,6 +3088,12 @@ Battery Status  : ${systemSpecs.battery}
           if (sectionSelect) sectionSelect.value = '';
           const descTextarea = document.getElementById('page-issue-description');
           if (descTextarea) descTextarea.value = '';
+
+          // Refresh current searches
+          if (searchBatchCode) {
+            fetchBatchSpecs(searchBatchCode);
+          }
+          fetchBatches();
         } else {
           throw new Error(result.error || 'Server error');
         }
@@ -2471,6 +3185,36 @@ Battery Status  : ${systemSpecs.battery}
     btnPageExportPdf.addEventListener('click', () => {
       if (btnPortalExportPdf) btnPortalExportPdf.click();
     });
+  }
+
+  function loadDatabasePortalView() {
+    const pageLoginSection = document.getElementById('page-portal-login-section');
+    const pageDashboardSection = document.getElementById('page-portal-dashboard-section');
+    const pageLoggedUser = document.getElementById('page-portal-logged-user');
+    const pageActiveBatch = document.getElementById('page-portal-active-batch');
+
+    if (currentOperator) {
+      if (pageLoggedUser) pageLoggedUser.textContent = currentOperator;
+      if (pageActiveBatch) pageActiveBatch.textContent = activeBatchCode || 'None (Create or assign batch below)';
+      if (pageLoginSection) pageLoginSection.style.display = 'none';
+      if (pageDashboardSection) pageDashboardSection.style.display = 'block';
+
+      // Load initial tabs state
+      const btnTabQc = document.getElementById('btn-tab-qc-portal');
+      if (btnTabQc) btnTabQc.click();
+
+      // Retrieve batch files
+      fetchBatches();
+    } else {
+      if (pageLoginSection) pageLoginSection.style.display = 'block';
+      if (pageDashboardSection) pageDashboardSection.style.display = 'none';
+      const userField = document.getElementById('page-portal-username');
+      const passField = document.getElementById('page-portal-password');
+      const errField = document.getElementById('page-portal-login-error');
+      if (userField) userField.value = '';
+      if (passField) passField.value = '';
+      if (errField) errField.style.display = 'none';
+    }
   }
 
   // =========================================================

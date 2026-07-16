@@ -1558,4 +1558,29 @@ body.light-theme .modal-container.modal-alert-container {
   transform: scale(0.96);
 }
 
+/* Batch Management portal styles */
+.qc-batch-item:hover {
+  background: rgba(120, 120, 128, 0.08) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+body.light-theme .qc-batch-item:hover {
+  background: rgba(0, 0, 0, 0.03) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+.qc-batch-action-btn:hover {
+  color: var(--color-blue) !important;
+  background: rgba(120, 120, 128, 0.12) !important;
+}
+
+body.light-theme .qc-batch-action-btn:hover {
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+
+.qc-batch-action-btn.hover-red:hover {
+  color: var(--color-red) !important;
+  background: rgba(255, 69, 58, 0.15) !important;
+}
+
 
