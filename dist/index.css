@@ -1432,6 +1432,7 @@ body.dark-theme .progress-bar-track {
 .modal-overlay.modal-alert-overlay {
   justify-content: center;
   align-items: center;
+  z-index: 100000 !important;
 }
 
 .modal-container.modal-alert-container {
@@ -1558,29 +1559,139 @@ body.light-theme .modal-container.modal-alert-container {
   transform: scale(0.96);
 }
 
-/* Batch Management portal styles */
-.qc-batch-item:hover {
-  background: rgba(120, 120, 128, 0.08) !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
+
+
+/* ─── Portal Action Cards ─── */
+.portal-action-card {
+  border: 1px solid var(--border-color) !important;
+  background: rgba(120, 120, 128, 0.04) !important;
+  border-radius: 16px !important;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease !important;
+}
+.portal-action-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  background: rgba(120, 120, 128, 0.09) !important;
+}
+.portal-action-card:active { transform: scale(0.98); }
+
+/* ─── Batch Item Cards ─── */
+.portal-batch-item {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: rgba(120, 120, 128, 0.04);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  user-select: none;
+}
+.portal-batch-item:hover { background: rgba(120,120,128,0.1); box-shadow: 0 2px 10px rgba(0,0,0,0.15); }
+.portal-batch-item.active { border-color: var(--color-blue); background: rgba(10,132,255,0.07); }
+.portal-batch-item .batch-action-btn {
+  background: transparent; border: none; color: var(--text-secondary); cursor: pointer;
+  padding: 5px; border-radius: 6px; font-size: 13px;
+  transition: color 0.2s, background 0.2s; display: flex; align-items: center; justify-content: center;
+}
+.portal-batch-item .batch-action-btn:hover { color: var(--color-blue); background: rgba(10,132,255,0.1); }
+.portal-batch-item .batch-action-btn.danger:hover { color: var(--color-red); background: rgba(255,69,58,0.1); }
+
+/* ─── Portal Inline Modals ─── */
+.portal-inline-modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(6px); z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+}
+.portal-modal-card {
+  background: var(--bg-card); border: 1px solid var(--border-color);
+  border-radius: 18px; padding: 28px; width: 100%; max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+  animation: portalModalIn 0.2s ease;
+}
+@keyframes portalModalIn {
+  from { opacity: 0; transform: scale(0.94) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+#portal-records-tbody tr:hover td { background: rgba(120,120,128,0.06); }
+
+/* Custom wide Spec Upload Preview Layout styling */
+.preview-spec-grid input,
+.preview-spec-grid select {
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  background: rgba(120,120,128,0.08);
+  color: var(--text-main);
+  font-size: 13.5px;
+  outline: none;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+.preview-spec-grid input:focus,
+.preview-spec-grid select:focus {
+  border-color: var(--color-blue);
+  background: rgba(120, 120, 128, 0.12);
+}
+body.light-theme .preview-spec-grid input,
+body.light-theme .preview-spec-grid select {
+  background: #e8e8e8;
+  border: 1px solid #bcbcbd;
+  color: #000000;
+}
+body.light-theme .preview-spec-grid input:focus,
+body.light-theme .preview-spec-grid select:focus {
+  border-color: #007aff;
+  background: #e1e1e3;
 }
 
-body.light-theme .qc-batch-item:hover {
-  background: rgba(0, 0, 0, 0.03) !important;
-  border-color: rgba(0, 0, 0, 0.08) !important;
+.preview-spec-grid select option {
+  background-color: #2c2c2e;
+  color: #ffffff;
+}
+body.light-theme .preview-spec-grid select option {
+  background-color: #ffffff;
+  color: #000000;
 }
 
-.qc-batch-action-btn:hover {
-  color: var(--color-blue) !important;
-  background: rgba(120, 120, 128, 0.12) !important;
+.preview-btn-bar button {
+  padding: 12px 36px;
+  border-radius: 12px;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 130px;
+  transition: opacity 0.2s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  outline: none;
 }
-
-body.light-theme .qc-batch-action-btn:hover {
-  background: rgba(0, 0, 0, 0.05) !important;
+.preview-btn-bar button:active {
+  transform: scale(0.98);
 }
-
-.qc-batch-action-btn.hover-red:hover {
-  color: var(--color-red) !important;
-  background: rgba(255, 69, 58, 0.15) !important;
+.preview-btn-bar button:hover {
+  opacity: 0.95;
 }
-
+.preview-btn-clear {
+  background: #e5e5ea;
+  color: #1c1c1e;
+  border: 1px solid #aeaea2 !important;
+}
+body.dark-theme .preview-btn-clear {
+  background: #3a3a3c;
+  color: #ffffff;
+  border: 1px solid #545456 !important;
+}
+.preview-btn-update {
+  background: #ff9500;
+  color: #ffffff;
+}
+.preview-btn-submit {
+  background: #007aff;
+  color: #ffffff;
+}
 

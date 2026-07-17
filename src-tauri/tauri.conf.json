@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "BCEliteQC",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "identifier": "com.bcelite.qc",
   "build": {
     "frontendDist": "../dist",
@@ -34,6 +34,12 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "windows": {
+      "nsis": {
+        "sidebarImage": "../installation_bg.bmp",
+        "headerImage": "../installer_logo.bmp"
+      }
+    },
     "android": {
       "debugApplicationIdSuffix": ".debug"
     }

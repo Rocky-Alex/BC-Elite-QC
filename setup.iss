@@ -17,7 +17,7 @@ Compression=lzma2/max
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
-SetupIconFile=f:\Company Software\QC Software - Remaster\icon.ico
+SetupIconFile=f:\Company Software\QC Software - Remaster\src-tauri\icons\icon.ico
 WizardSmallImageFile=f:\Company Software\QC Software - Remaster\installer_logo.bmp
 DisableWelcomePage=no
 
