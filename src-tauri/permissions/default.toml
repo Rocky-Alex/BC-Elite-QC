@@ -39,6 +39,11 @@ description = "Allow window_control command"
 commands.allow = ["window_control"]
 
 [[permission]]
+identifier = "allow-set-fullscreen"
+description = "Allow set_fullscreen command"
+commands.allow = ["set_fullscreen"]
+
+[[permission]]
 identifier = "allow-get-app-version"
 description = "Allow get_app_version command"
 commands.allow = ["get_app_version"]
@@ -64,6 +69,7 @@ permissions = [
   "allow-save-table-file",
   "allow-read-file-content",
   "allow-window-control",
+  "allow-set-fullscreen",
   "allow-get-app-version",
   "allow-http-post",
   "allow-http-get"

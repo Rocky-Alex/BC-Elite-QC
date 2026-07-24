@@ -247,9 +247,153 @@ fn window_control(action: String, window: tauri::Window) -> Result<(), String> {
     Ok(())
 }
 
+// 8b. Set native OS fullscreen (covers taskbar completely)
+#[tauri::command]
+fn set_fullscreen(state: bool, window: tauri::Window) -> Result<(), String> {
+    if state {
+        let _ = window.set_decorations(true);
+        let _ = window.set_always_on_top(false);
+        let _ = window.set_focus();
+    } else {
+        let _ = window.set_always_on_top(false);
+        let _ = window.set_decorations(false);
+    }
+    window.set_fullscreen(state).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn get_app_version(app: tauri::AppHandle) -> String {
     app.package_info().version.to_string()
+}
+
+// Cleanly normalizes a Path to remove '..' and '.' relative components and UNC prefixes
+fn normalize_path(path: &Path) -> String {
+    if let Ok(canonical) = path.canonicalize() {
+        let s = canonical.to_string_lossy().to_string();
+        return s.strip_prefix(r"\\?\").unwrap_or(&s).to_string();
+    }
+    let s = path.to_string_lossy().to_string();
+    s.strip_prefix(r"\\?\").unwrap_or(&s).to_string()
+}
+
+// Returns the absolute path to the Sound_checking folder so JS can build audio src URLs
+#[tauri::command]
+fn get_sound_folder_path() -> Result<String, String> {
+    // First check default installation path
+    let default_install = PathBuf::from(r"C:\BizzCoHub QC\Sound_checking");
+    if default_install.exists() {
+        return Ok(normalize_path(&default_install));
+    }
+
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let candidates = vec![
+                exe_dir.join("Sound_checking"),
+                exe_dir.join("..").join("Sound_checking"),
+                exe_dir.join("..").join("..").join("Sound_checking"),
+                exe_dir.join("..").join("..").join("..").join("Sound_checking"),
+            ];
+            for candidate in candidates {
+                if candidate.exists() {
+                    return Ok(normalize_path(&candidate));
+                }
+            }
+        }
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        let candidates = vec![
+            cwd.join("Sound_checking"),
+            cwd.join("dist").join("Sound_checking"),
+        ];
+        for candidate in candidates {
+            if candidate.exists() {
+                return Ok(normalize_path(&candidate));
+            }
+        }
+    }
+
+    let target = if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            if exe_dir.file_name().and_then(|n| n.to_str()) == Some("Master Checker") {
+                if let Some(parent) = exe_dir.parent() {
+                    parent.join("Sound_checking")
+                } else {
+                    exe_dir.join("Sound_checking")
+                }
+            } else {
+                exe_dir.join("Sound_checking")
+            }
+        } else if let Ok(cwd) = std::env::current_dir() {
+            cwd.join("Sound_checking")
+        } else {
+            PathBuf::from("Sound_checking")
+        }
+    } else if let Ok(cwd) = std::env::current_dir() {
+        cwd.join("Sound_checking")
+    } else {
+        PathBuf::from("Sound_checking")
+    };
+
+    let _ = fs::create_dir_all(&target);
+    Ok(normalize_path(&target))
+}
+
+// Returns a list of audio file names in the Sound_checking folder
+#[tauri::command]
+fn get_sound_files() -> Result<Vec<String>, String> {
+    let folder_str = match get_sound_folder_path() {
+        Ok(path) => path,
+        Err(_) => return Ok(vec![]),
+    };
+    let folder_path = Path::new(&folder_str);
+    if !folder_path.exists() {
+        let _ = fs::create_dir_all(folder_path);
+    }
+    let mut files = Vec::new();
+    if let Ok(entries) = fs::read_dir(folder_path) {
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.is_file() {
+                if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
+                    let ext_lower = ext.to_lowercase();
+                    if matches!(ext_lower.as_str(), "mp3" | "mp4" | "wav" | "m4a" | "aac" | "ogg" | "flac" | "wma" | "webm" | "mkv") {
+                        if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
+                            files.push(name.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    files.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+    Ok(files)
+}
+
+// Opens the Sound_checking folder natively in Windows Explorer
+#[tauri::command]
+fn open_sound_folder() -> Result<(), String> {
+    let folder_str = get_sound_folder_path()?;
+    let folder_path = Path::new(&folder_str);
+    if !folder_path.exists() {
+        let _ = fs::create_dir_all(folder_path);
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let clean_path = folder_str.replace('/', "\\");
+        Command::new("explorer")
+            .arg(&clean_path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Command::new("open")
+            .arg(&folder_str)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 // 9. HTTP POST proxy — sends JSON payload to external API (bypasses WebView fetch restrictions)
@@ -307,6 +451,27 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            // Register global shortcut for Print Screen key to bypass OS interception
+            #[cfg(desktop)]
+            {
+                use tauri::Emitter;
+                use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Shortcut, ShortcutState};
+
+                app.handle().plugin(
+                    tauri_plugin_global_shortcut::Builder::new()
+                        .with_handler(move |app, _shortcut, event| {
+                            if event.state() == ShortcutState::Pressed {
+                                let _ = app.emit("print-screen-pressed", "pressed");
+                            }
+                        })
+                        .build(),
+                )?;
+
+                let shortcut = Shortcut::new(None, Code::PrintScreen);
+                let _ = app.global_shortcut().register(shortcut);
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -318,7 +483,11 @@ pub fn run() {
             save_table_file,
             read_file_content,
             window_control,
+            set_fullscreen,
             get_app_version,
+            get_sound_folder_path,
+            get_sound_files,
+            open_sound_folder,
             http_post,
             http_get
         ])

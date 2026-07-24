@@ -1,12 +1,12 @@
 {
   "name": "bc-elite-qc",
-  "version": "1.0.4",
+  "version": "1.5",
   "description": "BC Elite QC - Quality Checking Suite",
   "scripts": {
     "start": "set PATH=C:\\msys64\\mingw64\\bin;%PATH%&& tauri dev",
     "tauri": "tauri",
-    "build": "set PATH=C:\\msys64\\mingw64\\bin;%PATH%&& tauri build",
-    "package": "cmd /c start /wait \"\" \"C:\\Users\\Rishad\\AppData\\Local\\Programs\\Inno Setup 6\\ISCC.exe\" setup.iss"
+    "build": "powershell -Command \"if (-not (Test-Path 'dist\\Sound_checking')) { New-Item -ItemType Directory -Path 'dist\\Sound_checking' }; Copy-Item -Path 'Sound_checking\\*' -Destination 'dist\\Sound_checking' -Recurse -Force\" && set PATH=C:\\msys64\\mingw64\\bin;%PATH%&& tauri build",
+    "package": "node package.js"
   },
   "keywords": [
     "bizzcohub",

@@ -9,10 +9,10 @@
 AppName=BC Elite QC
 AppPublisher=Bizz Co Hub LLC
 AppVersion={#AppVersion}
-DefaultDirName=C:\QC_Software
+DefaultDirName=C:\BizzCoHub QC
 DefaultGroupName=BC Elite QC
-OutputDir=f:\Company Software\QC Software - Remaster
-OutputBaseFilename=QC_Setup
+OutputDir=f:\Company Software\QC Software - Remaster\.setup
+OutputBaseFilename=BC_Elite_QC_Setup_Version_v1.5
 Compression=lzma2/max
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -25,7 +25,7 @@ DisableWelcomePage=no
 Source: "f:\Company Software\QC Software - Remaster\Battery_checking\Battery_checking.exe"; DestDir: "{app}\Battery_checking"; Flags: ignoreversion
 Source: "f:\Company Software\QC Software - Remaster\Battery_checking\Battery_checking.cfg"; DestDir: "{app}\Battery_checking"; Flags: ignoreversion
 Source: "f:\Company Software\QC Software - Remaster\LCD_checking\LCD_checking.exe"; DestDir: "{app}\LCD_checking"; Flags: ignoreversion
-Source: "f:\Company Software\QC Software - Remaster\Sound_checking\Sound_checking.mp4"; DestDir: "{app}\Sound_checking"; Flags: ignoreversion
+Source: "f:\Company Software\QC Software - Remaster\Sound_checking\*"; DestDir: "{app}\Sound_checking"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "f:\Company Software\QC Software - Remaster\Keyboard_checking\Keyboard_checking.exe"; DestDir: "{app}\Keyboard_checking"; Flags: ignoreversion
 Source: "f:\Company Software\QC Software - Remaster\cpuz\cpuz_x64.exe"; DestDir: "{app}\cpuz"; Flags: ignoreversion
 Source: "f:\Company Software\QC Software - Remaster\cpuz\cpuz.ini"; DestDir: "{app}\cpuz"; Flags: ignoreversion
@@ -39,14 +39,14 @@ Source: "f:\Company Software\QC Software - Remaster\installer_logo.bmp"; Flags: 
 Source: "f:\Company Software\QC Software - Remaster\installation_bg.bmp"; Flags: dontcopy
 
 [Tasks]
-Name: "desktopicon"; Description: "Create Desktop Shortcuts"; GroupDescription: "Additional shortcuts:"
-Name: "desktopicon\master"; Description: "BizzCoHub QC Software (Master Checker)"
-Name: "desktopicon\battery"; Description: "Battery Checker"
-Name: "desktopicon\cpuz"; Description: "CPU-Z Hardware Info"
-Name: "desktopicon\hdsentinel"; Description: "Hard Disk Sentinel"
-Name: "desktopicon\keyboard"; Description: "Keyboard Checker"
-Name: "desktopicon\lcd"; Description: "LCD Pixel Checker"
-Name: "desktopicon\sound"; Description: "Sound Output Checker"
+Name: "desktopicon"; Description: "Create Desktop Shortcuts"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
+Name: "desktopicon\master"; Description: "BizzCoHub QC Software (Master Checker)"; Flags: unchecked
+Name: "desktopicon\battery"; Description: "Battery Checker"; Flags: unchecked
+Name: "desktopicon\cpuz"; Description: "CPU-Z Hardware Info"; Flags: unchecked
+Name: "desktopicon\hdsentinel"; Description: "Hard Disk Sentinel"; Flags: unchecked
+Name: "desktopicon\keyboard"; Description: "Keyboard Checker"; Flags: unchecked
+Name: "desktopicon\lcd"; Description: "LCD Pixel Checker"; Flags: unchecked
+Name: "desktopicon\sound"; Description: "Sound Output Checker"; Flags: unchecked
 
 [Icons]
 Name: "{commondesktop}\BC Elite QC"; Filename: "{app}\Master Checker\BizzCoHubQC.exe"; IconFilename: "{app}\icon.ico"; WorkingDir: "{app}\Master Checker"; Comment: "Run Quality Control Diagnostics"; Tasks: desktopicon\master
@@ -55,14 +55,14 @@ Name: "{commondesktop}\CPU-Z Hardware Info"; Filename: "{app}\cpuz\cpuz_x64.exe"
 Name: "{commondesktop}\Hard Disk Sentinel"; Filename: "{app}\HDSentinel\HDSentinel.exe"; WorkingDir: "{app}\HDSentinel"; Tasks: desktopicon\hdsentinel
 Name: "{commondesktop}\Keyboard Checker"; Filename: "{app}\Keyboard_checking\Keyboard_checking.exe"; WorkingDir: "{app}\Keyboard_checking"; Tasks: desktopicon\keyboard
 Name: "{commondesktop}\LCD Pixel Checker"; Filename: "{app}\LCD_checking\LCD_checking.exe"; WorkingDir: "{app}\LCD_checking"; Tasks: desktopicon\lcd
-Name: "{commondesktop}\Sound Output Checker"; Filename: "{app}\Sound_checking\Sound_checking.mp4"; WorkingDir: "{app}\Sound_checking"; Tasks: desktopicon\sound
+Name: "{commondesktop}\Sound Output Checker"; Filename: "{app}\Master Checker\BizzCoHubQC.exe"; IconFilename: "{app}\icon.ico"; WorkingDir: "{app}\Master Checker"; Tasks: desktopicon\sound
 Name: "{group}\Master Checker\BC Elite QC"; Filename: "{app}\Master Checker\BizzCoHubQC.exe"; IconFilename: "{app}\icon.ico"; WorkingDir: "{app}\Master Checker"
 Name: "{group}\Battery_checking\Battery Checker"; Filename: "{app}\Battery_checking\Battery_checking.exe"; WorkingDir: "{app}\Battery_checking"
 Name: "{group}\cpuz\CPU-Z Hardware Info"; Filename: "{app}\cpuz\cpuz_x64.exe"; WorkingDir: "{app}\cpuz"
 Name: "{group}\HDSentinel\Hard Disk Sentinel"; Filename: "{app}\HDSentinel\HDSentinel.exe"; WorkingDir: "{app}\HDSentinel"
 Name: "{group}\Keyboard_checking\Keyboard Checker"; Filename: "{app}\Keyboard_checking\Keyboard_checking.exe"; WorkingDir: "{app}\Keyboard_checking"
 Name: "{group}\LCD_checking\LCD Pixel Checker"; Filename: "{app}\LCD_checking\LCD_checking.exe"; WorkingDir: "{app}\LCD_checking"
-Name: "{group}\Sound_checking\Sound Output Checker"; Filename: "{app}\Sound_checking\Sound_checking.mp4"; WorkingDir: "{app}\Sound_checking"
+Name: "{group}\Sound_checking\Sound Output Checker"; Filename: "{app}\Master Checker\BizzCoHubQC.exe"; IconFilename: "{app}\icon.ico"; WorkingDir: "{app}\Master Checker"
 Name: "{group}\Setup\QC Setup Update"; Filename: "{app}\Setup\QC_Setup.exe"; WorkingDir: "{app}\Setup"
 Name: "{group}\Uninstaller\Uninstall QC Software Suite"; Filename: "{uninstallexe}"; WorkingDir: "{app}"
 
@@ -637,7 +637,17 @@ begin
 end;
 
 function InitializeUninstall: Boolean;
+var
+  ResultCode: Integer;
 begin
+  // Force terminate any running processes of the diagnostics suite
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im BizzCoHubQC.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im Battery_checking.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im LCD_checking.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im Keyboard_checking.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im cpuz_x64.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im HDSentinel.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
   Result := True;
   ClearAllData := MsgBox('Do you want to clear all QC diagnostic database, logs history, and custom settings?', mbConfirmation, MB_YESNO) = idYes;
 end;

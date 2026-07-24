@@ -87,8 +87,106 @@ function init() {
       } catch (err) {
         return { success: false, error: String(err) };
       }
+    },
+    getSoundFolderPath: async () => {
+      try {
+        const path = await window.__TAURI__.core.invoke('get_sound_folder_path');
+        return { success: true, path };
+      } catch (err) {
+        return { success: false, error: String(err) };
+      }
+    },
+    getSoundFiles: async () => {
+      try {
+        const files = await window.__TAURI__.core.invoke('get_sound_files');
+        return { success: true, files };
+      } catch (err) {
+        return { success: false, error: String(err) };
+      }
+    },
+    openSoundFolder: async () => {
+      try {
+        await window.__TAURI__.core.invoke('open_sound_folder');
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: String(err) };
+      }
     }
   };
+
+  // MULTIPLE ISSUES STATE & UTILITIES
+  let previewIssues = [];
+  let portalUpdateIssues = [];
+
+  function parseIssuesString(partsStr, issuesStr) {
+    const list = [];
+    if (!issuesStr) return list;
+    const regex = /\[([^:]+):\s*([^\]]+)\]/g;
+    let match;
+    while ((match = regex.exec(issuesStr)) !== null) {
+      list.push({ part: match[1].trim(), remark: match[2].trim() });
+    }
+    if (list.length === 0 && issuesStr.trim() !== '') {
+      list.push({ part: partsStr || 'None', remark: issuesStr.trim() });
+    }
+    return list;
+  }
+
+  function renderPreviewIssues() {
+    const listEl = document.getElementById('preview-issues-list');
+    const placeholder = document.getElementById('preview-issues-placeholder');
+    if (!listEl) return;
+    listEl.querySelectorAll('.issue-tag').forEach(tag => tag.remove());
+    if (previewIssues.length === 0) {
+      if (placeholder) placeholder.style.display = 'block';
+      return;
+    }
+    if (placeholder) placeholder.style.display = 'none';
+
+    previewIssues.forEach((issue, index) => {
+      const tag = document.createElement('div');
+      tag.className = 'issue-tag';
+      tag.style.cssText = 'background: rgba(255, 69, 58, 0.12); border: 1px solid rgba(255, 69, 58, 0.25); color: var(--color-red); padding: 4px 10px; border-radius: 6px; font-size: 11px; display: flex; align-items: center; gap: 8px; font-weight: 600; margin: 2px;';
+      tag.innerHTML = `
+        <span>[${issue.part}] ${issue.remark}</span>
+        <i class="fa-solid fa-xmark" style="cursor: pointer; opacity: 0.8; font-size: 10px;" data-idx="${index}"></i>
+      `;
+      tag.querySelector('i').addEventListener('click', (e) => {
+        const idx = parseInt(e.currentTarget.getAttribute('data-idx'));
+        previewIssues.splice(idx, 1);
+        renderPreviewIssues();
+      });
+      listEl.appendChild(tag);
+    });
+  }
+
+  function renderPortalUpdateIssues() {
+    const listEl = document.getElementById('portal-issues-list');
+    const placeholder = document.getElementById('portal-issues-placeholder');
+    if (!listEl) return;
+    listEl.querySelectorAll('.issue-tag').forEach(tag => tag.remove());
+    if (portalUpdateIssues.length === 0) {
+      if (placeholder) placeholder.style.display = 'block';
+      return;
+    }
+    if (placeholder) placeholder.style.display = 'none';
+
+    portalUpdateIssues.forEach((issue, index) => {
+      const tag = document.createElement('div');
+      tag.className = 'issue-tag';
+      tag.style.cssText = 'background: rgba(255, 69, 58, 0.12); border: 1px solid rgba(255, 69, 58, 0.25); color: var(--color-red); padding: 4px 10px; border-radius: 6px; font-size: 11px; display: flex; align-items: center; gap: 8px; font-weight: 600; margin: 2px;';
+      tag.innerHTML = `
+        <span>[${issue.part}] ${issue.remark}</span>
+        <i class="fa-solid fa-xmark" style="cursor: pointer; opacity: 0.8; font-size: 10px;" data-idx="${index}"></i>
+      `;
+      tag.querySelector('i').addEventListener('click', (e) => {
+        const idx = parseInt(e.currentTarget.getAttribute('data-idx'));
+        portalUpdateIssues.splice(idx, 1);
+        renderPortalUpdateIssues();
+      });
+      listEl.appendChild(tag);
+    });
+  }
 
   // Cache DOM elements
   const btnMinimize = document.getElementById('win-minimize');
@@ -275,10 +373,92 @@ function init() {
     };
   }
 
-  // Window Controls
-  btnMinimize.addEventListener('click', () => electronAPI.windowControl('minimize'));
-  btnMaximize.addEventListener('click', () => electronAPI.windowControl('maximize'));
-  btnClose.addEventListener('click', () => electronAPI.windowControl('close'));
+  // Custom modal input prompt helper
+  function showCustomPrompt(message, title = 'Input Required', callback, required = true) {
+    const modal = document.getElementById('custom-prompt-modal');
+    const msgEl = document.getElementById('custom-prompt-message');
+    const titleEl = document.getElementById('custom-prompt-title');
+    const inputEl = document.getElementById('custom-prompt-input');
+    const errEl = document.getElementById('custom-prompt-error');
+    const btnOk = document.getElementById('btn-custom-prompt-ok');
+    const btnCancel = document.getElementById('btn-custom-prompt-cancel');
+
+    if (!modal || !inputEl) {
+      const val = prompt(message);
+      if (callback) callback(val);
+      return;
+    }
+
+    if (msgEl) msgEl.textContent = message;
+    if (titleEl) titleEl.textContent = title;
+    inputEl.value = '';
+    if (errEl) errEl.style.display = 'none';
+    modal.style.display = 'flex';
+    
+    setTimeout(() => { 
+      modal.classList.add('open');
+      inputEl.focus(); 
+    }, 50);
+
+    const cleanup = () => {
+      modal.classList.remove('open');
+      setTimeout(() => { modal.style.display = 'none'; }, 300);
+      // Remove event listeners by cloning
+      const newOk = btnOk.cloneNode(true);
+      const newCancel = btnCancel.cloneNode(true);
+      btnOk.parentNode.replaceChild(newOk, btnOk);
+      btnCancel.parentNode.replaceChild(newCancel, btnCancel);
+    };
+
+    const handleOk = () => {
+      const val = inputEl.value.trim();
+      if (required && val === '') {
+        if (errEl) errEl.style.display = 'block';
+        return;
+      }
+      cleanup();
+      if (callback) callback(val);
+    };
+
+    const handleCancel = () => {
+      cleanup();
+      if (callback) callback(null);
+    };
+
+    document.getElementById('btn-custom-prompt-ok').addEventListener('click', handleOk);
+    document.getElementById('btn-custom-prompt-cancel').addEventListener('click', handleCancel);
+
+    inputEl.onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        handleOk();
+      } else if (e.key === 'Escape') {
+        handleCancel();
+      }
+    };
+  }
+
+  // Window Controls (Support both click and touch screen tap actions)
+  const handleMinimize = (e) => {
+    if (e.type === 'touchstart') e.preventDefault();
+    electronAPI.windowControl('minimize');
+  };
+  const handleMaximize = (e) => {
+    if (e.type === 'touchstart') e.preventDefault();
+    electronAPI.windowControl('maximize');
+  };
+  const handleClose = (e) => {
+    if (e.type === 'touchstart') e.preventDefault();
+    electronAPI.windowControl('close');
+  };
+
+  btnMinimize.addEventListener('click', handleMinimize);
+  btnMinimize.addEventListener('touchstart', handleMinimize);
+
+  btnMaximize.addEventListener('click', handleMaximize);
+  btnMaximize.addEventListener('touchstart', handleMaximize);
+
+  btnClose.addEventListener('click', handleClose);
+  btnClose.addEventListener('touchstart', handleClose);
 
   // Helper to update maximize button icon
   function updateMaximizeIcon(isMaximized) {
@@ -308,6 +488,13 @@ function init() {
   // Query maximized state on startup in Tauri
   if (window.__TAURI__) {
     window.__TAURI__.window.getCurrentWindow().isMaximized().then(updateMaximizeIcon).catch(console.error);
+  }
+
+  // One-time cache bust: clear SSD cache when design version changes
+  const SSD_DESIGN_VERSION = 'v2';
+  if (localStorage.getItem('ssd_design_version') !== SSD_DESIGN_VERSION) {
+    localStorage.removeItem('qc_detailed_ssd');
+    localStorage.setItem('ssd_design_version', SSD_DESIGN_VERSION);
   }
 
   // Run a powershell spec query and update text content
@@ -392,19 +579,19 @@ function init() {
     if (specDisplay) specDisplay.textContent = 'Detecting...';
     if (specSerial) specSerial.textContent = 'Detecting...';
     if (specWindows) specWindows.textContent = 'Detecting...';
-    
+
     const specBatteryHealth = document.getElementById('spec-battery-health');
     if (specBatteryHealth) specBatteryHealth.textContent = 'Detecting...';
-    
+
     const detailRamSlots = document.getElementById('detail-ram-slots');
     if (detailRamSlots) detailRamSlots.innerHTML = '<div class="spec-row"><span class="spec-label">Querying RAM slots details...</span></div>';
-    
+
     const detailSsdList = document.getElementById('detail-ssd-list');
     if (detailSsdList) detailSsdList.innerHTML = '<div class="spec-row"><span class="spec-label">Querying drive parameters...</span></div>';
-    
+
     const detailGraphicsList = document.getElementById('detail-graphics-list');
     if (detailGraphicsList) detailGraphicsList.innerHTML = '<div class="spec-row"><span class="spec-label">Querying GPU engines...</span></div>';
-    
+
     const detailBatteryList = document.getElementById('detail-battery-list');
     if (detailBatteryList) detailBatteryList.innerHTML = '<div class="spec-row"><span class="spec-label">Querying detailed battery parameters...</span></div>';
   }
@@ -419,19 +606,19 @@ function init() {
     if (specDisplay) specDisplay.textContent = '1920 x 1080 FHD';
     if (specSerial) specSerial.textContent = 'PC1356548';
     if (specWindows) specWindows.textContent = 'Windows 11';
-    
+
     const specBatteryHealth = document.getElementById('spec-battery-health');
     if (specBatteryHealth) specBatteryHealth.textContent = 'N/A';
-    
+
     const detailRamSlots = document.getElementById('detail-ram-slots');
     if (detailRamSlots) detailRamSlots.innerHTML = '<div class="spec-row"><span class="spec-label">Query failed.</span></div>';
-    
+
     const detailSsdList = document.getElementById('detail-ssd-list');
     if (detailSsdList) detailSsdList.innerHTML = '<div class="spec-row"><span class="spec-label">Query failed.</span></div>';
-    
+
     const detailGraphicsList = document.getElementById('detail-graphics-list');
     if (detailGraphicsList) detailGraphicsList.innerHTML = '<div class="spec-row"><span class="spec-label">Query failed.</span></div>';
-    
+
     const detailBatteryList = document.getElementById('detail-battery-list');
     if (detailBatteryList) detailBatteryList.innerHTML = '<div class="spec-row"><span class="spec-label">Query failed.</span></div>';
   }
@@ -458,12 +645,12 @@ function init() {
         const specs = JSON.parse(cachedBasic);
         Object.assign(systemSpecs, specs);
         renderBasicSpecsUI();
-        
+
         renderRAMDetails(cachedRam);
         renderSSDDetails(cachedSsd);
         renderGraphicsDetails(cachedGpu);
         renderBatteryDetails(cachedBat);
-        
+
         return;
       } catch (e) {
         log('Cache parse failed, fetching fresh specs: ' + e.message, 'warn');
@@ -505,24 +692,68 @@ try {
 } catch { $specs.displayRes = "1920 x 1080 FHD" }
 try { $specs.serialNumber = (Get-WmiObject -Class Win32_BIOS -ErrorAction SilentlyContinue).SerialNumber.Trim() } catch { $specs.serialNumber = "PC1356548" }
 try { $o = Get-WmiObject -Class Win32_OperatingSystem -ErrorAction SilentlyContinue; $specs.windowsVer = ($o.Caption -replace 'Microsoft ', '').Trim() + " (Build " + $o.BuildNumber + ")" } catch { $specs.windowsVer = "Windows 11" }
-$batDesign = 0; $batFull = 0; $batCycles = 0; $batMfg = "Generic"; $batSerial = "N/A"; $batChem = "LIon"; $batVolt = 0
+$batList = @()
 try {
     $xmlPath = "$env:TEMP\\battery_report_combined.xml"
     if (Test-Path $xmlPath) { Remove-Item $xmlPath -ErrorAction SilentlyContinue }
     & powercfg /batteryreport /xml /output $xmlPath | Out-Null
     if (Test-Path $xmlPath) {
         [xml]$xml = Get-Content $xmlPath
-        $b = $xml.BatteryReport.Batteries.Battery
-        if ($b) { $batDesign = [double]$b.DesignCapacity; $batFull = [double]$b.FullChargeCapacity; $batCycles = $b.CycleCount; $batMfg = $b.Manufacturer.Trim(); $batSerial = $b.SerialNumber.Trim(); $batChem = $b.Chemistry.Trim() }
-        $s = Get-CimInstance -Namespace root\\wmi -ClassName BatteryStatus -ErrorAction SilentlyContinue
-        if ($s) { $batVolt = $s.Voltage }
+        $batteries = $xml.BatteryReport.Batteries.Battery
+        if ($batteries) {
+            $batArray = @($batteries)
+            $vols = @(Get-CimInstance -Namespace root\\wmi -ClassName BatteryStatus -ErrorAction SilentlyContinue)
+            $idx = 0
+            foreach ($bat in $batArray) {
+                $bDesign = [double]($bat.DesignCapacity | ForEach-Object { $_ })
+                $bFull = [double]($bat.FullChargeCapacity | ForEach-Object { $_ })
+                $bCycles = if ($bat.CycleCount) { $bat.CycleCount } else { "0" }
+                $bMfg = if ($bat.Manufacturer) { $bat.Manufacturer.Trim() } else { "Generic" }
+                $bSerial = if ($bat.SerialNumber) { $bat.SerialNumber.Trim() } else { "N/A" }
+                $bChem = if ($bat.Chemistry) { $bat.Chemistry.Trim() } else { "LIon" }
+                $bVolt = 0
+                if ($vols -and $vols[$idx]) { $bVolt = $vols[$idx].Voltage } elseif ($vols -and $vols[0]) { $bVolt = $vols[0].Voltage }
+                if ($bDesign -gt 0) {
+                    $batList += "$bMfg|$bSerial|$bChem|$bDesign|$bFull|$bCycles|$bVolt"
+                }
+                $idx++
+            }
+        }
         Remove-Item $xmlPath -ErrorAction SilentlyContinue
     }
 } catch {}
-if ($batDesign -gt 0) {
-    $health = [Math]::Round(($batFull / $batDesign) * 100)
-    $specs.battery = "$health% ($batCycles cycles)"
-    $specs.detailed_battery = "$batMfg|$batSerial|$batChem|$batDesign|$batFull|$batCycles|$batVolt"
+
+if ($batList.Count -eq 0) {
+    try {
+        $wmiBats = Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue
+        if ($wmiBats) {
+            foreach ($wb in $wmiBats) {
+                $bMfg = if ($wb.Manufacturer) { $wb.Manufacturer.Trim() } else { "Generic" }
+                $bSerial = if ($wb.SerialNumber) { $wb.SerialNumber.Trim() } else { "N/A" }
+                $bChem = if ($wb.Chemistry) { $wb.Chemistry } else { "LIon" }
+                $bDesign = if ($wb.DesignCapacity) { $wb.DesignCapacity } else { 0 }
+                $bFull = if ($wb.FullChargedCapacity) { $wb.FullChargedCapacity } else { $bDesign }
+                $bVolt = if ($wb.DesignVoltage) { $wb.DesignVoltage } else { 0 }
+                if ($bDesign -gt 0) {
+                    $batList += "$bMfg|$bSerial|$bChem|$bDesign|$bFull|0|$bVolt"
+                }
+            }
+        }
+    } catch {}
+}
+
+if ($batList.Count -gt 0) {
+    $tDesign = 0; $tFull = 0; $tCycles = 0
+    foreach ($item in $batList) {
+        $parts = $item.Split('|')
+        $tDesign += [double]$parts[3]
+        $tFull += [double]$parts[4]
+        $tCycles += [int]$parts[5]
+    }
+    $h = [Math]::Round(($tFull / $tDesign) * 100)
+    $bCountLabel = if ($batList.Count -gt 1) { " [$($batList.Count) Batteries]" } else { "" }
+    $specs.battery = "$h% ($tCycles cycles)$bCountLabel"
+    $specs.detailed_battery = $batList -join "::"
 } else {
     $specs.battery = "N/A (Desktop)"
     $specs.detailed_battery = "N/A"
@@ -597,7 +828,7 @@ $specs | ConvertTo-Json`;
         const result = await electronAPI.getSystemSpec(script);
         if (result.success && result.data) {
           const rawJson = result.data.trim();
-          
+
           // Robust JSON parsing (extract substring between first '{' and last '}')
           const jsonStart = rawJson.indexOf('{');
           const jsonEnd = rawJson.lastIndexOf('}');
@@ -606,7 +837,7 @@ $specs | ConvertTo-Json`;
           }
           const cleanJson = rawJson.substring(jsonStart, jsonEnd + 1);
           const data = JSON.parse(cleanJson);
-          
+
           systemSpecs.productName = data.productName || 'Generic Laptop';
           systemSpecs.cpu = data.cpu || 'Intel Core i7';
           systemSpecs.ram = data.ram || '8 GB';
@@ -688,17 +919,35 @@ $specs | ConvertTo-Json`;
   // Query and update version
   async function updateAppVersion() {
     try {
-      const result = await electronAPI.getAppVersion();
-      if (result.success && result.version) {
-        const ver = result.version;
-        systemSpecs.appVersion = ver; // Store version globally
-        const verVal = document.getElementById('app-version-val');
-        if (verVal) verVal.textContent = ver;
+      let ver = '1.5';
+      if (typeof window !== 'undefined' && window.APP_VERSION) {
+        ver = window.APP_VERSION;
+      } else {
+        const result = await electronAPI.getAppVersion();
+        if (result.success && result.version) {
+          ver = result.version;
+        }
+      }
 
-        const sideBadge = document.querySelector('.version-badge');
-        if (sideBadge) sideBadge.textContent = `SYSTEM V${ver}`;
+      systemSpecs.appVersion = ver; // Store version globally
 
-        // Trigger auto-updater check
+      const verVal = document.getElementById('app-version-val');
+      if (verVal) verVal.textContent = ver;
+
+      const sideBadge = document.querySelector('.version-badge');
+      if (sideBadge) sideBadge.textContent = `SYSTEM V${ver}`;
+
+      const updateCurrentVersionLabel = document.getElementById('update-current-version-label');
+      if (updateCurrentVersionLabel) updateCurrentVersionLabel.textContent = ver;
+
+      const windowTitle = document.querySelector('.window-title');
+      if (windowTitle) {
+        windowTitle.textContent = `Bizz Co Hub Quality Checking Software - V${ver}`;
+      }
+
+      // Trigger auto-updater check if set to auto update mode
+      const updateMode = localStorage.getItem('setting_update_mode') || 'auto';
+      if (updateMode === 'auto') {
         checkForUpdates(ver);
       }
     } catch (e) {
@@ -922,7 +1171,7 @@ Battery Status  : ${systemSpecs.battery}
     if (matchedBrand) {
       brand = matchedBrand;
       model = model.replace(new RegExp('\\b' + brand + '\\b', 'ig'), '').trim();
-      
+
       const seriesMap = {
         'HP': ['EliteBook', 'ProBook', 'Pavilion', 'Envy', 'Spectre', 'ZBook', 'Omen', 'Victus', 'Essential', 'Notebook'],
         'Dell': ['Latitude', 'Inspiron', 'XPS', 'Precision', 'Vostro', 'Alienware'],
@@ -1007,7 +1256,7 @@ Battery Status  : ${systemSpecs.battery}
       if (upperModel.includes('TOSHIBA')) return 'Toshiba';
       if (upperModel.includes('LEXAR')) return 'Lexar';
       if (upperModel.includes('PNY')) return 'PNY';
-      
+
       if (upperModel.startsWith('CT') || upperModel.startsWith('CRUCIAL')) return 'Crucial';
       if (upperModel.startsWith('WD') || upperModel.startsWith('WDC')) return 'WD';
       if (upperModel.startsWith('MZ') || upperModel.startsWith('SAMSUNG')) return 'Samsung';
@@ -1092,6 +1341,9 @@ Battery Status  : ${systemSpecs.battery}
     document.getElementById('preview-inp-ssd-health').value = ssdHealthVal;
     document.getElementById('preview-inp-graphics').value = systemSpecs.graphics || '';
     document.getElementById('preview-inp-windows').value = systemSpecs.windowsVer || '';
+    // Parse multiple issues
+    previewIssues = parseIssuesString(systemSpecs.partsIssues, systemSpecs.issues || '');
+    renderPreviewIssues();
     document.getElementById('preview-inp-remark-parts').selectedIndex = 0;
     document.getElementById('preview-inp-remark-text').value = '';
 
@@ -1111,7 +1363,7 @@ Battery Status  : ${systemSpecs.battery}
       }
       if (authWarning) authWarning.style.display = 'none';
       if (batchContainer) batchContainer.style.display = 'flex';
-      
+
       const batchInput = document.getElementById('portal-preview-batch-input');
       if (batchInput) batchInput.value = activeBatchCode || '';
 
@@ -1150,7 +1402,7 @@ Battery Status  : ${systemSpecs.battery}
     if (brand) parts.push(brand);
     if (series) parts.push(series);
     if (model) parts.push(model);
-    
+
     let cpuPart = '';
     if (core) {
       cpuPart = core.replace(/\s*\([^)]*\)/g, '').replace(/\s+/g, ' ').trim();
@@ -1163,7 +1415,7 @@ Battery Status  : ${systemSpecs.battery}
       if (!str) return defaultVal;
       const matches = str.match(/(\d+(?:\.\d+)?)\s*(GB|TB)/ig);
       if (!matches) return defaultVal;
-      
+
       let totalGb = 0;
       matches.forEach(m => {
         const numMatch = m.match(/(\d+(?:\.\d+)?)/);
@@ -1326,8 +1578,8 @@ Battery Status  : ${systemSpecs.battery}
         model: document.getElementById('preview-inp-model').value.trim(),
         gen: document.getElementById('preview-inp-gen').value.trim(),
         ssdHealth: formatSsdHealthPercentage(document.getElementById('preview-inp-ssd-health').value),
-        partsIssues: document.getElementById('preview-inp-remark-parts').value,
-        issues: document.getElementById('preview-inp-remark-text').value.trim()
+        partsIssues: previewIssues.map(x => x.part).filter((v, idx, self) => self.indexOf(v) === idx).join(', '),
+        issues: previewIssues.map(x => `[${x.part}: ${x.remark}]`).join(' ')
       };
 
       btnPortalPreviewUpdate.disabled = true;
@@ -1351,7 +1603,7 @@ Battery Status  : ${systemSpecs.battery}
         if (result && result.success && result.data && result.data.success) {
           log(`Updated specifications under batch: ${activeBatchCode}`, 'ready');
           showCustomAlert('Device diagnostics successfully updated.', 'Success', 'success');
-          
+
           if (portalCurrentBatch && portalCurrentBatch.toLowerCase() === activeBatchCode.toLowerCase()) {
             fetchPortalRecords(portalCurrentBatch);
           }
@@ -1406,8 +1658,8 @@ Battery Status  : ${systemSpecs.battery}
         model: document.getElementById('preview-inp-model').value.trim(),
         gen: document.getElementById('preview-inp-gen').value.trim(),
         ssdHealth: formatSsdHealthPercentage(document.getElementById('preview-inp-ssd-health').value),
-        partsIssues: document.getElementById('preview-inp-remark-parts').value,
-        issues: document.getElementById('preview-inp-remark-text').value.trim()
+        partsIssues: previewIssues.map(x => x.part).filter((v, idx, self) => self.indexOf(v) === idx).join(', '),
+        issues: previewIssues.map(x => `[${x.part}: ${x.remark}]`).join(' ')
       };
 
       btnPortalPreviewSubmit.disabled = true;
@@ -1434,7 +1686,7 @@ Battery Status  : ${systemSpecs.battery}
           log(`Uploaded specifications under batch: ${activeBatchCode}`, 'ready');
           showCustomAlert(`Product specifications successfully logged under Batch: ${activeBatchCode}`, 'Upload Success', 'success');
           saveRecordToHistory(`Uploaded to ${activeBatchCode} (by ${currentOperator})`);
-          
+
           if (portalCurrentBatch && portalCurrentBatch.toLowerCase() === activeBatchCode.toLowerCase()) {
             fetchPortalRecords(portalCurrentBatch);
           }
@@ -1573,77 +1825,78 @@ Battery Status  : ${systemSpecs.battery}
 
   // PORTAL CREATE BATCH ACTION
   if (btnPortalCreateBatch) {
-    btnPortalCreateBatch.addEventListener('click', async () => {
-      const batchCode = prompt("Enter Batch Code to create and assign:");
-      if (batchCode === null) {
-        log('Batch creation aborted by operator.', 'info');
-        return;
-      }
+    btnPortalCreateBatch.addEventListener('click', () => {
+      showCustomPrompt("Enter Batch Code to create and assign:", "Create Batch", async (batchCode) => {
+        if (batchCode === null) {
+          log('Batch creation aborted by operator.', 'info');
+          return;
+        }
 
-      const cleanBatchCode = batchCode.trim();
-      if (!cleanBatchCode) {
-        log('Validation error: A valid Batch Code is required.', 'warn');
-        showCustomAlert('A valid Batch Code must be provided.', 'Validation Error', 'warn');
-        return;
-      }
+        const cleanBatchCode = batchCode.trim();
+        if (!cleanBatchCode) {
+          log('Validation error: A valid Batch Code is required.', 'warn');
+          showCustomAlert('A valid Batch Code must be provided.', 'Validation Error', 'warn');
+          return;
+        }
 
-      log(`Registering batch "${cleanBatchCode}" in database...`, 'info');
-      btnPortalCreateBatch.disabled = true;
-      const originalBtnText = btnPortalCreateBatch.innerHTML;
-      btnPortalCreateBatch.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Creating...`;
+        log(`Registering batch "${cleanBatchCode}" in database...`, 'info');
+        btnPortalCreateBatch.disabled = true;
+        const originalBtnText = btnPortalCreateBatch.innerHTML;
+        btnPortalCreateBatch.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Creating...`;
 
-      try {
-        const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
-        const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
+        try {
+          const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
+          const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
 
-        const payload = {
-          batchCode: cleanBatchCode,
-          operator: currentOperator,
-          sessionId: sessionId,
-          createdAt: new Date().toISOString()
-        };
+          const payload = {
+            batchCode: cleanBatchCode,
+            operator: currentOperator,
+            sessionId: sessionId,
+            createdAt: new Date().toISOString()
+          };
 
-        const result = await electronAPI.httpPost(`${apiUrl}/create-batch`, payload, token);
+          const result = await electronAPI.httpPost(`${apiUrl}/create-batch`, payload, token);
 
-        if (result.success) {
+          if (result.success) {
+            activeBatchCode = cleanBatchCode;
+
+            // Sync batch label on the page portal too
+            const pageActiveBatch = document.getElementById('page-portal-active-batch');
+            if (pageActiveBatch) pageActiveBatch.textContent = activeBatchCode;
+
+            log(`Batch "${activeBatchCode}" registered in database successfully.`, 'ready');
+            showCustomAlert(`Batch "${activeBatchCode}" has been created and recorded in the database.`, 'Batch Created', 'success');
+
+            // Close portal modal
+            uploadPortalModal.classList.remove('open');
+            setTimeout(() => { uploadPortalModal.style.display = 'none'; }, 300);
+          } else {
+            let errMsg = result.error || 'Server rejected the batch creation request.';
+            const httpErrMatch = errMsg.match(/HTTP \d+:\s*(\{.*\})/i);
+            if (httpErrMatch) {
+              try {
+                const errObj = JSON.parse(httpErrMatch[1]);
+                if (errObj.error) errMsg = errObj.error;
+              } catch (e) { /* fallback */ }
+            }
+            log(`Batch creation failed: ${errMsg}`, 'error');
+            showCustomAlert(`Failed to create batch: ${errMsg}`, 'Batch Error', 'error');
+          }
+        } catch (err) {
+          log(`Batch API unreachable, falling back to local assignment: ${err.message || err}`, 'warn');
           activeBatchCode = cleanBatchCode;
-
-          // Sync batch label on the page portal too
           const pageActiveBatch = document.getElementById('page-portal-active-batch');
           if (pageActiveBatch) pageActiveBatch.textContent = activeBatchCode;
-
-          log(`Batch "${activeBatchCode}" registered in database successfully.`, 'ready');
-          showCustomAlert(`Batch "${activeBatchCode}" has been created and recorded in the database.`, 'Batch Created', 'success');
-
-          // Close portal modal
-          uploadPortalModal.classList.remove('open');
-          setTimeout(() => { uploadPortalModal.style.display = 'none'; }, 300);
-        } else {
-          let errMsg = result.error || 'Server rejected the batch creation request.';
-          const httpErrMatch = errMsg.match(/HTTP \d+:\s*(\{.*\})/i);
-          if (httpErrMatch) {
-            try {
-              const errObj = JSON.parse(httpErrMatch[1]);
-              if (errObj.error) errMsg = errObj.error;
-            } catch (e) { /* fallback */ }
-          }
-          log(`Batch creation failed: ${errMsg}`, 'error');
-          showCustomAlert(`Failed to create batch: ${errMsg}`, 'Batch Error', 'error');
+          showCustomAlert(
+            `Database unreachable. Batch "${activeBatchCode}" is set locally for this session only.`,
+            'Offline Mode',
+            'warn'
+          );
+        } finally {
+          btnPortalCreateBatch.disabled = false;
+          btnPortalCreateBatch.innerHTML = originalBtnText;
         }
-      } catch (err) {
-        log(`Batch API unreachable, falling back to local assignment: ${err.message || err}`, 'warn');
-        activeBatchCode = cleanBatchCode;
-        const pageActiveBatch = document.getElementById('page-portal-active-batch');
-        if (pageActiveBatch) pageActiveBatch.textContent = activeBatchCode;
-        showCustomAlert(
-          `Database unreachable. Batch "${activeBatchCode}" is set locally for this session only.`,
-          'Offline Mode',
-          'warn'
-        );
-      } finally {
-        btnPortalCreateBatch.disabled = false;
-        btnPortalCreateBatch.innerHTML = originalBtnText;
-      }
+      });
     });
   }
 
@@ -1685,7 +1938,7 @@ Battery Status  : ${systemSpecs.battery}
       // Export history log if populated, otherwise export current profile run
       const history = JSON.parse(localStorage.getItem('qc_history') || '[]');
       let csvData = '';
-      
+
       if (history.length > 0) {
         const headers = 'Date & Time,Serial Number,Product Name,CPU,RAM,SSD,Battery,Status\n';
         const rows = history.map(r => {
@@ -1717,7 +1970,7 @@ Battery Status  : ${systemSpecs.battery}
     btnPortalExportPdf.addEventListener('click', () => {
       log('Spawning printed document thread for PDF generation...', 'info');
       const printWindow = window.open('', '_blank', 'width=800,height=600');
-      
+
       if (printWindow) {
         printWindow.document.write(`
           <html>
@@ -1854,10 +2107,10 @@ Battery Status  : ${systemSpecs.battery}
         databaseRecords.forEach(record => {
           const s = record.specs || {};
           const tr = document.createElement('tr');
-          
+
           const dateStr = record.timestamp ? new Date(record.timestamp).toLocaleDateString() : 'N/A';
           const operator = record.specs?.operator || record.batchCode || 'N/A';
-          
+
           tr.innerHTML = `
             <td><strong>${dateStr}</strong></td>
             <td><code>${s.serialNumber || 'N/A'}</code></td>
@@ -1977,13 +2230,179 @@ Battery Status  : ${systemSpecs.battery}
     }
   }
 
+  // Open integrated Web Keyboard Tester
+  function openKeyboardTestView() {
+    // Set status badge to running
+    const statusBadge = testKeyboard.querySelector('.test-status');
+    if (statusBadge) {
+      statusBadge.textContent = 'Running';
+      statusBadge.className = 'test-status status-running';
+    }
+
+    // Hide all views
+    appViews.forEach(view => {
+      view.classList.remove('active');
+      view.style.display = 'none';
+    });
+
+    // Show keyboard test view
+    const targetView = document.getElementById('view-keyboard-test');
+    if (targetView) {
+      targetView.classList.add('active');
+      targetView.style.display = 'flex';
+
+      // Initialize native keyboard loops
+      if (typeof window.setKeyboardTesterActive === 'function') {
+        window.setKeyboardTesterActive(true);
+      }
+    }
+
+    // De-select sidebar nav active items since we're in a custom test view
+    navLinks.forEach(nav => nav.classList.remove('active'));
+
+    log('Initiated interactive Keyboard matrix check.', 'info');
+  }
+
+  // Close integrated Web Keyboard Tester and save result
+  window.closeKeyboardTestView = (status, remark) => {
+    // De-initialize native keyboard loops
+    if (typeof window.setKeyboardTesterActive === 'function') {
+      window.setKeyboardTesterActive(false);
+    }
+
+    // Show system health view again
+    appViews.forEach(view => {
+      view.classList.remove('active');
+      view.style.display = 'none';
+    });
+
+    const healthView = document.getElementById('view-system-health');
+    if (healthView) {
+      healthView.classList.add('active');
+      healthView.style.display = 'flex';
+    }
+
+    // Re-activate nav item
+    navLinks.forEach(nav => {
+      if (nav.id === 'nav-system-health') {
+        nav.classList.add('active');
+      } else {
+        nav.classList.remove('active');
+      }
+    });
+
+    // Update the keyboard test badge based on status
+    const statusBadge = testKeyboard.querySelector('.test-status');
+    if (statusBadge) {
+      if (status === 'passed') {
+        statusBadge.textContent = 'Passed';
+        statusBadge.className = 'test-status status-success';
+        saveRecordToHistory('Keyboard matrix check Passed');
+        log('Keyboard matrix check completed successfully (Passed).', 'ready');
+      } else if (status === 'failed') {
+        statusBadge.textContent = 'Failed';
+        statusBadge.className = 'test-status status-error';
+        const msg = remark ? `Keyboard matrix check Failed: ${remark}` : 'Keyboard matrix check Failed';
+        saveRecordToHistory(msg);
+        log(`Keyboard matrix check marked as Failed. Remark: ${remark || 'None'}`, 'error');
+      } else {
+        // Cancelled / Idle
+        statusBadge.textContent = 'Idle';
+        statusBadge.className = 'test-status status-pending';
+        log('Keyboard matrix check closed without completion.', 'info');
+      }
+    }
+  };
+
+  // Open integrated Sound Checker
+  function openSoundCheckingView() {
+    const statusBadge = testSound.querySelector('.test-status');
+    if (statusBadge) {
+      statusBadge.textContent = 'Running';
+      statusBadge.className = 'test-status status-running';
+    }
+
+    // Hide all views
+    appViews.forEach(view => {
+      view.classList.remove('active');
+      view.style.display = 'none';
+    });
+
+    // Show sound check view
+    const targetView = document.getElementById('view-sound-checking');
+    if (targetView) {
+      targetView.classList.add('active');
+      targetView.style.display = 'flex';
+    }
+
+    // De-select sidebar nav active items
+    navLinks.forEach(nav => nav.classList.remove('active'));
+    const soundNav = document.getElementById('nav-sound-checking');
+    if (soundNav) {
+      soundNav.classList.add('active');
+    }
+
+    if (typeof window.initSoundCheck === 'function') {
+      window.initSoundCheck();
+    }
+  }
+
+  // Close Sound Checker
+  window.closeSoundCheckingView = (status, remark) => {
+    if (typeof window.closeSoundCheck === 'function') {
+      window.closeSoundCheck();
+    }
+
+    // Show system health view again
+    appViews.forEach(view => {
+      view.classList.remove('active');
+      view.style.display = 'none';
+    });
+
+    const healthView = document.getElementById('view-system-health');
+    if (healthView) {
+      healthView.classList.add('active');
+      healthView.style.display = 'flex';
+    }
+
+    // Re-activate nav item
+    navLinks.forEach(nav => {
+      if (nav.id === 'nav-system-health') {
+        nav.classList.add('active');
+      } else {
+        nav.classList.remove('active');
+      }
+    });
+
+    const statusBadge = testSound.querySelector('.test-status');
+    if (statusBadge) {
+      if (status === 'passed') {
+        statusBadge.textContent = 'Passed';
+        statusBadge.className = 'test-status status-success';
+        saveRecordToHistory('Audio diagnostics check Passed');
+        log('Audio diagnostics check completed successfully (Passed).', 'ready');
+      } else if (status === 'failed') {
+        statusBadge.textContent = 'Failed';
+        statusBadge.className = 'test-status status-error';
+        const msg = remark ? `Audio diagnostics check Failed: ${remark}` : 'Audio diagnostics check Failed';
+        saveRecordToHistory(msg);
+        log(`Audio diagnostics check marked as Failed. Remark: ${remark || 'None'}`, 'error');
+      } else {
+        statusBadge.textContent = 'Idle';
+        statusBadge.className = 'test-status status-pending';
+        log('Audio diagnostics check closed without completion.', 'info');
+      }
+    }
+  };
+
+
   // Bind single clicks
   testHdSentinel.addEventListener('click', () => executeTest(testHdSentinel, 'HDSentinel.exe', 'HDSentinel', 'HD Sentinel'));
-  testLcd.addEventListener('click', () => executeTest(testLcd, 'LCD_checking.exe', 'LCD_checking', 'LCD Pixel Check'));
+  testLcd.addEventListener('click', () => openLcdTestView());
   testCpuz.addEventListener('click', () => executeTest(testCpuz, 'cpuz_x64.exe', 'cpuz', 'CPU-Z Info'));
   testBattery.addEventListener('click', () => executeTest(testBattery, 'Battery_checking.exe', 'Battery_checking', 'Battery Diagnostics'));
-  testKeyboard.addEventListener('click', () => executeTest(testKeyboard, 'Keyboard_checking.exe', 'Keyboard_checking', 'Keyboard matrix check'));
-  testSound.addEventListener('click', () => executeTest(testSound, 'Sound_checking.mp4', 'Sound_checking', 'Audio Playback'));
+  testKeyboard.addEventListener('click', () => openKeyboardTestView());
+  testSound.addEventListener('click', () => openSoundCheckingView());
 
   // AUTO RUN ALL
   async function runAllTests() {
@@ -2061,17 +2480,63 @@ Battery Status  : ${systemSpecs.battery}
       else if (item.id === 'nav-ssd-details') targetViewId = 'view-ssd-details';
       else if (item.id === 'nav-graphics-details') targetViewId = 'view-graphics-details';
       else if (item.id === 'nav-battery-details') targetViewId = 'view-battery-details';
+      else if (item.id === 'nav-keyboard-test') targetViewId = 'view-keyboard-test';
+      else if (item.id === 'nav-lcd-test') targetViewId = 'view-lcd-test';
+      else if (item.id === 'nav-sound-checking') targetViewId = 'view-sound-checking';
       else if (item.id === 'nav-console-details') targetViewId = 'view-console-details';
       else if (item.id === 'nav-settings-details') targetViewId = 'view-settings-details';
       else if (item.id === 'nav-support-details') targetViewId = 'view-support-details';
       else if (item.id === 'nav-update-check') targetViewId = 'view-update-check';
       else if (item.id === 'nav-database-portal') targetViewId = 'view-database-portal';
+      else if (item.id === 'nav-camera-test') targetViewId = 'view-camera-test';
 
       // Hide all views and show target view
       appViews.forEach(view => {
         view.classList.remove('active');
         view.style.display = 'none';
       });
+
+      // Reset keyboard tester loops if navigating away from it, or load it if navigating to it
+      if (targetViewId === 'view-keyboard-test') {
+        if (typeof window.setKeyboardTesterActive === 'function') {
+          window.setKeyboardTesterActive(true);
+        }
+      } else {
+        if (typeof window.setKeyboardTesterActive === 'function') {
+          window.setKeyboardTesterActive(false);
+        }
+      }
+
+      // Close LCD tester cycles if navigating away from it
+      if (targetViewId !== 'view-lcd-test') {
+        if (typeof window.closeLcdTest === 'function') {
+          window.closeLcdTest();
+        }
+      }
+
+       // Close Sound checker mic/sine wave cycles if navigating away from it, and display floating mini player on all tabs
+      if (targetViewId !== 'view-sound-checking') {
+        if (typeof window.closeSoundCheck === 'function') {
+          window.closeSoundCheck();
+        }
+      }
+      if (typeof window.updateMiniAudioWidget === 'function') {
+        window.updateMiniAudioWidget(targetViewId);
+      }
+
+      // Close integrated Webcam stream if navigating away from Camera Test
+      if (targetViewId !== 'view-camera-test') {
+        if (typeof window.stopCameraTest === 'function') {
+          window.stopCameraTest();
+        }
+      }
+
+      // Load Sound checker components if navigating to it
+      if (targetViewId === 'view-sound-checking') {
+        if (typeof window.initSoundCheck === 'function') {
+          window.initSoundCheck();
+        }
+      }
 
       const targetView = document.getElementById(targetViewId);
       if (targetView) {
@@ -2087,8 +2552,23 @@ Battery Status  : ${systemSpecs.battery}
       else if (targetViewId === 'view-ssd-details') loadDetailedSSD(false);
       else if (targetViewId === 'view-graphics-details') loadDetailedGraphics(false);
       else if (targetViewId === 'view-battery-details') loadDetailedBattery(false);
-      else if (targetViewId === 'view-update-check') loadUpdateView(false);
+      else if (targetViewId === 'view-lcd-test') {
+        if (typeof window.initLcdChecker === 'function') {
+          window.initLcdChecker();
+        }
+      }
+      else if (targetViewId === 'view-settings-details') {
+        const hub = document.getElementById('settings-hub-view');
+        if (hub) hub.style.display = 'flex';
+        document.querySelectorAll('.settings-subview').forEach(v => v.style.display = 'none');
+        loadUpdateView(false);
+      }
       else if (targetViewId === 'view-database-portal') loadDatabasePortalView();
+      else if (targetViewId === 'view-camera-test') {
+        if (typeof window.initCameraTest === 'function') {
+          window.initCameraTest();
+        }
+      }
     });
   });
 
@@ -2193,8 +2673,20 @@ Battery Status  : ${systemSpecs.battery}
 
   function renderSSDDetails(data) {
     const detailSsdList = document.getElementById('detail-ssd-list');
+    if (!detailSsdList) return;
+
     const disks = data.split('\n').map(d => d.trim()).filter(d => d);
+    disks.sort((a, b) => {
+      const idxA = parseInt(a.split('|')[0], 10) || 0;
+      const idxB = parseInt(b.split('|')[0], 10) || 0;
+      return idxA - idxB;
+    });
     detailSsdList.innerHTML = '';
+
+    if (disks.length === 0) {
+      detailSsdList.innerHTML = '<div class="ssd-drive-card ssd-loading-placeholder"><span>No drives detected.</span></div>';
+      return;
+    }
 
     disks.forEach(diskStr => {
       const parts = diskStr.split('|');
@@ -2207,24 +2699,51 @@ Battery Status  : ${systemSpecs.battery}
         const mediaType = parts[5] || 'Unknown';
         const partitions = parts[6] || '0';
         const health = parts[7] || 'Unknown';
-        const life = parts[8] || 'N/A';
 
-        const icon = mediaType.toLowerCase().includes('ssd') ? 'fa-solid fa-bolt' : 'fa-solid fa-circle-notch';
-        const healthColor = health.toLowerCase().includes('healthy') || health.match(/\d+%/) ? 'var(--color-green)' : 'var(--color-orange)';
+        const isSSD = mediaType.toLowerCase().includes('ssd') || mediaType.toLowerCase().includes('nvme') || mediaType.toLowerCase().includes('solid');
+        const icon = isSSD ? 'fa-solid fa-bolt' : 'fa-solid fa-hdd';
 
-        const iconColor = mediaType.toLowerCase().includes('ssd') ? 'var(--color-blue)' : 'var(--color-orange)';
+        // Parse health number: handles '95% Health', '100% Health', 'Healthy', 'Unknown'
+        const healthMatch = health.match(/(\d+)/);
+        const healthNum = healthMatch ? parseInt(healthMatch[1], 10) : (health.toLowerCase() === 'healthy' ? 100 : 0);
+        const healthBarColor = healthNum >= 80 ? '#22c55e' : healthNum >= 50 ? '#f59e0b' : '#ef4444';
+        const healthDisplay = healthMatch ? health : (health.toLowerCase() === 'healthy' ? '100% Health' : health);
+
         const diskDiv = document.createElement('div');
-        diskDiv.className = 'spec-row';
+        diskDiv.className = 'ssd-drive-card';
         diskDiv.innerHTML = `
-          <span class="spec-label"><i class="${icon}" style="color: ${iconColor}; margin-right: 6px;"></i> Drive #${index} (${mediaType})</span>
-          <span class="spec-value">
-            <strong>${model}</strong>
-            <span style="display: block; font-size: 11.5px; color: var(--text-muted); margin-top: 3px; font-weight: 400; line-height: 1.45;">
-              Size: ${size} | Conn: ${interfaceType} | Partitions: ${partitions} <br/> 
-              Serial: ${serial} <br/>
-              Health: <span style="color: ${healthColor}; font-weight: 600;">${health}</span> | Life Remaining: <span style="font-weight: 600;">${life}</span>
-            </span>
-          </span>
+          <div class="ssd-card-header">
+            <div class="ssd-icon-badge ${isSSD ? 'ssd-badge-ssd' : 'ssd-badge-hdd'}">
+              <i class="${icon}"></i>
+            </div>
+            <div class="ssd-card-title-group">
+              <span class="ssd-drive-label">Drive #${index}</span>
+              <span class="ssd-media-chip">${mediaType}</span>
+            </div>
+            <div class="ssd-size-badge">${size}</div>
+          </div>
+          <div class="ssd-model-name" title="${model}">${model}</div>
+          <div class="ssd-health-bar-track" title="${healthDisplay}">
+            <div class="ssd-health-bar-fill" style="width: ${healthNum}%; background: ${healthBarColor};"></div>
+          </div>
+          <div class="ssd-meta-grid">
+            <div class="ssd-meta-item">
+              <span class="ssd-meta-label">Health</span>
+              <span class="ssd-meta-value" style="color: ${healthBarColor}; font-weight: 700;">${healthDisplay}</span>
+            </div>
+            <div class="ssd-meta-item">
+              <span class="ssd-meta-label">Interface</span>
+              <span class="ssd-meta-value">${interfaceType}</span>
+            </div>
+            <div class="ssd-meta-item">
+              <span class="ssd-meta-label">Partitions</span>
+              <span class="ssd-meta-value">${partitions}</span>
+            </div>
+            <div class="ssd-meta-item ssd-meta-serial">
+              <span class="ssd-meta-label">Serial</span>
+              <span class="ssd-meta-value">${serial}</span>
+            </div>
+          </div>
         `;
         detailSsdList.appendChild(diskDiv);
       }
@@ -2290,48 +2809,212 @@ Battery Status  : ${systemSpecs.battery}
 
   function renderBatteryDetails(data) {
     const detailBatteryList = document.getElementById('detail-battery-list');
+    if (!detailBatteryList) return;
     detailBatteryList.innerHTML = '';
 
-    const parts = data.split('|').map(p => p.trim());
-    if (parts.length >= 7) {
-      const mfg = parts[0] || 'Generic';
-      const serial = parts[1] || 'N/A';
-      const chem = parts[2] || 'LIon';
-      const design = parseInt(parts[3], 10) || 0;
-      const full = parseInt(parts[4], 10) || 0;
-      const cycles = parts[5] || '0';
-      const voltMv = parseInt(parts[6], 10) || 0;
+    if (!data || data === 'N/A') {
+      detailBatteryList.innerHTML = '<div class="spec-row"><span class="spec-label"><i class="fa-solid fa-desktop" style="margin-right: 6px;"></i> System Type</span><span class="spec-value">Desktop PC (No Battery Installed)</span></div>';
+      return;
+    }
 
-      const health = design > 0 ? Math.round((full / design) * 100) : 0;
-      const voltV = voltMv > 0 ? `${Math.round(voltMv / 100) / 10} V` : 'N/A';
-      const status = getBatteryStatus(health);
+    const entries = data.split('::').map(e => e.trim()).filter(Boolean);
 
-      const details = [
-        { label: 'Manufacturer', value: mfg, icon: 'fa-solid fa-industry' },
-        { label: 'Hardware Serial Number', value: serial, icon: 'fa-solid fa-barcode' },
-        { label: 'Battery Chemistry', value: chem, icon: 'fa-solid fa-flask' },
-        { label: 'Design Capacity', value: `${design.toLocaleString()} mWh`, icon: 'fa-solid fa-battery-empty' },
-        { label: 'Full Charge Capacity', value: `${full.toLocaleString()} mWh`, icon: 'fa-solid fa-battery-full' },
-        { label: 'Battery Health Condition', value: `${health}% (${status.text})`, icon: 'fa-solid fa-heart-pulse', highlight: true, color: status.color },
-        { label: 'Hardware Charge Cycles', value: cycles, icon: 'fa-solid fa-arrows-spin' },
-        { label: 'Current Battery Voltage', value: voltV, icon: 'fa-solid fa-bolt' }
-      ];
+    if (entries.length > 1) {
+      // DUAL / MULTI-BATTERY SYSTEM SUMMARY CARD
+      let totalDesign = 0;
+      let totalFull = 0;
+      let totalCycles = 0;
 
-      details.forEach(item => {
-        const rowDiv = document.createElement('div');
-        rowDiv.className = 'spec-row';
-        if (item.highlight) {
-          rowDiv.style.borderColor = item.color || 'rgba(16, 185, 129, 0.2)';
+      entries.forEach(entry => {
+        const parts = entry.split('|').map(p => p.trim());
+        if (parts.length >= 6) {
+          totalDesign += parseInt(parts[3], 10) || 0;
+          totalFull += parseInt(parts[4], 10) || 0;
+          totalCycles += parseInt(parts[5], 10) || 0;
         }
-        const valColor = item.color ? `color: ${item.color}; font-weight: 600;` : '';
-        rowDiv.innerHTML = `
-          <span class="spec-label"><i class="${item.icon}" style="color: var(--color-blue); margin-right: 6px;"></i> ${item.label}</span>
-          <span class="spec-value" style="${valColor}">${item.value}</span>
-        `;
-        detailBatteryList.appendChild(rowDiv);
       });
-    } else {
-      detailBatteryList.innerHTML = '<div class="spec-row"><span class="spec-label">Invalid battery data structure.</span></div>';
+
+      const combinedHealth = totalDesign > 0 ? Math.round((totalFull / totalDesign) * 100) : 0;
+      const combinedStatus = getBatteryStatus(combinedHealth);
+
+      const summaryCard = document.createElement('div');
+      summaryCard.style.background = 'rgba(10, 132, 255, 0.08)';
+      summaryCard.style.border = '1px solid rgba(10, 132, 255, 0.3)';
+      summaryCard.style.borderRadius = '10px';
+      summaryCard.style.padding = '14px 18px';
+      summaryCard.style.marginBottom = '16px';
+      summaryCard.style.display = 'flex';
+      summaryCard.style.flexDirection = 'column';
+      summaryCard.style.gap = '8px';
+
+      summaryCard.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <span style="font-size: 13px; font-weight: 700; color: var(--color-blue); text-transform: uppercase; letter-spacing: 0.5px;">
+            <i class="fa-solid fa-layer-group" style="margin-right: 8px;"></i> Dual Battery System Detected (${entries.length} Installed Batteries)
+          </span>
+          <span style="font-size: 13px; font-weight: 700; color: ${combinedStatus.color}; background: rgba(0,0,0,0.2); padding: 4px 12px; border-radius: 20px;">
+            Combined Health: ${combinedHealth}% (${combinedStatus.text})
+          </span>
+        </div>
+        <div style="display: flex; gap: 20px; font-size: 12px; color: var(--text-secondary); margin-top: 4px; flex-wrap: wrap;">
+          <span><strong>Total Design:</strong> ${totalDesign.toLocaleString()} mWh</span>
+          <span><strong>Total Full Charge:</strong> ${totalFull.toLocaleString()} mWh</span>
+          <span><strong>Total Cycles:</strong> ${totalCycles}</span>
+        </div>
+      `;
+      detailBatteryList.appendChild(summaryCard);
+    }
+
+    // Render individual battery sections
+    entries.forEach((entry, idx) => {
+      const parts = entry.split('|').map(p => p.trim());
+      if (parts.length >= 7) {
+        const mfg = parts[0] || 'Generic';
+        const serial = parts[1] || 'N/A';
+        const chem = parts[2] || 'LIon';
+        const design = parseInt(parts[3], 10) || 0;
+        const full = parseInt(parts[4], 10) || 0;
+        const cycles = parts[5] || '0';
+        const voltMv = parseInt(parts[6], 10) || 0;
+
+        const health = design > 0 ? Math.round((full / design) * 100) : 0;
+        const voltV = voltMv > 0 ? `${Math.round(voltMv / 100) / 10} V` : 'N/A';
+        const status = getBatteryStatus(health);
+
+        const batTitle = entries.length > 1
+          ? (idx === 0 ? 'Battery #1 (Internal / Main)' : `Battery #${idx + 1} (External / Swappable)`)
+          : 'Battery Information';
+
+        if (entries.length > 1) {
+          const header = document.createElement('div');
+          header.style.fontSize = '13px';
+          header.style.fontWeight = '700';
+          header.style.color = 'var(--text-main)';
+          header.style.margin = idx > 0 ? '18px 0 8px 0' : '0 0 8px 0';
+          header.style.display = 'flex';
+          header.style.alignItems = 'center';
+          header.style.gap = '8px';
+          header.innerHTML = `<i class="fa-solid fa-battery-three-quarters" style="color: var(--color-blue);"></i> ${batTitle}`;
+          detailBatteryList.appendChild(header);
+        }
+
+        const details = [
+          { label: 'Manufacturer', value: mfg, icon: 'fa-solid fa-industry' },
+          { label: 'Hardware Serial Number', value: serial, icon: 'fa-solid fa-barcode' },
+          { label: 'Battery Chemistry', value: chem, icon: 'fa-solid fa-flask' },
+          { label: 'Design Capacity', value: `${design.toLocaleString()} mWh`, icon: 'fa-solid fa-battery-empty' },
+          { label: 'Full Charge Capacity', value: `${full.toLocaleString()} mWh`, icon: 'fa-solid fa-battery-full' },
+          { label: 'Battery Health Condition', value: `${health}% (${status.text})`, icon: 'fa-solid fa-heart-pulse', highlight: true, color: status.color },
+          { label: 'Hardware Charge Cycles', value: cycles, icon: 'fa-solid fa-arrows-spin' },
+          { label: 'Current Battery Voltage', value: voltV, icon: 'fa-solid fa-bolt' }
+        ];
+
+        details.forEach(item => {
+          const rowDiv = document.createElement('div');
+          rowDiv.className = 'spec-row';
+          if (item.highlight) {
+            rowDiv.style.borderColor = item.color || 'rgba(16, 185, 129, 0.2)';
+          }
+          const valColor = item.color ? `color: ${item.color}; font-weight: 600;` : '';
+          rowDiv.innerHTML = `
+            <span class="spec-label"><i class="${item.icon}" style="color: var(--color-blue); margin-right: 6px;"></i> ${item.label}</span>
+            <span class="spec-value" style="${valColor}">${item.value}</span>
+          `;
+          detailBatteryList.appendChild(rowDiv);
+        });
+      }
+    });
+  }
+
+  let manualDownloadUrl = '';
+
+  // Function to trigger update checking manually or automatically
+  async function triggerManualUpdateCheck() {
+    const btnManualCheck = document.getElementById('btn-manual-check-update');
+    const btnManualStartUpdate = document.getElementById('btn-manual-start-update');
+    if (!btnManualCheck) return;
+
+    if (btnManualCheck.disabled) return;
+
+    btnManualCheck.disabled = true;
+    btnManualCheck.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Checking...`;
+
+    const updateIcon = document.getElementById('update-status-icon');
+    const updateTitle = document.getElementById('update-status-title');
+    const updateDesc = document.getElementById('update-status-desc');
+
+    if (updateIcon && updateTitle && updateDesc) {
+      updateIcon.className = 'fa-solid fa-arrows-rotate fa-spin';
+      updateIcon.style.color = 'var(--color-blue)';
+      updateTitle.textContent = 'Checking for Updates';
+      updateDesc.textContent = 'Contacting GitHub Releases API...';
+    }
+
+    const startTime = Date.now();
+
+    try {
+      const repoOwner = 'Rocky-Alex';
+      const repoName = 'BC-Elite-QC';
+      const currentVer = systemSpecs.appVersion || (typeof window !== 'undefined' && window.APP_VERSION) || '1.0.5';
+
+      const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/releases/latest`);
+      if (!response.ok) {
+        throw new Error(`GitHub API returned status ${response.status}`);
+      }
+
+      const release = await response.json();
+      const latestVer = release.tag_name.replace('v', '').trim();
+
+      // Enforce a minimum delay of 800ms for visual feedback
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 800) {
+        await new Promise(resolve => setTimeout(resolve, 800 - elapsed));
+      }
+
+      if (isNewerVersion(currentVer, latestVer)) {
+        const asset = release.assets.find(a => a.name.endsWith('.exe') || a.name.includes('Setup'));
+        if (asset) {
+          manualDownloadUrl = asset.browser_download_url;
+
+          if (updateIcon && updateTitle && updateDesc) {
+            updateIcon.className = 'fa-solid fa-circle-exclamation';
+            updateIcon.style.color = 'var(--color-orange)';
+            updateTitle.textContent = 'New Update Available!';
+            updateDesc.innerHTML = `Version <strong>v${latestVer}</strong> is available (Current: v${currentVer}).<br>Click the install button below to begin downloading.`;
+          }
+
+          btnManualCheck.style.display = 'none';
+          if (btnManualStartUpdate) btnManualStartUpdate.style.display = 'block';
+        } else {
+          throw new Error('No setup executable asset found in latest release.');
+        }
+      } else {
+        if (updateIcon && updateTitle && updateDesc) {
+          updateIcon.className = 'fa-solid fa-circle-check';
+          updateIcon.style.color = 'var(--color-green)';
+          updateTitle.textContent = 'Up to Date';
+          updateDesc.innerHTML = `You are running the latest version of <strong>BC Elite QC</strong> (v${currentVer}).`;
+        }
+
+        btnManualCheck.disabled = false;
+        btnManualCheck.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i> Check for Updates`;
+      }
+    } catch (err) {
+      // Enforce minimum delay even on error
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 800) {
+        await new Promise(resolve => setTimeout(resolve, 800 - elapsed));
+      }
+
+      if (updateIcon && updateTitle && updateDesc) {
+        updateIcon.className = 'fa-solid fa-circle-xmark';
+        updateIcon.style.color = 'var(--color-red)';
+        updateTitle.textContent = 'Check Failed';
+        updateDesc.innerHTML = `Error checking for updates: <span class="text-red">${err.message}</span>`;
+      }
+
+      btnManualCheck.disabled = false;
+      btnManualCheck.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i> Check for Updates`;
     }
   }
 
@@ -2339,8 +3022,55 @@ Battery Status  : ${systemSpecs.battery}
   function loadUpdateView(force = false) {
     const currentVersionLabel = document.getElementById('update-current-version-label');
     if (currentVersionLabel) {
-      currentVersionLabel.textContent = systemSpecs.appVersion || '1.0.3';
+      currentVersionLabel.textContent = systemSpecs.appVersion || (typeof window !== 'undefined' && window.APP_VERSION) || '1.0.5';
     }
+
+    const updateMode = localStorage.getItem('setting_update_mode') || 'auto';
+    updateUpdateModeUI(updateMode);
+
+    if (updateMode === 'auto') {
+      const btnManualCheck = document.getElementById('btn-manual-check-update');
+      if (btnManualCheck && btnManualCheck.style.display !== 'none') {
+        triggerManualUpdateCheck();
+      }
+    }
+  }
+
+  // Update Mode UI helper
+  function updateUpdateModeUI(mode) {
+    const btnManual = document.getElementById('btn-update-manual');
+    const btnAuto = document.getElementById('btn-update-auto');
+    if (!btnManual || !btnAuto) return;
+
+    if (mode === 'auto') {
+      btnAuto.classList.add('active');
+      btnManual.classList.remove('active');
+    } else {
+      btnManual.classList.add('active');
+      btnAuto.classList.remove('active');
+    }
+  }
+
+  // Event Listeners for Update Mode buttons
+  const btnManual = document.getElementById('btn-update-manual');
+  const btnAuto = document.getElementById('btn-update-auto');
+  if (btnManual) {
+    btnManual.addEventListener('click', () => {
+      localStorage.setItem('setting_update_mode', 'manual');
+      updateUpdateModeUI('manual');
+      log('Update mode changed to Manual.', 'info');
+    });
+  }
+  if (btnAuto) {
+    btnAuto.addEventListener('click', () => {
+      localStorage.setItem('setting_update_mode', 'auto');
+      updateUpdateModeUI('auto');
+      log('Update mode changed to Auto Update.', 'info');
+      const btnManualCheck = document.getElementById('btn-manual-check-update');
+      if (btnManualCheck && btnManualCheck.style.display !== 'none') {
+        triggerManualUpdateCheck();
+      }
+    });
   }
 
   // Bind manual update check buttons
@@ -2351,70 +3081,8 @@ Battery Status  : ${systemSpecs.battery}
   const inlineProgressPercent = document.getElementById('inline-update-progress-percent');
   const inlineProgressBar = document.getElementById('inline-update-progress-bar');
 
-  const updateIcon = document.getElementById('update-status-icon');
-  const updateTitle = document.getElementById('update-status-title');
-  const updateDesc = document.getElementById('update-status-desc');
-
-  let manualDownloadUrl = '';
-
   if (btnManualCheck) {
-    btnManualCheck.addEventListener('click', async () => {
-      btnManualCheck.disabled = true;
-      const originalText = btnManualCheck.innerHTML;
-      btnManualCheck.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Checking...`;
-
-      updateIcon.className = 'fa-solid fa-arrows-rotate fa-spin';
-      updateIcon.style.color = 'var(--color-blue)';
-      updateTitle.textContent = 'Checking for Updates';
-      updateDesc.textContent = 'Contacting GitHub Releases API...';
-
-      try {
-        const repoOwner = 'Rocky-Alex';
-        const repoName = 'BC-Elite-QC';
-        const currentVer = systemSpecs.appVersion || '1.0.3';
-
-        const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/releases/latest`);
-        if (!response.ok) {
-          throw new Error(`GitHub API returned status ${response.status}`);
-        }
-
-        const release = await response.json();
-        const latestVer = release.tag_name.replace('v', '').trim();
-
-        if (isNewerVersion(currentVer, latestVer)) {
-          const asset = release.assets.find(a => a.name.endsWith('.exe') || a.name.includes('Setup'));
-          if (asset) {
-            manualDownloadUrl = asset.browser_download_url;
-
-            updateIcon.className = 'fa-solid fa-circle-exclamation';
-            updateIcon.style.color = 'var(--color-orange)';
-            updateTitle.textContent = 'New Update Available!';
-            updateDesc.innerHTML = `Version <strong>v${latestVer}</strong> is available (Current: v${currentVer}).<br>Click the install button below to begin downloading.`;
-
-            btnManualCheck.style.display = 'none';
-            btnManualStartUpdate.style.display = 'block';
-          } else {
-            throw new Error('No setup executable asset found in latest release.');
-          }
-        } else {
-          updateIcon.className = 'fa-solid fa-circle-check';
-          updateIcon.style.color = 'var(--color-green)';
-          updateTitle.textContent = 'Up to Date';
-          updateDesc.innerHTML = `You are running the latest version of <strong>BC Elite QC</strong> (v${currentVer}).`;
-
-          btnManualCheck.disabled = false;
-          btnManualCheck.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i> Check for Updates`;
-        }
-      } catch (err) {
-        updateIcon.className = 'fa-solid fa-circle-xmark';
-        updateIcon.style.color = 'var(--color-red)';
-        updateTitle.textContent = 'Check Failed';
-        updateDesc.innerHTML = `Error checking for updates: <span class="text-red">${err.message}</span>`;
-
-        btnManualCheck.disabled = false;
-        btnManualCheck.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i> Check for Updates`;
-      }
-    });
+    btnManualCheck.addEventListener('click', triggerManualUpdateCheck);
   }
 
   if (btnManualStartUpdate) {
@@ -2899,7 +3567,70 @@ Battery Status  : ${systemSpecs.battery}
             <i class="fa-regular fa-calendar" style="font-size: 11px;"></i> ${dateStr}
           </div>
           <span style="font-size: 10.5px;">by ${r.operator || 'N/A'}</span>
+        </td>
+        <td style="padding: 12px 16px; text-align: center;">
+          <button class="btn-refresh btn-delete-device" style="color: var(--color-red); background: rgba(255, 69, 58, 0.08); border-color: rgba(255, 69, 58, 0.2); padding: 6px 12px; font-size: 11px; font-weight: 600; cursor: pointer; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; margin: 0;">
+            <i class="fa-solid fa-trash"></i> Delete
+          </button>
         </td>`;
+
+      const btnDelete = tr.querySelector('.btn-delete-device');
+      if (btnDelete) {
+        btnDelete.addEventListener('click', () => {
+          showCustomPrompt(`Type 'DELETE' to confirm deletion of serial: ${s.serialNumber || 'N/A'}`, 'Confirm Deletion', async (confirmStr) => {
+            if (confirmStr !== 'DELETE') {
+              showCustomAlert('Deletion cancelled or confirmation mismatch.', 'Cancelled', 'info');
+              return;
+            }
+             try {
+               const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
+               const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
+               
+               const endpoints = [
+                 '/delete-by-serial',
+                 '/delete-device',
+                 '/delete-record',
+                 '/delete-details',
+                 '/delete-specs'
+               ];
+               
+               let success = false;
+               let errMsg = '';
+               
+               for (const endpoint of endpoints) {
+                 try {
+                   const result = await electronAPI.httpPost(`${apiUrl}${endpoint}`, { serialNumber: s.serialNumber, batchCode: portalCurrentBatch }, token);
+                   if (result.success || (result.data && result.data.success)) {
+                     success = true;
+                     break;
+                   } else {
+                     const errorStr = String(result.error || '');
+                     if (errorStr.includes('404') || errorStr.includes('Not Found')) {
+                       continue;
+                     }
+                     errMsg = result.error || 'Failed to delete';
+                   }
+                 } catch (e) {
+                   const errMessage = String(e.message || e || '');
+                   if (errMessage.includes('404') || errMessage.includes('Not Found')) {
+                     continue;
+                   }
+                   errMsg = errMessage;
+                 }
+               }
+
+               if (success) {
+                 showCustomAlert('Device specifications successfully deleted.', 'Deleted', 'success');
+                 await fetchPortalRecords(portalCurrentBatch);
+               } else {
+                 showCustomAlert(errMsg || 'Failed to delete device (404/not found).', 'Delete Error', 'error');
+               }
+             } catch (err) {
+               showCustomAlert(`Delete failure: ${err.message}`, 'Error', 'error');
+             }
+          });
+        });
+      }
       tbody.appendChild(tr);
     });
 
@@ -2945,7 +3676,7 @@ Battery Status  : ${systemSpecs.battery}
         } else {
           let errMsg = result.error || 'Failed to create batch.';
           const m = errMsg.match(/HTTP \d+:\s*(\{.*\})/i);
-          if (m) { try { const o = JSON.parse(m[1]); if (o.error) errMsg = o.error; } catch(e){} }
+          if (m) { try { const o = JSON.parse(m[1]); if (o.error) errMsg = o.error; } catch (e) { } }
           showCustomAlert(errMsg, 'Batch Error', 'error');
         }
       } catch (err) {
@@ -2986,7 +3717,7 @@ Battery Status  : ${systemSpecs.battery}
     if (matchedBrand) {
       brand = matchedBrand;
       model = model.replace(new RegExp('\\b' + brand + '\\b', 'ig'), '').trim();
-      
+
       const seriesMap = {
         'HP': ['EliteBook', 'ProBook', 'Pavilion', 'Envy', 'Spectre', 'ZBook', 'Omen', 'Victus', 'Essential', 'Notebook'],
         'Dell': ['Latitude', 'Inspiron', 'XPS', 'Precision', 'Vostro', 'Alienware'],
@@ -3059,7 +3790,7 @@ Battery Status  : ${systemSpecs.battery}
       if (!cleanGpu) return;
       const isDedicated = /nvidia|geforce|rtx|gtx|quadro|arc/i.test(cleanGpu);
       const type = isDedicated ? 'Dedicated' : 'Integrated';
-      
+
       let size = '';
       const sizeMatch = cleanGpu.match(/\((\d+\s*GB)\)/i);
       if (sizeMatch) {
@@ -3112,7 +3843,7 @@ Battery Status  : ${systemSpecs.battery}
         log(`Uploaded specifications under batch: ${activeBatchCode}`, 'ready');
         showCustomAlert(`Product specifications successfully logged under Batch: ${activeBatchCode}`, 'Upload Success', 'success');
         saveRecordToHistory(`Uploaded to ${activeBatchCode} (by ${currentOperator})`);
-        
+
         // Refresh records list if showing current batch
         if (portalCurrentBatch && portalCurrentBatch.toLowerCase() === activeBatchCode.toLowerCase()) {
           fetchPortalRecords(portalCurrentBatch);
@@ -3123,7 +3854,7 @@ Battery Status  : ${systemSpecs.battery}
       }
     } catch (err) {
       log(`Database upload failure: ${err.message || err}`, 'error');
-      
+
       let cleanErrMsg = err.message || String(err);
       const httpErrMatch = cleanErrMsg.match(/HTTP \d+:\s*(\{.*\})/i);
       if (httpErrMatch) {
@@ -3321,11 +4052,14 @@ Battery Status  : ${systemSpecs.battery}
           document.getElementById('portal-update-form-display').value = s.displayRes || '';
           document.getElementById('portal-update-form-ssd-health').value = s.ssdHealth || '';
 
+          // Parse multiple issues
+          portalUpdateIssues = parseIssuesString(s.partsIssues, s.issues || '');
+          renderPortalUpdateIssues();
           const remarkPartsSelect = document.getElementById('portal-update-form-remark-parts');
           if (remarkPartsSelect) {
-            remarkPartsSelect.value = s.partsIssues || '';
+            remarkPartsSelect.selectedIndex = 0;
           }
-          document.getElementById('portal-update-form-remark-text').value = s.issues || '';
+          document.getElementById('portal-update-form-remark-text').value = '';
 
           // Transition UI
           document.getElementById('portal-update-step-retrieve').style.display = 'none';
@@ -3376,8 +4110,8 @@ Battery Status  : ${systemSpecs.battery}
         gen: document.getElementById('portal-update-form-gen').value.trim(),
         displayRes: document.getElementById('portal-update-form-display').value.trim(),
         ssdHealth: formatSsdHealthPercentage(document.getElementById('portal-update-form-ssd-health').value),
-        partsIssues: document.getElementById('portal-update-form-remark-parts').value,
-        issues: document.getElementById('portal-update-form-remark-text').value.trim()
+        partsIssues: portalUpdateIssues.map(x => x.part).filter((v, idx, self) => self.indexOf(v) === idx).join(', '),
+        issues: portalUpdateIssues.map(x => `[${x.part}: ${x.remark}]`).join(' ')
       };
 
       btnPortalUpdateSave.disabled = true;
@@ -3429,7 +4163,7 @@ Battery Status  : ${systemSpecs.battery}
       const headers = 'Date,Serial Number,Product,CPU,RAM,SSD,Graphics,Battery,Windows Ver,Operator\n';
       const rows = portalRecords.map(r => {
         const s = r.specs || {};
-        const esc = v => `"${String(v||'').replace(/"/g,'""')}"`;
+        const esc = v => `"${String(v || '').replace(/"/g, '""')}"`;
         return [r.timestamp, s.serialNumber, s.productName, s.cpu, s.ram, s.ssd, s.graphics, s.battery, s.windowsVer, r.operator].map(esc).join(',');
       }).join('\n');
       const blob = new Blob([headers + rows], { type: 'text/csv;charset=utf-8;' });
@@ -3447,7 +4181,7 @@ Battery Status  : ${systemSpecs.battery}
     btnPageExportPdf.addEventListener('click', () => {
       if (btnPortalExportPdf) { btnPortalExportPdf.click(); return; }
       if (portalRecords.length === 0) { showCustomAlert('No records loaded.', 'Export', 'warn'); return; }
-      const rows = portalRecords.map((r, i) => { const s = r.specs || {}; return `<tr><td>${i+1}</td><td>${new Date(r.timestamp).toLocaleString()}</td><td>${s.serialNumber||'N/A'}</td><td>${s.productName||'N/A'}</td><td>${s.cpu||'N/A'}</td><td>${s.ram||'N/A'}</td><td>${s.ssd||'N/A'}</td><td>${s.battery||'N/A'}</td><td>${r.operator||'N/A'}</td></tr>`; }).join('');
+      const rows = portalRecords.map((r, i) => { const s = r.specs || {}; return `<tr><td>${i + 1}</td><td>${new Date(r.timestamp).toLocaleString()}</td><td>${s.serialNumber || 'N/A'}</td><td>${s.productName || 'N/A'}</td><td>${s.cpu || 'N/A'}</td><td>${s.ram || 'N/A'}</td><td>${s.ssd || 'N/A'}</td><td>${s.battery || 'N/A'}</td><td>${r.operator || 'N/A'}</td></tr>`; }).join('');
       const w = window.open('', '_blank', 'width=1100,height=800');
       if (w) {
         w.document.write(`<html><head><title>QC Report - ${portalCurrentBatch}</title><style>body{font-family:system-ui,sans-serif;padding:40px;color:#1e293b}.header{border-bottom:2px solid #3b82f6;padding-bottom:20px;margin-bottom:30px;display:flex;justify-content:space-between}h1{font-size:22px;color:#2563eb;margin:0}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #e2e8f0;padding:9px}th{background:#f8fafc;font-weight:700;color:#475569}</style></head><body><div class="header"><div><h1>BC Elite QC</h1><p style="margin:4px 0 0;color:#64748b">Hardware Diagnostics Batch Report</p></div><div style="text-align:right;font-size:13px"><strong>Batch:</strong> ${portalCurrentBatch}<br><strong>Devices:</strong> ${portalRecords.length}<br><strong>Date:</strong> ${new Date().toLocaleDateString()}</div></div><table><thead><tr><th>#</th><th>Sync Date</th><th>Serial</th><th>Product</th><th>CPU</th><th>RAM</th><th>SSD</th><th>Battery</th><th>Operator</th></tr></thead><tbody>${rows}</tbody></table></body></html>`);
@@ -3643,7 +4377,7 @@ Battery Status  : ${systemSpecs.battery}
           navDb.style.display = 'none';
           log('Database Portal sidebar tab hidden.', 'info');
           showToast('Database Portal Hidden!');
-          
+
           // Switch view if current active tab is hidden
           if (navDb.classList.contains('active')) {
             const navSystem = document.getElementById('nav-system-health');
@@ -3653,6 +4387,2411 @@ Battery Status  : ${systemSpecs.battery}
       }
     }
   });
+
+  /* ==========================================================================
+     NATIVE KEYBOARD TESTER INTERACTIVE LOGIC
+     ========================================================================== */
+  (function () {
+    let latencyTimes = [];
+    let isKeyboardActive = false;
+    let animFrameIndicator = null;
+    let animFrameGlow = null;
+
+    // Helper to send message back to parent window
+    function exitTest(status, remark) {
+      window.closeKeyboardTestView(status, remark);
+    }
+
+    // Bind Controls
+    const backBtn = document.getElementById('back-btn');
+    const passBtn = document.getElementById('pass-btn');
+    const failBtn = document.getElementById('fail-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const helpBtn = document.getElementById('help-btn');
+
+    if (backBtn) {
+      backBtn.addEventListener('click', () => {
+        const testedCount = document.querySelectorAll('.key-cap.tested').length;
+        const status = testedCount > 0 ? 'passed' : 'idle';
+        exitTest(status);
+      });
+    }
+
+    if (passBtn) {
+      passBtn.addEventListener('click', () => exitTest('passed'));
+    }
+
+    if (failBtn) {
+      failBtn.addEventListener('click', () => {
+        showCustomPrompt("Mention the Remark why it failed:", "Keyboard Test Failure", (remark) => {
+          if (remark === null) return;
+          exitTest('failed', remark);
+        });
+      });
+    }
+
+    const helpModal = document.getElementById('keyboard-help-modal');
+    const closeHelpBtn = document.getElementById('btn-close-kb-help-modal');
+    const closeHelpOkBtn = document.getElementById('btn-close-kb-help-ok');
+
+    if (helpBtn && helpModal) {
+      helpBtn.addEventListener('click', () => {
+        helpModal.style.display = 'flex';
+      });
+    }
+
+    if (helpModal) {
+      if (closeHelpBtn) {
+        closeHelpBtn.addEventListener('click', () => {
+          helpModal.style.display = 'none';
+        });
+      }
+      if (closeHelpOkBtn) {
+        closeHelpOkBtn.addEventListener('click', () => {
+          helpModal.style.display = 'none';
+        });
+      }
+      helpModal.addEventListener('click', (e) => {
+        if (e.target === helpModal) {
+          helpModal.style.display = 'none';
+        }
+      });
+    }
+
+    // Apply initial RGB Hues based on selected theme
+    function initRGB() {
+      const allKeys = document.querySelectorAll('.key-cap');
+      cachedKeys = Array.from(allKeys);
+      const keyboard = document.querySelector('.key-deck');
+      if (!keyboard) return;
+      const keyboardRect = keyboard.getBoundingClientRect();
+
+      allKeys.forEach(key => {
+        const rect = key.getBoundingClientRect();
+        // Calculate relative horizontal position (0 to 1)
+        const relativeX = keyboardRect.width > 0 ? (rect.left - keyboardRect.left) / keyboardRect.width : 0.5;
+
+        // Cache relativeX to avoid layout thrashing in rendering loops
+        key.dataset.relativeX = relativeX;
+
+        let colorStr = '';
+        let colorDimStr = '';
+        let hueVal = 180;
+
+        if (currentKeyboardThemeIndex === 0) {
+          // RGB Keyboard (Rainbow Wave)
+          hueVal = Math.floor(relativeX * 360);
+          colorStr = `hsl(${hueVal}, 80%, 50%)`;
+          colorDimStr = `hsla(${hueVal}, 60%, 45%, 0.6)`;
+        } else if (currentKeyboardThemeIndex === 1) {
+          // White Keyboard (Ice White backlight)
+          hueVal = 200;
+          colorStr = `hsl(200, 30%, 85%)`;
+          colorDimStr = `hsla(200, 30%, 85%, 0.6)`;
+        } else {
+          // Black Keyboard (Subtle White backlight)
+          hueVal = 0;
+          colorStr = `hsl(0, 0%, 75%)`;
+          colorDimStr = `hsla(0, 0%, 75%, 0.6)`;
+        }
+
+        key.style.setProperty('--hue', hueVal);
+        key.style.setProperty('--key-rgb', colorStr);
+        key.style.setProperty('--key-rgb-dim', colorDimStr);
+      });
+    }
+
+    // Auto-scale keyboard to fit the available container width
+    function scaleKeyboard() {
+      const wrapper = document.getElementById('keyboard-scale-wrapper');
+      const deck = document.getElementById('key-deck');
+      if (!wrapper || !deck) return;
+
+      const availableWidth = wrapper.clientWidth;
+      const naturalWidth = 1010; // Fixed natural unscaled width of keyboard (including padding)
+      const naturalHeight = 280; // Fixed natural unscaled height of keyboard (including padding)
+
+      if (availableWidth > 0) {
+        // Scale dynamically with the container layout width (supports both scaling up and down)
+        const scale = availableWidth / naturalWidth;
+        deck.style.transform = `scale(${scale})`;
+        wrapper.style.height = (naturalHeight * scale) + 'px';
+      }
+    }
+
+    // Call initRGB and scaleKeyboard when window size changes
+    window.addEventListener('resize', () => {
+      if (isKeyboardActive) {
+        scaleKeyboard();
+        initRGB();
+      }
+    });
+
+    // Latency Tracking
+    const latencyVal = document.getElementById('latency-avg');
+
+    function trackLatency(e) {
+      const latency = Math.max(0, performance.now() - e.timeStamp);
+      if (latency < 200) {
+        latencyTimes.push(latency);
+        if (latencyTimes.length > 50) {
+          latencyTimes.shift(); // keep last 50 keypresses for rolling average
+        }
+        const avg = (latencyTimes.reduce((a, b) => a + b, 0) / latencyTimes.length).toFixed(2);
+        if (latencyVal) latencyVal.textContent = avg;
+      }
+    }
+
+    // Key Mapping Helper to normalize standard web event keys to layout data-key
+    function getLayoutKey(e) {
+      // 1. Direct hardware code matching (allows left/right modifier, main/numpad Enter/period separation)
+      let keyCap = document.querySelector(`.key-cap[data-key="${e.code}"]`);
+      if (keyCap) return e.code;
+
+      // 2. Normal key character matches (letters, numbers, space)
+      keyCap = document.querySelector(`.key-cap[data-key="${e.key}"]`);
+      if (keyCap) return e.key;
+
+      // Case-insensitive key character matches (e.g. data-key="q" and e.key="Q")
+      keyCap = document.querySelector(`.key-cap[data-key="${e.key.toLowerCase()}"]`);
+      if (keyCap) return e.key.toLowerCase();
+
+      // 3. Fallbacks and standard normalization
+      if (e.code === 'Space') return ' ';
+      if (e.key === 'Control') return e.code.includes('Right') ? 'ControlRight' : 'ControlLeft';
+      if (e.key === 'Shift') return e.code.includes('Right') ? 'ShiftRight' : 'ShiftLeft';
+      if (e.key === 'Alt') return e.code.includes('Right') ? 'AltRight' : 'AltLeft';
+      if (e.key === 'Meta' || e.key === 'OS' || e.key === 'Super') return 'MetaLeft';
+      if (e.key === 'Enter') return e.code === 'NumpadEnter' ? 'NumpadEnter' : 'Enter';
+
+      if (e.code.startsWith('Numpad')) {
+        const numPart = e.code.replace('Numpad', '');
+        if (numPart === 'Enter') return 'NumpadEnter';
+        if (numPart === 'Decimal') return 'NumpadDecimal';
+        if (numPart === 'Add') return 'NumpadAdd';
+        if (numPart === 'Subtract') return 'NumpadSubtract';
+        if (numPart === 'Multiply') return 'NumpadMultiply';
+        if (numPart === 'Divide') return 'NumpadDivide';
+        if (!isNaN(numPart)) return numPart;
+      }
+
+      return e.key;
+    }
+
+    // Bind Global keydown/keyup on document
+    document.addEventListener('keydown', (e) => {
+      // ONLY intercept if the Keyboard Tester view is currently active
+      if (!isKeyboardActive) return;
+
+      // Prevent default browser behavior (e.g. F5 reloads, tab switches focus, backspace goes back)
+      e.preventDefault();
+
+      trackLatency(e);
+
+      const matchedKey = getLayoutKey(e);
+      const keyCaps = document.querySelectorAll(`.key-cap[data-key="${matchedKey}"]`);
+
+      if (keyCaps.length > 0) {
+        keyCaps.forEach(keyCap => {
+          keyCap.classList.add('is-pressed');
+          keyCap.classList.add('tested');
+
+          const indicatorBox = document.getElementById('key-indicator-box');
+          if (indicatorBox) {
+            const hue = keyCap.style.getPropertyValue('--hue') || 180;
+            indicatorBox.style.boxShadow = `0 0 25px hsl(${hue}, 80%, 50%)`;
+          }
+        });
+
+        const firstKey = keyCaps[0];
+        const displayCode = document.getElementById('display-code');
+        const displayHex = document.getElementById('display-hex');
+        if (displayCode) displayCode.innerText = `CODE: ${e.code.toUpperCase()}`;
+        if (displayHex) displayHex.innerText = `HEX: 0x${e.keyCode.toString(16).toUpperCase()}`;
+
+        setTimeout(() => {
+          const indicatorBox = document.getElementById('key-indicator-box');
+          if (indicatorBox) indicatorBox.style.boxShadow = '0 0 10px rgba(255,255,255,0.1)';
+        }, 150);
+      }
+    });
+
+    document.addEventListener('keyup', (e) => {
+      if (!isKeyboardActive) return;
+      e.preventDefault();
+      const matchedKey = getLayoutKey(e);
+      const keyCaps = document.querySelectorAll(`.key-cap[data-key="${matchedKey}"]`);
+
+      // Special handling for Print Screen since Windows OS intercepts it and keydown is never fired
+      if (e.code === 'PrintScreen' || e.key === 'PrintScreen') {
+        trackLatency(e);
+        keyCaps.forEach(keyCap => {
+          keyCap.classList.add('is-pressed');
+          keyCap.classList.add('tested');
+
+          const indicatorBox = document.getElementById('key-indicator-box');
+          if (indicatorBox) {
+            const hue = keyCap.style.getPropertyValue('--hue') || 180;
+            indicatorBox.style.boxShadow = `0 0 25px hsl(${hue}, 80%, 50%)`;
+          }
+        });
+
+        const displayCode = document.getElementById('display-code');
+        const displayHex = document.getElementById('display-hex');
+        if (displayCode) displayCode.innerText = `CODE: ${e.code.toUpperCase()}`;
+        if (displayHex) displayHex.innerText = `HEX: 0x${e.keyCode.toString(16).toUpperCase()}`;
+
+        setTimeout(() => {
+          keyCaps.forEach(keyCap => {
+            keyCap.classList.remove('is-pressed');
+          });
+          const indicatorBox = document.getElementById('key-indicator-box');
+          if (indicatorBox) indicatorBox.style.boxShadow = '0 0 10px rgba(255,255,255,0.1)';
+        }, 150);
+        return;
+      }
+
+      keyCaps.forEach(keyCap => {
+        keyCap.classList.remove('is-pressed');
+      });
+    });
+
+    // Listen for backend global shortcut Print Screen events
+    if (window.__TAURI__) {
+      window.__TAURI__.event.listen('print-screen-pressed', () => {
+        if (!isKeyboardActive) return;
+
+        const keyCaps = document.querySelectorAll('.key-cap[data-key="PrintScreen"]');
+
+        // Record latency (simulated timestamp)
+        trackLatency({ timeStamp: performance.now() });
+
+        keyCaps.forEach(keyCap => {
+          keyCap.classList.add('is-pressed');
+          keyCap.classList.add('tested');
+
+          const indicatorBox = document.getElementById('key-indicator-box');
+          if (indicatorBox) {
+            const hue = keyCap.style.getPropertyValue('--hue') || 180;
+            indicatorBox.style.boxShadow = `0 0 25px hsl(${hue}, 80%, 50%)`;
+          }
+        });
+
+        const displayCode = document.getElementById('display-code');
+        const displayHex = document.getElementById('display-hex');
+        if (displayCode) displayCode.innerText = 'CODE: PRINTSCREEN';
+        if (displayHex) displayHex.innerText = 'HEX: 0x2C';
+
+        setTimeout(() => {
+          keyCaps.forEach(keyCap => {
+            keyCap.classList.remove('is-pressed');
+          });
+          const indicatorBox = document.getElementById('key-indicator-box');
+          if (indicatorBox) indicatorBox.style.boxShadow = '0 0 10px rgba(255,255,255,0.1)';
+        }, 150);
+      });
+    }
+
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        document.querySelectorAll('.key-cap').forEach(k => {
+          k.classList.remove('is-pressed');
+          k.classList.remove('tested');
+        });
+        const displayCode = document.getElementById('display-code');
+        const displayHex = document.getElementById('display-hex');
+        if (displayCode) displayCode.innerText = 'CODE: N/A';
+        if (displayHex) displayHex.innerText = 'HEX: 0x00';
+        const indicatorBox = document.getElementById('key-indicator-box');
+        if (indicatorBox) indicatorBox.style.boxShadow = '0 0 10px rgba(255,255,255,0.1)';
+        latencyTimes = [];
+        if (latencyVal) latencyVal.textContent = '0.00';
+      });
+    }
+
+    // Bind Keyboard Theme Selector Change event
+    const themeSelect = document.getElementById('kb-theme-select');
+    if (themeSelect) {
+      themeSelect.addEventListener('change', (e) => {
+        currentKeyboardThemeIndex = parseInt(e.target.value, 10);
+
+        // Update keyboard-case container classes for visual frame and cap styling
+        const kbCase = document.querySelector('.keyboard-case');
+        if (kbCase) {
+          kbCase.classList.remove('theme-white', 'theme-black');
+          if (currentKeyboardThemeIndex === 1) {
+            kbCase.classList.add('theme-white');
+          } else if (currentKeyboardThemeIndex === 2) {
+            kbCase.classList.add('theme-black');
+          }
+        }
+
+        initRGB();
+      });
+    }
+
+    // Mouse interactivity on key caps
+    document.querySelectorAll('.key-cap').forEach(key => {
+      key.addEventListener('mousedown', () => {
+        key.classList.add('is-pressed');
+        key.classList.add('tested');
+
+        const indicatorBox = document.getElementById('key-indicator-box');
+        if (indicatorBox) {
+          const hue = key.style.getPropertyValue('--hue') || 180;
+          indicatorBox.style.boxShadow = `0 0 25px hsl(${hue}, 80%, 50%)`;
+        }
+
+        const dataKey = key.getAttribute('data-key');
+        const displayCode = document.getElementById('display-code');
+        const displayHex = document.getElementById('display-hex');
+        if (displayCode) displayCode.innerText = `CODE: CLICK_${dataKey.toUpperCase()}`;
+        if (displayHex) displayHex.innerText = `HEX: MOUSE`;
+      });
+      key.addEventListener('mouseup', () => {
+        key.classList.remove('is-pressed');
+        const indicatorBox = document.getElementById('key-indicator-box');
+        if (indicatorBox) indicatorBox.style.boxShadow = '0 0 10px rgba(255,255,255,0.1)';
+      });
+      key.addEventListener('mouseleave', () => key.classList.remove('is-pressed'));
+    });
+
+    // WebGL Shaders Setup
+    let currentKeyboardThemeIndex = 0;
+    let glIndicator = null;
+    let glGlow = null;
+    let cachedKeys = [];
+    let uTimeIndicator = null;
+    let uResIndicator = null;
+    let uThemeIndicator = null;
+    let uTimeGlow = null;
+    let uResGlow = null;
+    let uThemeGlow = null;
+
+    const vs = `attribute vec2 a_position;
+varying vec2 v_texCoord;
+void main() {
+  v_texCoord = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+    const fs = `precision highp float;
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform float u_theme;
+varying vec2 v_texCoord;
+
+float hash(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+
+float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    float a = hash(i);
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+}
+
+vec3 hsv2rgb(vec3 c) {
+    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+void main() {
+    vec2 uv = v_texCoord;
+    float n1 = noise(uv * 3.0 + u_time * 0.2);
+    float n2 = noise(uv * 6.0 - u_time * 0.1);
+    float mixNoise = (n1 + n2) * 0.5;
+    
+    vec3 color;
+    if (u_theme < 0.5) {
+        // Theme 0: RGB Keyboard (Single static dark slate-blue background)
+        color = vec3(0.05, 0.06, 0.08);
+    } else if (u_theme < 1.5) {
+        // Theme 1: White Keyboard (Ice White/Light Blue glow)
+        float wave = mixNoise * 0.08 + u_time * 0.08;
+        float glow = 0.75 + 0.25 * sin(wave);
+        color = vec3(glow * 0.85, glow * 0.9, glow * 0.95);
+    } else {
+        // Theme 2: Black Keyboard (Stealth Silver/Charcoal glow)
+        float wave = mixNoise * 0.05 + u_time * 0.05;
+        float glow = 0.2 + 0.15 * sin(wave);
+        color = vec3(glow, glow, glow * 1.05);
+    }
+
+    float bloom = 0.7 + 0.3 * noise(uv * 10.0 + u_time * 0.5);
+    color *= bloom;
+    float pulse = 0.92 + 0.08 * sin(u_time * 1.2);
+    color *= pulse;
+    float ledMask = 0.5 + 0.5 * sin(uv.x * 20.0);
+    color *= 0.8 + 0.2 * ledMask;
+    gl_FragColor = vec4(color, 1.0);
+}`;
+
+    function cs(gl, type, src) {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      return s;
+    }
+
+    function initWebGL() {
+      // 1. Indicator
+      const canvasInd = document.getElementById('shader-canvas-indicator');
+      if (canvasInd) {
+        canvasInd.width = canvasInd.clientWidth || 48;
+        canvasInd.height = canvasInd.clientHeight || 24;
+        glIndicator = canvasInd.getContext('webgl') || canvasInd.getContext('experimental-webgl');
+        if (glIndicator) {
+          const p = glIndicator.createProgram();
+          glIndicator.attachShader(p, cs(glIndicator, glIndicator.VERTEX_SHADER, vs));
+          glIndicator.attachShader(p, cs(glIndicator, glIndicator.FRAGMENT_SHADER, fs));
+          glIndicator.linkProgram(p);
+          glIndicator.useProgram(p);
+
+          const buf = glIndicator.createBuffer();
+          glIndicator.bindBuffer(glIndicator.ARRAY_BUFFER, buf);
+          glIndicator.bufferData(glIndicator.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), glIndicator.STATIC_DRAW);
+          const pos = glIndicator.getAttribLocation(p, 'a_position');
+          glIndicator.enableVertexAttribArray(pos);
+          glIndicator.vertexAttribPointer(pos, 2, glIndicator.FLOAT, false, 0, 0);
+          uTimeIndicator = glIndicator.getUniformLocation(p, 'u_time');
+          uResIndicator = glIndicator.getUniformLocation(p, 'u_resolution');
+          uThemeIndicator = glIndicator.getUniformLocation(p, 'u_theme');
+        }
+      }
+
+      // 2. Glow
+      const canvasGlow = document.getElementById('shader-canvas-glow');
+      if (canvasGlow) {
+        canvasGlow.width = canvasGlow.clientWidth || 1280;
+        canvasGlow.height = canvasGlow.clientHeight || 400;
+        glGlow = canvasGlow.getContext('webgl') || canvasGlow.getContext('experimental-webgl');
+        if (glGlow) {
+          const p = glGlow.createProgram();
+          glGlow.attachShader(p, cs(glGlow, glGlow.VERTEX_SHADER, vs));
+          glGlow.attachShader(p, cs(glGlow, glGlow.FRAGMENT_SHADER, fs));
+          glGlow.linkProgram(p);
+          glGlow.useProgram(p);
+
+          const buf = glGlow.createBuffer();
+          glGlow.bindBuffer(glGlow.ARRAY_BUFFER, buf);
+          glGlow.bufferData(glGlow.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), glGlow.STATIC_DRAW);
+          const pos = glGlow.getAttribLocation(p, 'a_position');
+          glGlow.enableVertexAttribArray(pos);
+          glGlow.vertexAttribPointer(pos, 2, glGlow.FLOAT, false, 0, 0);
+          uTimeGlow = glGlow.getUniformLocation(p, 'u_time');
+          uResGlow = glGlow.getUniformLocation(p, 'u_resolution');
+          uThemeGlow = glGlow.getUniformLocation(p, 'u_theme');
+        }
+      }
+    }
+
+    function drawIndicator(t) {
+      if (!isKeyboardActive || !glIndicator) return;
+      glIndicator.viewport(0, 0, glIndicator.canvas.width, glIndicator.canvas.height);
+      glIndicator.uniform1f(uTimeIndicator, t * 0.001);
+      glIndicator.uniform2f(uResIndicator, glIndicator.canvas.width, glIndicator.canvas.height);
+      if (uThemeIndicator) glIndicator.uniform1f(uThemeIndicator, currentKeyboardThemeIndex);
+      glIndicator.drawArrays(glIndicator.TRIANGLE_STRIP, 0, 4);
+      animFrameIndicator = requestAnimationFrame(drawIndicator);
+    }
+
+    // Dynamic Shader Glow loop
+    function drawGlow(t) {
+      if (!isKeyboardActive || !glGlow) return;
+      glGlow.viewport(0, 0, glGlow.canvas.width, glGlow.canvas.height);
+      glGlow.uniform1f(uTimeGlow, t * 0.001);
+      glGlow.uniform2f(uResGlow, glGlow.canvas.width, glGlow.canvas.height);
+      if (uThemeGlow) glGlow.uniform1f(uThemeGlow, currentKeyboardThemeIndex);
+      glGlow.drawArrays(glGlow.TRIANGLE_STRIP, 0, 4);
+
+      // Smooth slow rainbow shift animation for the keys
+      if (currentKeyboardThemeIndex === 0) {
+        const timeSec = t * 0.001;
+        cachedKeys.forEach(key => {
+          const relativeX = parseFloat(key.dataset.relativeX || '0.5');
+          const hueVal = Math.floor((relativeX * 360 - timeSec * 30) % 360 + 360) % 360;
+          key.style.setProperty('--hue', hueVal);
+          key.style.setProperty('--key-rgb', `hsl(${hueVal}, 80%, 50%)`);
+          key.style.setProperty('--key-rgb-dim', `hsla(${hueVal}, 60%, 45%, 0.5)`);
+        });
+      }
+
+      animFrameGlow = requestAnimationFrame(drawGlow);
+    }
+
+    // Public hook called by renderer's navigation manager
+    window.setKeyboardTesterActive = function (active) {
+      isKeyboardActive = active;
+      if (active) {
+        setTimeout(() => {
+          scaleKeyboard();
+          initRGB();
+          initWebGL();
+          if (glIndicator) drawIndicator(0);
+          if (glGlow) drawGlow(0);
+        }, 150);
+      } else {
+        if (helpModal) helpModal.style.display = 'none';
+        if (animFrameIndicator) cancelAnimationFrame(animFrameIndicator);
+        if (animFrameGlow) cancelAnimationFrame(animFrameGlow);
+        animFrameIndicator = null;
+        animFrameGlow = null;
+      }
+    };
+
+    // Observe container size changes (e.g. sidebar toggle, window resize)
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => {
+        if (isKeyboardActive) {
+          scaleKeyboard();
+          initRGB();
+        }
+      });
+      const wrapper = document.getElementById('view-keyboard-test');
+      if (wrapper) ro.observe(wrapper);
+    }
+  })();
+
+  // Open integrated Web LCD Checker
+  function openLcdTestView() {
+    const navLcd = document.getElementById('nav-lcd-test');
+    if (navLcd) navLcd.click();
+  }
+
+  /* ==========================================================================
+     NATIVE LCD CHECKER INTERACTIVE DIAGNOSTICS
+     ========================================================================== */
+  (function () {
+    let currentPatternIndex = 0;
+    let enduranceInterval = null;
+    let isLcdActive = false;
+
+    const patterns = [
+      'white', 'black', 'red', 'green', 'blue', 'cyan', 'purple', 'yellow',
+      'grad-h', 'grad-v', 'vert-lines', 'horiz-lines'
+    ];
+
+    const overlay = document.getElementById('lcd-test-overlay');
+    const canvas = document.getElementById('lcd-test-canvas');
+    const titleVal = document.getElementById('lcd-active-test-title');
+    const closeBtn = document.getElementById('btn-close-lcd-test');
+
+    // Back and pass/fail buttons in view
+    const backBtn = document.getElementById('lcd-back-btn');
+    const passBtn = document.getElementById('lcd-pass-btn');
+    const failBtn = document.getElementById('lcd-fail-btn');
+
+    const resVal = document.getElementById('lcd-res-val');
+    const refreshVal = document.getElementById('lcd-refresh-val');
+
+    // Auto-start countdown timer reference
+    let autoStartTimer = null;
+
+    // Track maximized state before going fullscreen
+    let wasMaximizedBeforeFullscreen = false;
+
+    // Resolution & Refresh Rate Initialization + 3-second auto-start
+    window.initLcdChecker = function () {
+      if (resVal) {
+        resVal.textContent = `${window.screen.width} x ${window.screen.height} (${window.screen.width >= 3840 ? '4K' : window.screen.width >= 2560 ? '2K' : 'FHD'})`;
+      }
+      measureRefreshRate(fps => {
+        if (refreshVal) {
+          refreshVal.textContent = `${fps}.00 Hz`;
+        }
+      });
+
+      // Cancel any existing countdown (e.g. if view re-opened)
+      if (autoStartTimer) {
+        clearInterval(autoStartTimer);
+        autoStartTimer = null;
+      }
+
+      // Show countdown badge
+      const badge = document.getElementById('lcd-autostart-badge');
+      const countdownNum = document.getElementById('lcd-countdown-num');
+      if (badge) badge.style.display = 'flex';
+
+      let remaining = 3;
+      if (countdownNum) countdownNum.textContent = remaining;
+
+      autoStartTimer = setInterval(() => {
+        remaining--;
+        if (countdownNum) countdownNum.textContent = remaining;
+        if (remaining <= 0) {
+          clearInterval(autoStartTimer);
+          autoStartTimer = null;
+          if (badge) badge.style.display = 'none';
+          // Auto-launch endurance cycle fullscreen
+          window.launchFullScreen('endurance');
+        }
+      }, 1000);
+    };
+
+    function measureRefreshRate(callback) {
+      let start = null;
+      let count = 0;
+      function step(timestamp) {
+        if (!start) start = timestamp;
+        count++;
+        const elapsed = timestamp - start;
+        if (elapsed < 1000) {
+          requestAnimationFrame(step);
+        } else {
+          const fps = Math.round((count * 1000) / elapsed);
+          callback(fps);
+        }
+      }
+      requestAnimationFrame(step);
+    }
+
+    // Launch Fullscreen mode
+    window.launchFullScreen = function (pattern) {
+      if (!overlay || !canvas) return;
+      isLcdActive = true;
+
+      // Stop previous cycle if running
+      if (enduranceInterval) {
+        clearInterval(enduranceInterval);
+        enduranceInterval = null;
+      }
+
+      const idx = patterns.indexOf(pattern);
+      if (idx !== -1) {
+        currentPatternIndex = idx;
+      } else if (pattern === 'endurance') {
+        currentPatternIndex = 0;
+        startEnduranceCycle();
+      }
+
+      applyPattern(patterns[currentPatternIndex]);
+
+      // Use Tauri native fullscreen FIRST, then show overlay after the OS
+      // has resized the window — otherwise the color only fills the windowed area.
+      if (window.__TAURI__) {
+        const appWindow = window.__TAURI__.window.getCurrentWindow();
+        appWindow.isMaximized().then(maximized => {
+          wasMaximizedBeforeFullscreen = maximized;
+        }).then(() => {
+          return window.__TAURI__.core.invoke('set_fullscreen', { state: true });
+        }).then(() => {
+          // Small delay to let the OS complete the window resize before painting
+          setTimeout(() => {
+            overlay.style.display = 'flex';
+          }, 80);
+        }).catch(err => {
+          log('Tauri fullscreen failed: ' + err, 'warn');
+          // Show overlay anyway as fallback
+          overlay.style.display = 'flex';
+        });
+      } else {
+        // Fallback: browser requestFullscreen on the overlay element
+        overlay.style.display = 'flex';
+        if (overlay.requestFullscreen) {
+          overlay.requestFullscreen().catch(() => { });
+        } else if (overlay.webkitRequestFullscreen) {
+          overlay.webkitRequestFullscreen();
+        }
+      }
+
+      log(`Launched full-screen LCD pattern: ${pattern}`, 'debug');
+    };
+
+    function applyPattern(pattern) {
+      if (!canvas || !titleVal || !overlay) return;
+      canvas.className = 'w-full h-full flex flex-col items-center justify-center';
+      canvas.style.background = '';
+      overlay.style.background = '';
+      canvas.innerHTML = '';
+
+      const styleMapping = {
+        'white': { title: 'WHITE TEST [1]', style: '#ffffff' },
+        'black': { title: 'BLACK TEST [2]', style: '#000000' },
+        'red': { title: 'RED TEST [3]', style: '#ff0000' },
+        'green': { title: 'GREEN TEST [4]', style: '#00ff00' },
+        'blue': { title: 'BLUE TEST [5]', style: '#0000ff' },
+        'cyan': { title: 'CYAN TEST [6]', style: '#00ffff' },
+        'purple': { title: 'PURPLE TEST [7]', style: '#a855f7' },
+        'yellow': { title: 'YELLOW TEST [8]', style: '#ffff00' },
+        'grad-h': { title: 'GRADIENT HORIZONTAL [9]', style: 'linear-gradient(to right, #000, #fff)' },
+        'grad-v': { title: 'VERTICAL GRADIENT [0]', style: 'linear-gradient(to bottom, #000, #fff)' },
+        'vert-lines': { title: 'VERTICAL LINES [V]', style: 'repeating-linear-gradient(to right, #fff, #fff 2px, #000 2px, #000 4px)' },
+        'horiz-lines': { title: 'HORIZONTAL LINES [H]', style: 'repeating-linear-gradient(to bottom, #fff, #fff 2px, #000 2px, #000 4px)' }
+      };
+
+      const config = styleMapping[pattern];
+      if (config) {
+        titleVal.textContent = config.title;
+        if (config.style) {
+          canvas.style.background = config.style;
+          overlay.style.background = config.style;
+        }
+      }
+    }
+
+    function startEnduranceCycle() {
+      if (titleVal) titleVal.textContent = 'ENDURANCE AUTO TEST [F5]';
+      applyPattern(patterns[currentPatternIndex]);
+      enduranceInterval = setInterval(() => {
+        currentPatternIndex = (currentPatternIndex + 1) % patterns.length;
+        applyPattern(patterns[currentPatternIndex]);
+      }, 2000);
+    }
+
+    window.closeLcdTest = function () {
+      if (autoStartTimer) {
+        clearInterval(autoStartTimer);
+        autoStartTimer = null;
+        const badge = document.getElementById('lcd-autostart-badge');
+        if (badge) badge.style.display = 'none';
+      }
+      if (enduranceInterval) {
+        clearInterval(enduranceInterval);
+        enduranceInterval = null;
+      }
+      isLcdActive = false;
+      if (overlay) overlay.style.display = 'none';
+
+      // Exit native fullscreen (restores taskbar)
+      if (window.__TAURI__) {
+        window.__TAURI__.core.invoke('set_fullscreen', { state: false })
+          .then(() => {
+            if (wasMaximizedBeforeFullscreen) {
+              const appWindow = window.__TAURI__.window.getCurrentWindow();
+              return appWindow.maximize();
+            }
+          })
+          .catch(() => { });
+      } else if (document.fullscreenElement || document.webkitFullscreenElement) {
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => { });
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
+      }
+
+      log('Closed full-screen LCD pattern diagnostic.', 'debug');
+    };
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => window.closeLcdTest());
+    }
+
+    // Synchronize UI closure when user exits fullscreen natively (e.g. ESC or OS window change)
+    const onFullscreenChange = () => {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement && isLcdActive) {
+        window.closeLcdTest();
+      }
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+    document.addEventListener('msfullscreenchange', onFullscreenChange);
+
+    // Key map shared between view-level and fullscreen handlers
+    const lcdKeyMap = {
+      '1': 'white', '2': 'black', '3': 'red', '4': 'green',
+      '5': 'blue', '6': 'cyan', '7': 'purple', '8': 'yellow',
+      '9': 'grad-h', '0': 'grad-v', 'v': 'vert-lines', 'h': 'horiz-lines',
+      'V': 'vert-lines', 'H': 'horiz-lines'
+    };
+
+    // Helper: flash the matching button when a key is pressed from the LCD view
+    function flashLcdBtn(pattern) {
+      const allBtns = document.querySelectorAll('.lcd-test-action-btn');
+      allBtns.forEach(btn => {
+        if (btn.getAttribute('data-pattern') === pattern) {
+          btn.style.transition = 'background 0.05s ease';
+          btn.style.background = 'rgba(0, 224, 255, 0.25)';
+          btn.style.borderColor = 'rgba(0, 224, 255, 0.6)';
+          setTimeout(() => {
+            btn.style.background = '';
+            btn.style.borderColor = '';
+          }, 200);
+        }
+      });
+    }
+
+    // View-level key listener: fires when LCD view is visible but NOT yet in fullscreen
+    document.addEventListener('keydown', (e) => {
+      const lcdView = document.getElementById('view-lcd-test');
+      if (!lcdView || lcdView.style.display === 'none') return;
+      if (isLcdActive) return; // fullscreen handler takes over
+
+      // ANY key cancels the auto-start countdown
+      if (autoStartTimer) {
+        clearInterval(autoStartTimer);
+        autoStartTimer = null;
+        const badge = document.getElementById('lcd-autostart-badge');
+        if (badge) badge.style.display = 'none';
+      }
+
+      // Mapped keys additionally launch their test
+      if (lcdKeyMap[e.key]) {
+        e.preventDefault();
+        flashLcdBtn(lcdKeyMap[e.key]);
+        window.launchFullScreen(lcdKeyMap[e.key]);
+        return;
+      }
+
+      if (e.key === 'F5') {
+        e.preventDefault();
+        window.launchFullScreen('endurance');
+        return;
+      }
+    });
+
+    // Capture keys when overlay is focused (fullscreen active)
+    document.addEventListener('keydown', (e) => {
+      if (!isLcdActive) return;
+
+      // Escape key to exit
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        window.closeLcdTest();
+        return;
+      }
+
+      // Backspace key to go back
+      if (e.key === 'Backspace') {
+        e.preventDefault();
+        if (enduranceInterval) {
+          clearInterval(enduranceInterval);
+          enduranceInterval = null;
+        }
+        currentPatternIndex = (currentPatternIndex - 1 + patterns.length) % patterns.length;
+        applyPattern(patterns[currentPatternIndex]);
+        return;
+      }
+
+      // Number keys direct mapping
+      const keyMap = {
+        '1': 'white', '2': 'black', '3': 'red', '4': 'green',
+        '5': 'blue', '6': 'cyan', '7': 'purple', '8': 'yellow',
+        '9': 'grad-h', '0': 'grad-v', 'v': 'vert-lines', 'h': 'horiz-lines',
+        'V': 'vert-lines', 'H': 'horiz-lines'
+      };
+      if (keyMap[e.key]) {
+        e.preventDefault();
+        if (enduranceInterval) {
+          clearInterval(enduranceInterval);
+          enduranceInterval = null;
+        }
+        window.launchFullScreen(keyMap[e.key]);
+        return;
+      }
+
+      if (e.key === 'F5') {
+        e.preventDefault();
+        window.launchFullScreen('endurance');
+        return;
+      }
+
+      // Space / Enter / Arrow / Any other key to advance
+      if (e.key !== 'Shift' && e.key !== 'Control' && e.key !== 'Alt') {
+        e.preventDefault();
+        if (enduranceInterval) {
+          clearInterval(enduranceInterval);
+          enduranceInterval = null;
+        }
+        currentPatternIndex = (currentPatternIndex + 1) % patterns.length;
+        applyPattern(patterns[currentPatternIndex]);
+      }
+    });
+
+    // Exit hooks
+    function exitLcdView(status, remark) {
+      // Cancel auto-start countdown if still running
+      if (autoStartTimer) {
+        clearInterval(autoStartTimer);
+        autoStartTimer = null;
+        const badge = document.getElementById('lcd-autostart-badge');
+        if (badge) badge.style.display = 'none';
+      }
+      const statusBadge = testLcd.querySelector('.test-status');
+      if (statusBadge) {
+        if (status === 'passed') {
+          statusBadge.textContent = 'Passed';
+          statusBadge.className = 'test-status status-success';
+          saveRecordToHistory('LCD panel validation Passed');
+          log('LCD panel validation completed successfully (Passed).', 'ready');
+        } else if (status === 'failed') {
+          statusBadge.textContent = 'Failed';
+          statusBadge.className = 'test-status status-error';
+          const msg = remark ? `LCD panel validation Failed: ${remark}` : 'LCD panel validation Failed';
+          saveRecordToHistory(msg);
+          log(`LCD panel validation completed with defects (Failed). Remark: ${remark || 'None'}`, 'error');
+        }
+      }
+
+      // Go back to System Health
+      const navSystem = document.getElementById('nav-system-health');
+      if (navSystem) navSystem.click();
+    }
+
+    if (backBtn) {
+      backBtn.addEventListener('click', () => {
+        exitLcdView('idle');
+      });
+    }
+    if (passBtn) {
+      passBtn.addEventListener('click', () => {
+        exitLcdView('passed');
+      });
+    }
+    if (failBtn) {
+      failBtn.addEventListener('click', () => {
+        showCustomPrompt("Mention the Remark why it failed:", "LCD Test Failure", (remark) => {
+          if (remark === null) return;
+          exitLcdView('failed', remark);
+        });
+      });
+    }
+
+    // Cancel the countdown on clicking anywhere in the LCD view
+    const lcdView = document.getElementById('view-lcd-test');
+    if (lcdView) {
+      lcdView.addEventListener('click', () => {
+        if (autoStartTimer) {
+          clearInterval(autoStartTimer);
+          autoStartTimer = null;
+          const badge = document.getElementById('lcd-autostart-badge');
+          if (badge) badge.style.display = 'none';
+          log('LCD Auto-start countdown cancelled by user click.', 'debug');
+        }
+      });
+    }
+  })();
+
+  /* ==========================================================================
+     NATIVE SOUND CHECKING INTERACTIVE DIAGNOSTICS
+     ========================================================================== */
+  (function () {
+    let audioCtx = null;
+    let masterPanner = null;
+    let masterGain = null;
+    let masterAnalyser = null;
+    let analyserL = null;
+    let analyserR = null;
+
+    // Oscillator variables (for Phase test sine wave)
+    let oscNode = null;
+    let oscGain = null;
+
+    // Sound player variables
+    let audioEl = null;
+    let audioSourceNode = null;
+    let isPlaying = false;
+    let playbackPipelineInitialized = false;
+
+    // 2.1 channel splitter nodes
+    let channelSplitter = null;
+    let channelMerger = null;
+    let gainL = null;
+    let gainR = null;
+    let gainSub = null;
+    let subMixer = null;
+    let subFilter = null;
+
+    // Mic variables
+    let micStream = null;
+    let micSourceNode = null;
+    let micAnalyserNode = null;
+    let micGainNode = null;
+    let micFeedbackGainNode = null;
+    let isMicActive = false;
+    let micAnimationId = null;
+
+    // Phase test variables
+    let phaseGainR = null;
+    let currentPhaseState = 'in'; // 'in' or 'out'
+
+    // UI elements
+    const viewSound = document.getElementById('view-sound-checking');
+
+    const soundPlaylistContainer = document.getElementById('sound-playlist-container');
+    const audioPlayPauseBtn = document.getElementById('audio-play-pause-btn');
+    const audioTrackTitle = document.getElementById('audio-track-title');
+    const audioTimeDisplay = document.getElementById('audio-time-display');
+    const audioProgressBar = document.getElementById('audio-progress-bar');
+    const audioProgressContainer = document.getElementById('audio-progress-container');
+
+    const volSliderL = document.getElementById('vol-slider-l');
+    const volSliderR = document.getElementById('vol-slider-r');
+    const volSliderSub = document.getElementById('vol-slider-sub');
+    const volTxtL = document.getElementById('vol-txt-l');
+    const volTxtR = document.getElementById('vol-txt-r');
+    const volTxtSub = document.getElementById('vol-txt-sub');
+
+    const routeL = document.getElementById('route-l');
+    const routeC = document.getElementById('route-c');
+    const routeR = document.getElementById('route-r');
+    const routeSub = document.getElementById('route-sub');
+
+    const micSourceSelect = document.getElementById('mic-source-select');
+    const micFeedbackToggle = document.getElementById('mic-feedback-toggle');
+    const micGainSlider = document.getElementById('mic-gain-slider');
+    const micGainDisplay = document.getElementById('mic-gain-display');
+    const micLevelBar = document.getElementById('mic-level-bar');
+    const micPeakIndicator = document.getElementById('mic-peak-indicator');
+    const micCanvas = document.getElementById('mic-waveform-canvas');
+    const micCanvasCtx = micCanvas ? micCanvas.getContext('2d') : null;
+    const canvasOverlayText = document.getElementById('canvas-overlay-text');
+
+    const micStatusBadge = document.getElementById('mic-status-badge');
+    const micStatusDot = document.getElementById('mic-status-dot');
+    const micStatusTxt = document.getElementById('mic-status-txt');
+
+    const inPhaseBtn = document.getElementById('in-phase-btn');
+    const outPhaseBtn = document.getElementById('out-phase-btn');
+
+    const soundBackBtn = document.getElementById('sound-back-btn');
+    const audioPassBtn = document.getElementById('audio-pass-btn');
+    const audioFailBtn = document.getElementById('audio-fail-btn');
+
+    // Initialize AudioContext
+    function initAudio() {
+      if (audioCtx) return;
+
+      const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+      audioCtx = new AudioCtxClass();
+
+      // Create master chain
+      masterPanner = audioCtx.createStereoPanner();
+      masterGain = audioCtx.createGain();
+      masterAnalyser = audioCtx.createAnalyser();
+      masterAnalyser.fftSize = 128; // 64 frequency bins for spectrum bars
+
+      analyserL = audioCtx.createAnalyser();
+      analyserL.fftSize = 32;
+      analyserR = audioCtx.createAnalyser();
+      analyserR.fftSize = 32;
+
+      // Master connections
+      masterPanner.connect(masterGain);
+      masterGain.connect(masterAnalyser);
+      masterAnalyser.connect(audioCtx.destination);
+
+      // Initialize Master VU meter rendering loop
+      startMasterVUMonitor();
+    }
+
+    // 60FPS Ultra-Fluid Master Visualizer Animation Loop
+    let vuAnimationFrameId = null;
+    function startMasterVUMonitor() {
+      if (vuAnimationFrameId) cancelAnimationFrame(vuAnimationFrameId);
+
+      const container = document.getElementById('spectrum-visualizer-container');
+      const pulse = document.getElementById('audio-output-pulse');
+      let currentHeights = new Float32Array(64).fill(8);
+
+      function updateFrame() {
+        if (!audioCtx || audioCtx.state === 'suspended') {
+          vuAnimationFrameId = requestAnimationFrame(updateFrame);
+          return;
+        }
+
+        let maxVal = 0;
+        let dataArray = new Uint8Array(64);
+
+        if (masterAnalyser) {
+          masterAnalyser.getByteFrequencyData(dataArray);
+        }
+
+        if (container) {
+          const bars = container.children;
+          const count = bars.length;
+
+          for (let i = 0; i < count; i++) {
+            const bar = bars[i];
+            if (!bar) continue;
+
+            // Exponential frequency mapping & high-register gain multiplier so low, mid & high bars all bounce
+            const freqIndex = Math.floor(Math.pow(i / count, 1.25) * (dataArray.length - 1));
+            let rawVal = dataArray[freqIndex] || 0;
+
+            const gainMultiplier = 1.0 + (i / count) * 1.35;
+            let val = rawVal * gainMultiplier;
+
+            if (val > maxVal) maxVal = val;
+
+            // Micro dynamic bounce when music or tone is actively streaming
+            if (val < 15 && (isPlaying || oscNode)) {
+              val = 12 + Math.sin(Date.now() * 0.012 + i * 0.3) * 16 + Math.random() * 8;
+            }
+
+            const targetPercent = Math.min(Math.max((val / 255) * 100, 8), 100);
+
+            // Fast attack / smooth physics decay
+            if (targetPercent > currentHeights[i]) {
+              currentHeights[i] = currentHeights[i] * 0.35 + targetPercent * 0.65;
+            } else {
+              currentHeights[i] = currentHeights[i] * 0.85 + targetPercent * 0.15;
+            }
+
+            bar.style.height = currentHeights[i].toFixed(1) + '%';
+            bar.style.opacity = (0.65 + (currentHeights[i] / 250)).toFixed(2);
+
+            // Dynamic color hue wave shift & volume peak brightness movement
+            const hueRotate = Math.sin(Date.now() * 0.0025 + i * 0.08) * 20;
+            const peakBrightness = 1 + (currentHeights[i] / 100) * 0.3;
+            bar.style.filter = `hue-rotate(${hueRotate.toFixed(1)}deg) brightness(${peakBrightness.toFixed(2)})`;
+          }
+        }
+
+        // Animated neon pulsing master output dot
+        if (pulse) {
+          if (maxVal > 15 || isPlaying) {
+            pulse.style.opacity = '1';
+            pulse.style.boxShadow = '0 0 10px #00f2fe, 0 0 18px #00f2fe';
+          } else {
+            pulse.style.opacity = '0.4';
+            pulse.style.boxShadow = 'none';
+          }
+        }
+
+        vuAnimationFrameId = requestAnimationFrame(updateFrame);
+      }
+
+      vuAnimationFrameId = requestAnimationFrame(updateFrame);
+    }
+
+    // Dynamic Spectrum Bar creation with rich multi-color gradient zones
+    function createVUBars() {
+      const container = document.getElementById('spectrum-visualizer-container');
+      const count = 64;
+
+      if (container) {
+        container.innerHTML = '';
+        for (let i = 0; i < count; i++) {
+          const bar = document.createElement('div');
+          bar.className = 'spectrum-bar';
+
+          const pct = i / count;
+          if (pct < 0.25) {
+            bar.classList.add('bar-zone-cyan');
+          } else if (pct < 0.52) {
+            bar.classList.add('bar-zone-blue');
+          } else if (pct < 0.80) {
+            bar.classList.add('bar-zone-purple');
+          } else {
+            bar.classList.add('bar-zone-pink');
+          }
+
+          container.appendChild(bar);
+        }
+      }
+    }
+
+    // Sine wave generator (Phase signal reference)
+    function startSineWave(freq = 440) {
+      initAudio();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      if (oscNode) stopSineWave();
+
+      oscNode = audioCtx.createOscillator();
+      oscGain = audioCtx.createGain();
+
+      oscNode.type = 'sine';
+      oscNode.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+      oscGain.gain.setValueAtTime(0, audioCtx.currentTime);
+      oscGain.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.1);
+
+      oscNode.connect(oscGain);
+      oscGain.connect(channelMerger || masterPanner);
+
+      oscNode.start(audioCtx.currentTime);
+      log(`Sine wave output started at ${freq}Hz`, 'info');
+    }
+
+    function stopSineWave() {
+      if (oscNode) {
+        try {
+          oscNode.stop();
+          oscNode.disconnect();
+        } catch (e) { }
+        oscNode = null;
+      }
+      if (oscGain) {
+        try {
+          oscGain.disconnect();
+        } catch (e) { }
+        oscGain = null;
+      }
+    }
+
+    // Load & initialize hidden audio element
+    function loadAudioElement() {
+      if (audioEl) return;
+
+      audioEl = new Audio();
+      audioEl.crossOrigin = "anonymous";
+      audioEl.loop = true;
+
+      // Default local sound checker path
+      audioEl.src = "../Sound_checking/Sound_checking.mp4";
+
+      // Time updates
+      audioEl.addEventListener('timeupdate', () => {
+        if (!audioEl) return;
+        const cur = audioEl.currentTime;
+        const dur = audioEl.duration || 0;
+        audioTimeDisplay.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
+
+        const progress = dur > 0 ? (cur / dur) * 100 : 0;
+        audioProgressBar.style.width = progress + '%';
+      });
+
+      audioEl.addEventListener('error', (e) => {
+        if (currentSelectedFile && !audioEl._triedFallback) {
+          audioEl._triedFallback = true;
+          const fallbackSrc = `Sound_checking/${encodeURIComponent(currentSelectedFile)}`;
+          log(`Primary audio src failed. Trying bundled asset fallback: ${fallbackSrc}`, 'warn');
+          audioEl.src = fallbackSrc;
+          audioEl.play().catch(err => {
+            log(`Fallback audio playback error: ${err.message}`, 'error');
+          });
+          return;
+        }
+        log(`Audio player load error. Check path: ${audioEl.src}`, 'error');
+        audioTrackTitle.textContent = "Error Loading Track";
+      });
+    }
+
+    function formatTime(secs) {
+      const m = Math.floor(secs / 60);
+      const s = Math.floor(secs % 60);
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    // Build the 2.1 Crossover Pipeline & Live Visualizer Stream
+    function initPlaybackPipeline() {
+      if (playbackPipelineInitialized) return;
+      loadAudioElement();
+      initAudio();
+
+      try {
+        if (!audioSourceNode) {
+          audioSourceNode = audioCtx.createMediaElementSource(audioEl);
+        }
+
+        // 2.1 Crossover filters
+        channelSplitter = audioCtx.createChannelSplitter(2);
+        channelMerger = audioCtx.createChannelMerger(2);
+
+        gainL = audioCtx.createGain();
+        gainR = audioCtx.createGain();
+        gainSub = audioCtx.createGain();
+
+        subMixer = audioCtx.createGain();
+        subMixer.gain.value = 0.5; // Summing gain
+
+        subFilter = audioCtx.createBiquadFilter();
+        subFilter.type = 'lowpass';
+        subFilter.frequency.value = 120; // 120Hz crossover point
+
+        phaseGainR = audioCtx.createGain();
+        phaseGainR.gain.value = currentPhaseState === 'out' ? -1 : 1;
+
+        // Connect source to splitter
+        audioSourceNode.connect(channelSplitter);
+
+        // Left channel pipeline: Splitter L -> gainL -> analyserL -> merger L
+        channelSplitter.connect(gainL, 0);
+        if (analyserL) {
+          gainL.connect(analyserL);
+          analyserL.connect(channelMerger, 0, 0);
+        } else {
+          gainL.connect(channelMerger, 0, 0);
+        }
+
+        // Right channel pipeline: Splitter R -> gainR -> phaseGainR -> analyserR -> merger R
+        channelSplitter.connect(gainR, 1);
+        gainR.connect(phaseGainR);
+        if (analyserR) {
+          phaseGainR.connect(analyserR);
+          analyserR.connect(channelMerger, 0, 1);
+        } else {
+          phaseGainR.connect(channelMerger, 0, 1);
+        }
+
+        // Subwoofer pipeline: mix L+R -> lowpass -> gainSub -> mix into L & R merger channels
+        channelSplitter.connect(subMixer, 0);
+        channelSplitter.connect(subMixer, 1);
+
+        subMixer.connect(subFilter);
+        subFilter.connect(gainSub);
+
+        gainSub.connect(channelMerger, 0, 0);
+        gainSub.connect(channelMerger, 0, 1);
+
+        // Connect merger to master chain
+        channelMerger.connect(masterPanner);
+
+        // Apply initial volume values from sliders
+        updateChannelVolume('L', volSliderL ? volSliderL.value : 100);
+        updateChannelVolume('R', volSliderR ? volSliderR.value : 100);
+        updateChannelVolume('Sub', volSliderSub ? volSliderSub.value : 100);
+
+        playbackPipelineInitialized = true;
+        log('2.1 playback crossover pipeline & live visualizer stream initialized successfully.', 'debug');
+      } catch (err) {
+        log(`Failed to init playback pipeline: ${err.message}`, 'error');
+      }
+    }
+
+    function updateChannelVolume(channel, percentage) {
+      const val = parseFloat(percentage) / 100;
+      if (channel === 'L') {
+        if (gainL && audioCtx) {
+          gainL.gain.setValueAtTime(isLActive ? val : 0.0, audioCtx.currentTime);
+        }
+        if (volTxtL) volTxtL.textContent = percentage + '%';
+      } else if (channel === 'R') {
+        if (gainR && audioCtx) {
+          gainR.gain.setValueAtTime(isRActive ? val : 0.0, audioCtx.currentTime);
+        }
+        if (volTxtR) volTxtR.textContent = percentage + '%';
+      } else if (channel === 'Sub') {
+        if (gainSub && audioCtx) {
+          gainSub.gain.setValueAtTime(isSubActive ? val * 1.5 : 0.0, audioCtx.currentTime);
+        }
+        if (volTxtSub) volTxtSub.textContent = percentage + '%';
+      }
+    }
+
+    // Synchronize playlist play/pause icons with actual state
+    function syncPlaylistPlayIcon(isCurrentPlaying) {
+      document.querySelectorAll('#sound-playlist-container .playlist-item').forEach(el => {
+        const playIcon = el.querySelector('.play-icon');
+        const textSpan = el.querySelector('span');
+        const isThisTrackActive = el.classList.contains('active');
+
+        if (playIcon) {
+          if (isThisTrackActive && isCurrentPlaying) {
+            playIcon.className = 'fa-solid fa-circle-pause play-icon';
+            playIcon.style.color = 'var(--color-blue)';
+            playIcon.style.opacity = '1';
+          } else if (isThisTrackActive) {
+            playIcon.className = 'fa-solid fa-circle-play play-icon';
+            playIcon.style.color = 'var(--color-blue)';
+            playIcon.style.opacity = '1';
+          } else {
+            playIcon.className = 'fa-solid fa-circle-play play-icon';
+            playIcon.style.color = 'var(--text-muted)';
+            playIcon.style.opacity = '0.7';
+          }
+        }
+      });
+    }
+
+    // Audio Play/Pause
+    function toggleAudio() {
+      initPlaybackPipeline();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      if (isPlaying) {
+        audioEl.pause();
+        isPlaying = false;
+        audioPlayPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+        syncPlaylistPlayIcon(false);
+        updateMiniAudioWidget();
+        log('Audio playback paused.', 'debug');
+      } else {
+        audioEl.play().then(() => {
+          isPlaying = true;
+          audioPlayPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+          syncPlaylistPlayIcon(true);
+          updateMiniAudioWidget();
+          log('Audio playback started.', 'debug');
+        }).catch(err => {
+          log(`Failed to play audio: ${err.message}`, 'error');
+        });
+      }
+    }
+
+    const PRESET_SOUND_FILES = [
+      "Sound_checking.mp4",
+      "Song_checking_2.mp3",
+      "Song_checking_3.mp3"
+    ];
+
+    let currentSelectedFile = null;
+
+    // Load track by file name
+    function loadTrack(file, autoPlay = true) {
+      loadAudioElement();
+      initPlaybackPipeline();
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+
+      currentSelectedFile = file;
+      if (audioEl) audioEl._triedFallback = false;
+
+      // Build audio src path: use Tauri convertFileSrc if available, or asset protocol / relative fallback
+      function setAudioSrc(filename) {
+        if (window._soundFolderPath) {
+          const cleanFolder = window._soundFolderPath.replace(/[/\\]+/g, '/').replace(/\/$/, '');
+          const fullPath = `${cleanFolder}/${filename}`;
+          let srcUrl = null;
+
+          if (window.__TAURI__ && window.__TAURI__.core && typeof window.__TAURI__.core.convertFileSrc === 'function') {
+            srcUrl = window.__TAURI__.core.convertFileSrc(fullPath);
+          } else if (window.__TAURI_INTERNALS__ && typeof window.__TAURI_INTERNALS__.convertFileSrc === 'function') {
+            srcUrl = window.__TAURI_INTERNALS__.convertFileSrc(fullPath);
+          }
+
+          if (srcUrl) {
+            audioEl.src = srcUrl;
+            return;
+          }
+        }
+
+        // Fallback relative asset URL
+        audioEl.src = `../Sound_checking/${encodeURIComponent(filename)}`;
+      }
+
+      if (file) {
+        setAudioSrc(file);
+        audioTrackTitle.textContent = file;
+        log(`Loaded audio track: ${file}`, 'info');
+      } else {
+        setAudioSrc('Sound_checking.mp4');
+        audioTrackTitle.textContent = 'Sound_checking.mp4';
+        log('Reset audio track to default Sound_checking.mp4', 'info');
+      }
+
+      // If autoplay is requested, start playback immediately
+      if (autoPlay) {
+        audioEl.play().then(() => {
+          isPlaying = true;
+          audioPlayPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+          syncPlaylistPlayIcon(true);
+        }).catch(err => {
+          log(`Failed to play track: ${err.message}`, 'error');
+        });
+      } else {
+        isPlaying = false;
+        audioPlayPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+        syncPlaylistPlayIcon(false);
+      }
+    }
+
+    // Dynamic populator for Sound_checking folder songs in the playlist
+    async function populateSoundFiles() {
+      const container = soundPlaylistContainer || document.getElementById('sound-playlist-container');
+      if (!container) return;
+
+      // Step 1: Ensure absolute Sound_checking folder path is cached
+      const folderRes = await electronAPI.getSoundFolderPath();
+      if (folderRes.success && folderRes.path) {
+        window._soundFolderPath = folderRes.path;
+        log(`Sound folder resolved: ${folderRes.path}`, 'debug');
+      } else {
+        window._soundFolderPath = "C:\\BizzCoHub QC\\Sound_checking";
+      }
+
+      // Step 2: Fetch sound files directly from Rust backend (native fs::read_dir)
+      let scannedFiles = [];
+      const rustFilesRes = await electronAPI.getSoundFiles();
+      if (rustFilesRes.success && Array.isArray(rustFilesRes.files) && rustFilesRes.files.length > 0) {
+        scannedFiles = rustFilesRes.files;
+        log(`Found ${scannedFiles.length} audio tracks via Rust backend.`, 'info');
+      } else {
+        // Fallback to PowerShell if Rust returns empty
+        let soundDir = window._soundFolderPath;
+        if (soundDir) {
+          const safePath = soundDir.replace(/'/g, "''");
+          const cmd = `Get-ChildItem -Path '${safePath}' -File | Select-Object -ExpandProperty Name | ConvertTo-Json -Compress`;
+          const psRes = await electronAPI.getSystemSpec(cmd);
+          if (psRes.success && psRes.data) {
+            try {
+              const parsed = JSON.parse(psRes.data);
+              scannedFiles = Array.isArray(parsed) ? parsed : [parsed];
+            } catch (e) {
+              const trimmed = psRes.data.trim();
+              if (trimmed) scannedFiles = [trimmed];
+            }
+          }
+        }
+      }
+
+      // Filter valid media extensions (both audio and video formats)
+      scannedFiles = scannedFiles.filter(f => /\.(mp3|mp4|wav|m4a|aac|ogg|flac|wma|webm|mkv)$/i.test(f));
+
+      // Always include preset software tracks alongside any scanned tracks
+      const files = Array.from(new Set([...PRESET_SOUND_FILES, ...scannedFiles]));
+
+      container.innerHTML = '';
+      if (files.length === 0) {
+        container.innerHTML = '<div style="font-size: 12px; color: var(--text-secondary); text-align: center; padding: 16px 0;">No Audio Files Found</div>';
+        return;
+      }
+
+      files.forEach(file => {
+        const isVideo = /\.(mp4|webm|mkv)$/i.test(file);
+        const iconClass = isVideo ? "fa-solid fa-file-video" : "fa-solid fa-file-audio";
+
+        const item = document.createElement('div');
+        item.className = 'playlist-item';
+        item.style.display = 'flex';
+        item.style.alignItems = 'center';
+        item.style.justifyContent = 'space-between';
+        item.style.padding = '10px 14px';
+        item.style.borderRadius = '8px';
+        item.style.cursor = 'pointer';
+        item.style.transition = 'all 0.2s ease';
+        item.style.background = 'rgba(0,0,0,0.15)';
+
+        item.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            <i class="${iconClass}" style="color: var(--text-secondary); flex-shrink: 0;"></i>
+            <span style="font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; color: var(--text-main);">${file}</span>
+          </div>
+          <i class="fa-solid fa-circle-play play-icon" style="font-size: 14px; color: var(--text-muted); opacity: 0.7; transition: color 0.2s;"></i>
+        `;
+
+        // Click callback to load and play
+        item.addEventListener('click', () => {
+          document.querySelectorAll('#sound-playlist-container .playlist-item').forEach(el => {
+            el.classList.remove('active');
+          });
+          item.classList.add('active');
+          loadTrack(file, true);
+        });
+
+        soundPlaylistContainer.appendChild(item);
+      });
+
+      // Autoselect and load first file silently by default on initialization
+      if (files.length > 0) {
+        const defaultFile = files.includes("Sound_checking.mp4") ? "Sound_checking.mp4" : files[0];
+        currentSelectedFile = defaultFile;
+
+        const items = soundPlaylistContainer.querySelectorAll('.playlist-item');
+        items.forEach(item => {
+          const fileName = item.querySelector('span').textContent;
+          if (fileName === defaultFile) {
+            item.classList.add('active');
+          }
+        });
+
+        loadTrack(defaultFile, false);
+      }
+    }
+
+    // Route config toggles
+    function toggleRouteBtn(btn, isActive) {
+      if (isActive) {
+        btn.classList.add('active');
+        btn.style.background = 'var(--color-blue-translucent)';
+        btn.style.borderColor = 'var(--color-blue)';
+        btn.style.color = 'var(--color-blue)';
+      } else {
+        btn.classList.remove('active');
+        btn.style.background = '';
+        btn.style.borderColor = '';
+        btn.style.color = '';
+      }
+    }
+
+    // Enumerate Mic Devices
+    function populateMicSources() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+
+      navigator.mediaDevices.enumerateDevices()
+        .then(devices => {
+          micSourceSelect.innerHTML = '';
+          const audioInputs = devices.filter(d => d.kind === 'audioinput');
+
+          if (audioInputs.length === 0) {
+            const opt = document.createElement('option');
+            opt.value = "";
+            opt.textContent = "No Microphones Found";
+            micSourceSelect.appendChild(opt);
+            return;
+          }
+
+          audioInputs.forEach((device, index) => {
+            const opt = document.createElement('option');
+            opt.value = device.deviceId;
+            opt.textContent = device.label || `Microphone ${index + 1}`;
+            micSourceSelect.appendChild(opt);
+          });
+        })
+        .catch(err => {
+          log(`Enumerate mic devices failed: ${err.message}`, 'error');
+        });
+    }
+
+    // Initialize Microphone stream
+    function initMicrophone() {
+      initAudio();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      if (isMicActive) {
+        stopMicrophone();
+        return;
+      }
+
+      const deviceId = micSourceSelect.value;
+      const constraints = {
+        audio: deviceId ? { deviceId: { exact: deviceId } } : true
+      };
+
+      navigator.mediaDevices.getUserMedia(constraints)
+        .then(stream => {
+          micStream = stream;
+          isMicActive = true;
+
+          // Visual badge update
+          micStatusBadge.style.background = 'rgba(48,209,88,0.12)';
+          micStatusBadge.style.borderColor = 'rgba(48,209,88,0.25)';
+          micStatusDot.style.backgroundColor = 'var(--color-green)';
+          micStatusDot.classList.add('pulse-green');
+          micStatusTxt.textContent = 'ACTIVE';
+          micStatusTxt.style.color = 'var(--color-green)';
+
+          const waveContainer = document.getElementById('mic-waveform-container');
+          if (waveContainer) waveContainer.classList.add('active');
+
+          if (canvasOverlayText) canvasOverlayText.style.display = 'none';
+
+          // Audio chain connection
+          micSourceNode = audioCtx.createMediaStreamSource(micStream);
+
+          micAnalyserNode = audioCtx.createAnalyser();
+          micAnalyserNode.fftSize = 256;
+
+          micGainNode = audioCtx.createGain();
+          micFeedbackGainNode = audioCtx.createGain();
+
+          // Sensitivity gain slider value
+          updateMicGain(micGainSlider.value);
+
+          // Connect mic input to analyser
+          micSourceNode.connect(micGainNode);
+          micGainNode.connect(micAnalyserNode);
+
+          // Audio loopback path
+          micFeedbackGainNode.gain.value = 0.0;
+          micGainNode.connect(micFeedbackGainNode);
+          micFeedbackGainNode.connect(audioCtx.destination);
+
+          // Sync loopback toggle
+          toggleMicFeedback(micFeedbackToggle.checked);
+
+          // Launch Canvas visualizer loops
+          drawWaveform();
+
+          log('Microphone monitor stream active.', 'ready');
+        })
+        .catch(err => {
+          log(`Failed to access microphone: ${err.message}`, 'error');
+          micFeedbackToggle.checked = false;
+          stopMicrophone();
+        });
+    }
+
+    // Visual badge update
+    function stopMicrophone() {
+      isMicActive = false;
+
+      if (micStream) {
+        micStream.getTracks().forEach(t => t.stop());
+        micStream = null;
+      }
+
+      // Visual badge update
+      micStatusBadge.style.background = 'rgba(255,69,58,0.12)';
+      micStatusBadge.style.borderColor = 'rgba(255,69,58,0.25)';
+      micStatusDot.style.backgroundColor = 'var(--color-red)';
+      micStatusDot.classList.remove('pulse-green');
+      micStatusTxt.textContent = 'INACTIVE';
+      micStatusTxt.style.color = 'var(--color-red)';
+
+      const waveContainer = document.getElementById('mic-waveform-container');
+      if (waveContainer) waveContainer.classList.remove('active');
+
+      if (canvasOverlayText) {
+        canvasOverlayText.style.display = 'block';
+        canvasOverlayText.textContent = 'Click "Enable Monitor" Below';
+      }
+
+      // Disconnect nodes
+      if (micSourceNode) {
+        try { micSourceNode.disconnect(); } catch (e) { }
+        micSourceNode = null;
+      }
+      if (micAnalyserNode) {
+        try { micAnalyserNode.disconnect(); } catch (e) { }
+        micAnalyserNode = null;
+      }
+      if (micGainNode) {
+        try { micGainNode.disconnect(); } catch (e) { }
+        micGainNode = null;
+      }
+      if (micFeedbackGainNode) {
+        try { micFeedbackGainNode.disconnect(); } catch (e) { }
+        micFeedbackGainNode = null;
+      }
+
+      // Cancel animation
+      if (micAnimationId) {
+        cancelAnimationFrame(micAnimationId);
+        micAnimationId = null;
+      }
+
+      // Clear canvas
+      if (micCanvasCtx && micCanvas) {
+        micCanvasCtx.clearRect(0, 0, micCanvas.width, micCanvas.height);
+      }
+
+      // Reset level bars
+      micLevelBar.style.width = '0%';
+      micPeakIndicator.style.color = 'var(--text-muted)';
+
+      log('Microphone monitor stream released.', 'info');
+    }
+
+    function updateMicGain(percentage) {
+      const gainVal = parseFloat(percentage) / 100;
+      const db = (20 * Math.log10(gainVal + 0.0001)).toFixed(1);
+      micGainDisplay.textContent = (db > 0 ? '+' : '') + db + ' dB';
+
+      if (micGainNode) {
+        micGainNode.gain.setValueAtTime(gainVal * 1.5, audioCtx.currentTime);
+      }
+    }
+
+    function toggleMicFeedback(enable) {
+      if (micFeedbackGainNode) {
+        const val = enable ? 0.15 : 0.0;
+        micFeedbackGainNode.gain.setValueAtTime(val, audioCtx.currentTime);
+        log(`Microphone speaker loopback: ${enable ? 'ENABLED' : 'DISABLED'}`, 'debug');
+      }
+    }
+
+    // Draw real-time mic waveform
+    function drawWaveform() {
+      if (!isMicActive || !micAnalyserNode) return;
+
+      micAnimationId = requestAnimationFrame(drawWaveform);
+
+      if (micCanvas.width !== micCanvas.clientWidth || micCanvas.height !== micCanvas.clientHeight) {
+        micCanvas.width = micCanvas.clientWidth;
+        micCanvas.height = micCanvas.clientHeight;
+      }
+
+      const bufferLength = micAnalyserNode.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      micAnalyserNode.getByteTimeDomainData(dataArray);
+
+      micCanvasCtx.fillStyle = 'rgba(26, 26, 26, 0.35)';
+      micCanvasCtx.fillRect(0, 0, micCanvas.width, micCanvas.height);
+
+      micCanvasCtx.shadowBlur = 6;
+      micCanvasCtx.shadowColor = '#00f0ff';
+      micCanvasCtx.lineWidth = 2.5;
+      micCanvasCtx.strokeStyle = '#00f0ff';
+      micCanvasCtx.beginPath();
+
+      const sliceWidth = micCanvas.width / bufferLength;
+      let x = 0;
+      let sumSquares = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = (v * micCanvas.height) / 2;
+
+        if (i === 0) {
+          micCanvasCtx.moveTo(x, y);
+        } else {
+          micCanvasCtx.lineTo(x, y);
+        }
+
+        x += sliceWidth;
+
+        const offset = (dataArray[i] - 128) / 128;
+        sumSquares += offset * offset;
+      }
+
+      micCanvasCtx.lineTo(micCanvas.width, micCanvas.height / 2);
+      micCanvasCtx.stroke();
+      micCanvasCtx.shadowBlur = 0; // Reset shadow for performance
+
+      const rms = Math.sqrt(sumSquares / bufferLength);
+      const levelPercent = Math.min(rms * 400, 100);
+
+      micLevelBar.style.width = levelPercent + '%';
+
+      if (levelPercent > 85) {
+        micPeakIndicator.style.color = 'var(--color-red)';
+      } else {
+        micPeakIndicator.style.color = 'var(--text-muted)';
+      }
+    }
+
+    // Phase test configurations
+    // Global Hooks
+    window.initSoundCheck = () => {
+      createVUBars();
+      populateMicSources();
+      populateSoundFiles();
+      log('Sound Checker interactive assets loaded.', 'info');
+    };
+
+    window.closeSoundCheck = () => {
+      stopSineWave();
+      stopMicrophone();
+
+      // If audio is playing when navigating away from Sound Checking, preserve audio and show floating mini player pop-over
+      if (isPlaying || (audioEl && !audioEl.paused)) {
+        updateMiniAudioWidget();
+        log('Preserving background audio playback; displayed Floating Mini Player.', 'info');
+      } else {
+        const miniW = document.getElementById('mini-audio-player-widget');
+        if (miniW) miniW.style.display = 'none';
+      }
+    };
+
+    // View closing helpers
+    function exitSoundChecking(status, remark) {
+      window.closeSoundCheck();
+      if (typeof window.closeSoundCheckingView === 'function') {
+        window.closeSoundCheckingView(status, remark);
+      }
+    }
+
+    // BIND DOM EVENT LISTENERS
+    if (audioPlayPauseBtn) {
+      audioPlayPauseBtn.addEventListener('click', toggleAudio);
+    }
+    if (audioProgressContainer) {
+      audioProgressContainer.addEventListener('click', (e) => {
+        if (!audioEl) return;
+        const rect = audioProgressContainer.getBoundingClientRect();
+        const percent = (e.clientX - rect.left) / rect.width;
+        const targetTime = percent * (audioEl.duration || 0);
+        audioEl.currentTime = targetTime;
+        log(`Seeked track position to: ${formatTime(targetTime)}`, 'debug');
+      });
+    }
+
+    if (volSliderL) {
+      volSliderL.addEventListener('input', (e) => updateChannelVolume('L', e.target.value));
+    }
+    if (volSliderR) {
+      volSliderR.addEventListener('input', (e) => updateChannelVolume('R', e.target.value));
+    }
+    if (volSliderSub) {
+      volSliderSub.addEventListener('input', (e) => updateChannelVolume('Sub', e.target.value));
+    }
+
+    let isLActive = true;
+    let isRActive = true;
+    let isSubActive = true;
+
+    if (routeL) {
+      routeL.addEventListener('click', () => {
+        isLActive = !isLActive;
+        toggleRouteBtn(routeL, isLActive);
+        updateChannelVolume('L', volSliderL ? volSliderL.value : 100);
+      });
+    }
+    if (routeR) {
+      routeR.addEventListener('click', () => {
+        isRActive = !isRActive;
+        toggleRouteBtn(routeR, isRActive);
+        updateChannelVolume('R', volSliderR ? volSliderR.value : 100);
+      });
+    }
+    if (routeSub) {
+      routeSub.addEventListener('click', () => {
+        isSubActive = !isSubActive;
+        toggleRouteBtn(routeSub, isSubActive);
+        updateChannelVolume('Sub', volSliderSub ? volSliderSub.value : 100);
+      });
+    }
+    if (routeC) {
+      let isCActive = false;
+      routeC.addEventListener('click', () => {
+        isCActive = !isCActive;
+        toggleRouteBtn(routeC, isCActive);
+        if (masterPanner && audioCtx) {
+          masterPanner.pan.setValueAtTime(0.0, audioCtx.currentTime);
+        }
+      });
+    }
+
+    if (micFeedbackToggle) {
+      micFeedbackToggle.addEventListener('change', () => {
+        if (!isMicActive) {
+          initMicrophone();
+        } else {
+          toggleMicFeedback(micFeedbackToggle.checked);
+        }
+      });
+    }
+
+    if (micGainSlider) {
+      micGainSlider.addEventListener('input', (e) => updateMicGain(e.target.value));
+    }
+
+
+    if (soundBackBtn) {
+      soundBackBtn.addEventListener('click', () => exitSoundChecking('idle'));
+    }
+    if (audioPassBtn) {
+      audioPassBtn.addEventListener('click', () => exitSoundChecking('passed'));
+    }
+    if (audioFailBtn) {
+      audioFailBtn.addEventListener('click', () => {
+        showCustomPrompt("Mention the Remark why it failed:", "Audio Test Failure", (remark) => {
+          if (remark === null) return;
+          exitSoundChecking('failed', remark);
+        });
+      });
+    }
+
+    // Playlist Refresh button
+    const btnRefreshPlaylist = document.getElementById('btn-refresh-playlist');
+
+    if (btnRefreshPlaylist) {
+      btnRefreshPlaylist.addEventListener('mouseenter', () => {
+        btnRefreshPlaylist.style.color = 'var(--color-blue)';
+      });
+      btnRefreshPlaylist.addEventListener('mouseleave', () => {
+        btnRefreshPlaylist.style.color = 'var(--text-muted)';
+      });
+      btnRefreshPlaylist.addEventListener('click', () => {
+        // Spin animation
+        const icon = btnRefreshPlaylist.querySelector('i');
+        if (icon) {
+          icon.style.transition = 'transform 0.5s';
+          icon.style.transform = 'rotate(360deg)';
+          setTimeout(() => { icon.style.transform = ''; icon.style.transition = ''; }, 500);
+        }
+        populateSoundFiles();
+        log('Playlist refreshed manually.', 'info');
+      });
+    }
+
+    // FLOATING MINI AUDIO PLAYER WIDGET HANDLERS
+    const miniWidget = document.getElementById('mini-audio-player-widget');
+    const miniTitle = document.getElementById('mini-player-title');
+    const miniTime = document.getElementById('mini-player-time');
+    const miniPlayBtn = document.getElementById('mini-player-play-btn');
+    const miniCloseBtn = document.getElementById('mini-player-close-btn');
+    const miniDiscIcon = document.getElementById('mini-disc-icon');
+    const miniJumpBtn = document.getElementById('mini-player-jump-btn');
+    const miniInfoWrap = document.getElementById('mini-player-info-wrap');
+
+    function updateMiniAudioWidget(overrideTargetViewId) {
+      if (!miniWidget) return;
+
+      let activeViewId = overrideTargetViewId;
+      if (!activeViewId) {
+        const activeView = document.querySelector('.view-pane.active');
+        activeViewId = activeView ? activeView.id : '';
+      }
+
+      const isSoundViewActive = activeViewId === 'view-sound-checking';
+
+      if (!isSoundViewActive && currentSelectedFile) {
+        miniWidget.style.display = 'block';
+        if (miniTitle) miniTitle.textContent = currentSelectedFile;
+        if (miniTime) miniTime.textContent = audioTimeDisplay ? audioTimeDisplay.textContent : '00:00 / 00:00';
+        if (miniPlayBtn) miniPlayBtn.innerHTML = isPlaying ? '<i class="fa-solid fa-pause"></i>' : '<i class="fa-solid fa-play"></i>';
+        if (miniDiscIcon) {
+          if (isPlaying) miniDiscIcon.classList.add('playing');
+          else miniDiscIcon.classList.remove('playing');
+        }
+      } else {
+        miniWidget.style.display = 'none';
+      }
+    }
+    window.updateMiniAudioWidget = updateMiniAudioWidget;
+
+    if (miniPlayBtn) {
+      miniPlayBtn.addEventListener('click', toggleAudio);
+    }
+    if (miniCloseBtn) {
+      miniCloseBtn.addEventListener('click', () => {
+        if (miniWidget) miniWidget.style.display = 'none';
+      });
+    }
+
+    function jumpToSoundChecking() {
+      const navItem = document.getElementById('nav-sound-checking');
+      if (navItem) {
+        navItem.click();
+      } else {
+        const soundView = document.getElementById('view-sound-checking');
+        if (soundView) {
+          document.querySelectorAll('.view-pane').forEach(v => {
+            v.style.display = 'none';
+            v.classList.remove('active');
+          });
+          soundView.style.display = 'flex';
+          soundView.classList.add('active');
+          if (miniWidget) miniWidget.style.display = 'none';
+        }
+      }
+    }
+
+    if (miniJumpBtn) miniJumpBtn.addEventListener('click', jumpToSoundChecking);
+    if (miniInfoWrap) miniInfoWrap.addEventListener('click', jumpToSoundChecking);
+
+    // =========================================================
+    // CAMERA TEST FUNCTIONALITY
+    // =========================================================
+    let cameraTestStream = null;
+    let isVideoMirrored = true;
+    let showGridlines = false;
+    let isShowingSnapshot = false;
+
+    async function initCameraTest() {
+      log('Initializing Camera Diagnostics...', 'info');
+      
+      const selectSource = document.getElementById('camera-source-select');
+      if (selectSource) {
+        selectSource.innerHTML = '<option value="none">Scanning for cameras...</option>';
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoDevices = devices.filter(device => device.kind === 'videoinput');
+          
+          if (videoDevices.length === 0) {
+            selectSource.innerHTML = '<option value="none">No webcams found</option>';
+            log('No camera devices detected.', 'warn');
+          } else {
+            selectSource.innerHTML = '';
+            videoDevices.forEach((device, index) => {
+              const opt = document.createElement('option');
+              opt.value = device.deviceId;
+              opt.textContent = device.label || `Camera ${index + 1}`;
+              selectSource.appendChild(opt);
+            });
+            log(`Found ${videoDevices.length} camera source(s).`, 'info');
+          }
+        } catch (e) {
+          log(`Failed to list video devices: ${e.message}`, 'error');
+          selectSource.innerHTML = '<option value="none">Error scanning devices</option>';
+        }
+      }
+    }
+    window.initCameraTest = initCameraTest;
+
+    async function startCameraTest() {
+      if (cameraTestStream) {
+        stopCameraTest();
+      }
+
+      const selectSource = document.getElementById('camera-source-select');
+      const deviceId = selectSource ? selectSource.value : null;
+      
+      const constraints = {
+        video: deviceId && deviceId !== 'none' ? { deviceId: { exact: deviceId } } : true
+      };
+
+      const videoFeed = document.getElementById('camera-test-feed');
+      const placeholder = document.getElementById('camera-test-placeholder');
+      const statusText = document.getElementById('camera-status-text');
+      const resText = document.getElementById('camera-res-text');
+      const snapshotImg = document.getElementById('camera-snapshot-img');
+
+      // Hide snapshot if active
+      if (isShowingSnapshot && snapshotImg) {
+        snapshotImg.style.display = 'none';
+        isShowingSnapshot = false;
+        const btnSnap = document.getElementById('btn-camera-test-snap');
+        if (btnSnap) btnSnap.innerHTML = '<i class="fa-solid fa-camera"></i> Snapshot';
+      }
+
+      try {
+        log('Starting Live Camera diagnostics stream...', 'info');
+        cameraTestStream = await navigator.mediaDevices.getUserMedia(constraints);
+        
+        if (videoFeed) {
+          videoFeed.srcObject = cameraTestStream;
+          videoFeed.style.display = 'block';
+          
+          // Get track resolution details
+          const track = cameraTestStream.getVideoTracks()[0];
+          if (track) {
+            const settings = track.getSettings();
+            if (resText) {
+              resText.textContent = `${settings.width || 'unknown'} x ${settings.height || 'unknown'} @ ${Math.round(settings.frameRate || 30)}fps`;
+            }
+          }
+        }
+
+        if (placeholder) placeholder.style.display = 'none';
+        if (statusText) {
+          statusText.textContent = 'ACTIVE';
+          statusText.style.color = 'var(--color-green)';
+        }
+        log('Camera feed active.', 'ready');
+      } catch (err) {
+        log(`Webcam permission / streaming failure: ${err.message}`, 'error');
+        showCustomAlert('Unable to start camera stream. Ensure camera is connected and permissions are granted.', 'Camera Error', 'error');
+        if (statusText) {
+          statusText.textContent = 'ERROR';
+          statusText.style.color = 'var(--color-red)';
+        }
+      }
+    }
+
+    function stopCameraTest() {
+      if (cameraTestStream) {
+        cameraTestStream.getTracks().forEach(track => track.stop());
+        cameraTestStream = null;
+      }
+      
+      const videoFeed = document.getElementById('camera-test-feed');
+      const placeholder = document.getElementById('camera-test-placeholder');
+      const statusText = document.getElementById('camera-status-text');
+      const resText = document.getElementById('camera-res-text');
+      const snapshotImg = document.getElementById('camera-snapshot-img');
+
+      if (videoFeed) {
+        videoFeed.srcObject = null;
+        videoFeed.style.display = 'none';
+      }
+      if (snapshotImg) {
+        snapshotImg.style.display = 'none';
+      }
+      isShowingSnapshot = false;
+      const btnSnap = document.getElementById('btn-camera-test-snap');
+      if (btnSnap) btnSnap.innerHTML = '<i class="fa-solid fa-camera"></i> Snapshot';
+
+      if (placeholder) placeholder.style.display = 'flex';
+      if (statusText) {
+        statusText.textContent = 'DISCONNECTED';
+        statusText.style.color = 'var(--color-red)';
+      }
+      if (resText) resText.textContent = 'N/A';
+      log('Camera feed disabled.', 'info');
+    }
+    window.stopCameraTest = stopCameraTest;
+
+    // Event listener setup
+    const btnCamStart = document.getElementById('btn-camera-test-start');
+    const btnCamStop = document.getElementById('btn-camera-test-stop');
+    const btnCamMirror = document.getElementById('btn-camera-test-mirror');
+    const btnCamGrid = document.getElementById('btn-camera-test-grid');
+    const btnCamSnap = document.getElementById('btn-camera-test-snap');
+    const selectSource = document.getElementById('camera-source-select');
+
+    if (btnCamStart) btnCamStart.addEventListener('click', startCameraTest);
+    if (btnCamStop) btnCamStop.addEventListener('click', stopCameraTest);
+    if (selectSource) selectSource.addEventListener('change', () => {
+      if (cameraTestStream) startCameraTest();
+    });
+
+    if (btnCamMirror) {
+      btnCamMirror.addEventListener('click', () => {
+        isVideoMirrored = !isVideoMirrored;
+        const videoFeed = document.getElementById('camera-test-feed');
+        const snapshotImg = document.getElementById('camera-snapshot-img');
+        const transformStyle = isVideoMirrored ? 'scaleX(-1)' : 'scaleX(1)';
+        
+        if (videoFeed) videoFeed.style.transform = transformStyle;
+        if (snapshotImg) snapshotImg.style.transform = transformStyle;
+        
+        btnCamMirror.classList.toggle('active', isVideoMirrored);
+        log(`Camera horizontal mirror set to: ${isVideoMirrored}`, 'debug');
+      });
+    }
+
+    if (btnCamGrid) {
+      btnCamGrid.addEventListener('click', () => {
+        showGridlines = !showGridlines;
+        const grid = document.getElementById('camera-grid-overlay');
+        if (grid) grid.style.display = showGridlines ? 'grid' : 'none';
+        btnCamGrid.classList.toggle('active', showGridlines);
+      });
+    }
+
+    if (btnCamSnap) {
+      btnCamSnap.addEventListener('click', () => {
+        const videoFeed = document.getElementById('camera-test-feed');
+        const canvas = document.getElementById('camera-snapshot-canvas');
+        const snapshotImg = document.getElementById('camera-snapshot-img');
+
+        if (!cameraTestStream || !videoFeed) {
+          showCustomAlert('Please enable the camera stream first.', 'Snapshot Error', 'warn');
+          return;
+        }
+
+        if (isShowingSnapshot) {
+          // Retake: Hide image, show video
+          if (snapshotImg) snapshotImg.style.display = 'none';
+          videoFeed.style.display = 'block';
+          isShowingSnapshot = false;
+          btnCamSnap.innerHTML = '<i class="fa-solid fa-camera"></i> Snapshot';
+          log('Resumed live video feed stream.', 'info');
+        } else {
+          // Capture snapshot
+          if (canvas && snapshotImg) {
+            canvas.width = videoFeed.videoWidth;
+            canvas.height = videoFeed.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(videoFeed, 0, 0, canvas.width, canvas.height);
+            
+            snapshotImg.src = canvas.toDataURL('image/png');
+            snapshotImg.style.display = 'block';
+            videoFeed.style.display = 'none';
+            isShowingSnapshot = true;
+            btnCamSnap.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Retake';
+            log('Snapshot captured.', 'ready');
+          }
+        }
+      });
+    }
+
+    // Glass scratch toggle styling
+    const btnGlassOk = document.getElementById('btn-camera-glass-ok');
+    const btnGlassFail = document.getElementById('btn-camera-glass-fail');
+    let hasGlassIssues = false;
+
+    if (btnGlassOk && btnGlassFail) {
+      btnGlassOk.addEventListener('click', () => {
+        btnGlassOk.classList.add('active');
+        btnGlassFail.classList.remove('active');
+        hasGlassIssues = false;
+      });
+      btnGlassFail.addEventListener('click', () => {
+        btnGlassFail.classList.add('active');
+        btnGlassOk.classList.remove('active');
+        hasGlassIssues = true;
+      });
+    }
+
+    // Pass / Fail remarks
+    const btnCamPass = document.getElementById('camera-pass-btn');
+    const btnCamFail = document.getElementById('camera-fail-btn');
+
+    function exitCameraTest(status, remark = '') {
+      stopCameraTest();
+      
+      const navItem = document.getElementById('nav-system-health');
+      if (navItem) navItem.click();
+
+      // Show alert and save run details
+      if (status === 'passed') {
+        const msg = hasGlassIssues ? 'Camera passed but has Glass Scratches.' : 'Camera diagnostics completed successfully.';
+        saveRecordToHistory(`Camera Checked (${status})`);
+        log(`Camera check completed (${status}). Remarks: ${msg}`, 'ready');
+        showCustomAlert(msg, 'Test Passed', 'success');
+      } else {
+        saveRecordToHistory(`Camera Checked (${status}): ${remark}`);
+        log(`Camera check completed (${status}). Remarks: ${remark}`, 'warn');
+        showCustomAlert(`Camera check failed. Reason: ${remark}`, 'Test Failed', 'error');
+      }
+    }
+
+    if (btnCamPass) {
+      btnCamPass.addEventListener('click', () => exitCameraTest('passed'));
+    }
+    if (btnCamFail) {
+      btnCamFail.addEventListener('click', () => {
+        showCustomPrompt("Enter a remark describing why the camera failed:", "Camera Test Failure", (remark) => {
+          if (remark === null) return;
+          exitCameraTest('failed', remark);
+        });
+      });
+    }
+
+    // Settings Subview Hub Switching
+    const settingsHubBtns = document.querySelectorAll('.settings-hub-btn');
+    const settingsBackBtns = document.querySelectorAll('.btn-settings-back');
+    const settingsHubView = document.getElementById('settings-hub-view');
+    const settingsSubviews = document.querySelectorAll('.settings-subview');
+
+    settingsHubBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.getAttribute('data-target');
+        if (settingsHubView) settingsHubView.style.display = 'none';
+        
+        settingsSubviews.forEach(view => {
+          view.style.display = view.id === targetId ? 'block' : 'none';
+        });
+        log(`Settings Hub navigated to subview: ${targetId}`, 'debug');
+      });
+    });
+
+    settingsBackBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (settingsHubView) settingsHubView.style.display = 'flex';
+        settingsSubviews.forEach(view => {
+          view.style.display = 'none';
+        });
+        log('Settings subview returned to Settings Hub.', 'debug');
+      });
+    });
+
+    // Multiple issues add listeners
+    const btnAddPreviewIssue = document.getElementById('btn-add-preview-issue');
+    if (btnAddPreviewIssue) {
+      btnAddPreviewIssue.addEventListener('click', (e) => {
+        e.preventDefault();
+        const partsSelect = document.getElementById('preview-inp-remark-parts');
+        const textInput = document.getElementById('preview-inp-remark-text');
+        const part = partsSelect ? partsSelect.value : '';
+        const remark = textInput ? textInput.value.trim() : '';
+        if (!part) {
+          showCustomAlert('Please select a part first.', 'Validation', 'warn');
+          return;
+        }
+        if (!remark) {
+          showCustomAlert('Please enter a remark or issue description.', 'Validation', 'warn');
+          return;
+        }
+        previewIssues.push({ part, remark });
+        renderPreviewIssues();
+        if (textInput) textInput.value = '';
+        if (partsSelect) partsSelect.selectedIndex = 0;
+      });
+    }
+
+    const btnAddPortalIssue = document.getElementById('btn-add-portal-issue');
+    if (btnAddPortalIssue) {
+      btnAddPortalIssue.addEventListener('click', (e) => {
+        e.preventDefault();
+        const partsSelect = document.getElementById('portal-update-form-remark-parts');
+        const textInput = document.getElementById('portal-update-form-remark-text');
+        const part = partsSelect ? partsSelect.value : '';
+        const remark = textInput ? textInput.value.trim() : '';
+        if (!part) {
+          showCustomAlert('Please select a part first.', 'Validation', 'warn');
+          return;
+        }
+        if (!remark) {
+          showCustomAlert('Please enter a remark or issue description.', 'Validation', 'warn');
+          return;
+        }
+        portalUpdateIssues.push({ part, remark });
+        renderPortalUpdateIssues();
+        if (textInput) textInput.value = '';
+        if (partsSelect) partsSelect.selectedIndex = 0;
+      });
+    }
+
+    // Populate sound files immediately on startup
+    populateSoundFiles();
+
+  })();
 }
 
 if (document.readyState === 'loading') {
