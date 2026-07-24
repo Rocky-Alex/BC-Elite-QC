@@ -9,7 +9,7 @@
 AppName=BC Elite QC
 AppPublisher=Bizz Co Hub LLC
 AppVersion={#AppVersion}
-DefaultDirName=C:\BizzCoHub QC
+DefaultDirName=C:\BC Elite QC
 DefaultGroupName=BC Elite QC
 OutputDir=f:\Company Software\QC Software - Remaster\.setup
 OutputBaseFilename=BC_Elite_QC_Setup_Version_v1.5
