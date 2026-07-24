@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>KeyProbe Pro - Full 100% ANSI RGB Layout</title>
+  <style>
+    /* Reset and Base Styles */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: #0c0e11;
+      color: #e2e8f0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 32px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+
+    /* Layout Utilities */
+    .flex {
+      display: flex;
+    }
+
+    .flex-col {
+      flex-direction: column;
+    }
+
+    .justify-between {
+      justify-content: space-between;
+    }
+
+    .items-center {
+      align-items: center;
+    }
+
+    .relative {
+      position: relative;
+    }
+
+    .absolute {
+      position: absolute;
+    }
+
+    .overflow-hidden {
+      overflow: hidden;
+    }
+
+    .w-full {
+      width: 100%;
+    }
+
+    .h-full {
+      height: 100%;
+    }
+
+    .gap-2 {
+      gap: 8px;
+    }
+
+    .gap-3 {
+      gap: 12px;
+    }
+
+    .gap-4 {
+      gap: 16px;
+    }
+
+    .gap-6 {
+      gap: 24px;
+    }
+
+    .max-w-1440 {
+      max-width: 1440px;
+      margin-left: auto;
+      margin-right: auto;
+      width: 100%;
+    }
+
+    /* Header Styles */
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 16px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .header-title {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -1px;
+      color: #ffffff;
+      font-style: italic;
+      text-transform: none;
+    }
+
+    .version-badge {
+      padding: 4px 8px;
+      background-color: #1a1c1f;
+      border: 1px solid #333538;
+      font-size: 10px;
+      font-family: monospace;
+      color: #9ca3af;
+      border-radius: 4px;
+    }
+
+    .help-btn {
+      background: none;
+      border: none;
+      color: #6b7280;
+      cursor: pointer;
+      transition: color 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .help-btn:hover {
+      color: #ffffff;
+    }
+
+    /* Monitors Layout */
+    .monitors-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+    }
+
+    .monitor-card {
+      background: linear-gradient(180deg, #1e2023 0%, #111316 100%);
+      border: 1px solid #2a2c31;
+      box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.05),
+        0 4px 12px rgba(0, 0, 0, 0.4);
+      border-radius: 8px;
+      padding: 24px;
+      height: 160px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .monitor-title {
+      font-size: 10px;
+      font-weight: 700;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .indicator-box {
+      width: 48px;
+      height: 24px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+
+    .display-code-text {
+      font-size: 20px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+    }
+
+    .display-hex-text {
+      font-size: 10px;
+      font-family: monospace;
+      color: #9ca3af;
+      margin-top: 4px;
+      text-transform: uppercase;
+    }
+
+    .latency-value {
+      font-size: 60px;
+      font-weight: 300;
+      color: #ffffff;
+      line-height: 1;
+    }
+
+    .latency-unit {
+      font-size: 10px;
+      font-family: monospace;
+      color: #6b7280;
+      margin-top: 8px;
+      text-transform: uppercase;
+    }
+
+    /* Keycaps: Refined 3D proportions from reference */
+    .key-cap {
+      background: linear-gradient(180deg, rgba(42, 44, 49, 0.9) 0%, rgba(26, 28, 31, 0.9) 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        0 1px 0 #000,
+        0 3px 0 #08090a,
+        0 4px 6px rgba(0, 0, 0, 0.5);
+      border-top: 1px solid rgba(255, 255, 255, 0.03);
+      transition: transform 0.05s ease, box-shadow 0.05s ease, background 0.05s ease, color 0.2s ease, text-shadow 0.2s ease;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.4);
+      text-transform: uppercase;
+      border-radius: 4px;
+      position: relative;
+      z-index: 10;
+      /* Default subtle backlight */
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        0 1px 0 #000,
+        0 3px 0 #08090a,
+        0 4px 6px rgba(0, 0, 0, 0.5),
+        0 0 4px var(--key-rgb, transparent);
+    }
+
+    /* Active pressing state */
+    .key-cap:active,
+    .key-cap.is-pressed {
+      transform: translateY(3px);
+      box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.8),
+        0 0px 0 #000,
+        0 0 15px var(--key-rgb, #fff);
+      background: rgba(42, 44, 49, 1);
+      color: #fff;
+      text-shadow: 0 0 8px var(--key-rgb, #fff);
+    }
+
+    /* Persistent tested highlight */
+    .key-cap.tested {
+      color: #fff;
+      text-shadow: 0 0 5px var(--key-rgb, #fff);
+      border: 1px solid var(--key-rgb, rgba(255, 255, 255, 0.2));
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        0 0 12px var(--key-rgb, rgba(255, 255, 255, 0.2)),
+        0 1px 0 #000,
+        0 3px 0 #08090a,
+        0 4px 6px rgba(0, 0, 0, 0.5);
+    }
+
+    /* RGB Accents for Hardware Modules */
+    .rgb-border {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .rgb-border::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8f00ff);
+      opacity: 0.6;
+    }
+
+    /* Standard ANSI Sizing */
+    .u-1 {
+      width: 42px;
+      height: 42px;
+    }
+
+    .u-1-25 {
+      width: 52px;
+      height: 42px;
+    }
+
+    .u-1-5 {
+      width: 63px;
+      height: 42px;
+    }
+
+    .u-1-75 {
+      width: 73px;
+      height: 42px;
+    }
+
+    .u-2 {
+      width: 84px;
+      height: 42px;
+    }
+
+    .u-2-25 {
+      width: 94px;
+      height: 42px;
+    }
+
+    .u-2-75 {
+      width: 115px;
+      height: 42px;
+    }
+
+    .u-6-25 {
+      width: 262px;
+      height: 42px;
+    }
+
+    .v-2 {
+      height: 92px;
+    }
+
+    /* Beveled Chassis Frame */
+    .keyboard-case {
+      background-color: #1a1c1f;
+      box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.1),
+        0 8px 30px rgba(0, 0, 0, 0.8);
+      border: 1px solid #000;
+      padding: 24px;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    /* Scaler wrapper: shrinks/grows with the case but keeps the deck at natural size */
+    .keyboard-scale-wrapper {
+      width: 100%;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+    }
+
+    /* Recessed Key Deck */
+    .key-deck {
+      background-color: #0c0e11;
+      border-radius: 8px;
+      padding: 16px 16px 24px 16px;
+      box-shadow:
+        inset 0 6px 30px rgba(0, 0, 0, 0.9),
+        inset 0 2px 10px rgba(0, 0, 0, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.02);
+      position: relative;
+      overflow: hidden;
+      /* transform-origin top-center so scale centers from top edge */
+      transform-origin: top center;
+      flex-shrink: 0;
+    }
+
+    .key-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      position: relative;
+      z-index: 20;
+    }
+
+    .f-row {
+      margin-bottom: 20px;
+    }
+
+    .cluster-gap {
+      margin-right: 28px;
+    }
+
+    .f-group-gap {
+      margin-right: 18px;
+    }
+
+    @keyframes rgb-cycle {
+      0% {
+        filter: hue-rotate(0deg);
+      }
+
+      100% {
+        filter: hue-rotate(360deg);
+      }
+    }
+
+    .rgb-animate {
+      animation: rgb-cycle 5s linear infinite;
+    }
+
+    /* Organic diffuse lighting plate */
+    .lighting-glow {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.35;
+      filter: blur(12px);
+      pointer-events: none;
+    }
+
+    /* Button Bar styling */
+    .keyboard-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding: 0 16px;
+    }
+
+    .led-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .led-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: linear-gradient(90deg, #ff0000, #00ff00, #0000ff);
+      box-shadow: 0 0 8px rgba(255, 255, 255, 1);
+    }
+
+    .led-text {
+      font-size: 10px;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1.1;
+    }
+
+    .led-text span {
+      color: #6b7280;
+      text-transform: uppercase;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 12px;
+    }
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 4px;
+      padding: 8px 16px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      transition: all 0.15s ease;
+      cursor: pointer;
+      border: 1px solid transparent;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      outline: none;
+      color: #ffffff;
+    }
+
+    .action-btn:active {
+      transform: scale(0.95);
+    }
+
+    .btn-back {
+      background-color: #000000;
+      border-color: #333538;
+    }
+
+    .btn-back:hover {
+      border-color: #ffffff;
+      background-color: #1c1d1f;
+    }
+
+    .btn-pass {
+      background-color: #022c22;
+      border-color: #064e3b;
+      color: #34d399;
+    }
+
+    .btn-pass:hover {
+      border-color: #34d399;
+      background-color: #064e3b;
+    }
+
+    .btn-fail {
+      background-color: #4c0519;
+      border-color: #881337;
+      color: #fb7185;
+    }
+
+    .btn-fail:hover {
+      border-color: #fb7185;
+      background-color: #881337;
+    }
+
+    .btn-reset {
+      background-color: #000000;
+      border-color: #333538;
+    }
+
+    .btn-reset:hover {
+      border-color: #ffffff;
+      background-color: #1c1d1f;
+    }
+
+    .v-spacer {
+      width: 1px;
+      height: 16px;
+      background-color: #333538;
+    }
+  </style>
+</head>
+
+<body class="select-none">
+  <!-- BEGIN: MainHeader -->
+  <header class="app-header max-w-1440">
+    <div class="header-left">
+      <button class="action-btn btn-back" id="back-btn">
+        <svg style="width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.5;"
+          viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+        </svg>
+        Back to Diagnostics
+      </button>
+      <h1 class="header-title">KeyProbe Pro</h1>
+      <span class="version-badge">V2.4 RGB EDITION</span>
+    </div>
+    <div class="flex gap-6" style="color: #6b7280;">
+      <button class="help-btn" id="help-btn" title="Keyboard tester help">
+        <svg style="width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2;" viewBox="0 0 24 24">
+          <path
+            d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+  <!-- END: MainHeader -->
+
+  <main class="max-w-1440" style="display: flex; flex-direction: column; gap: 32px;">
+    <!-- BEGIN: Monitors -->
+    <div class="monitors-grid">
+      <section class="monitor-card rgb-border">
+        <h3 class="monitor-title" style="position: relative; z-index: 10;">Last Key Pressed</h3>
+        <div class="flex items-center gap-6" style="position: relative; z-index: 10;">
+          <div class="indicator-box" id="key-indicator-box">
+            <div class="absolute inset-0 w-full h-full" style="display:block;">
+              <canvas id="shader-canvas-indicator" style="display:block;width:100%;height:100%"></canvas>
+            </div>
+          </div>
+          <div>
+            <div class="display-code-text" id="display-code">CODE: N/A</div>
+            <div class="display-hex-text" id="display-hex">HEX: 0x00</div>
+          </div>
+        </div>
+      </section>
+      <section class="monitor-card rgb-border">
+        <h3 class="monitor-title">Latency Delta</h3>
+        <div>
+          <div class="latency-value" id="latency-avg">0.00</div>
+          <div class="latency-unit">milliseconds (avg)</div>
+        </div>
+      </section>
+    </div>
+    <!-- END: Monitors -->
+
+    <!-- BEGIN: MainKeyboardInterface -->
+    <div class="keyboard-case">
+      <div class="keyboard-bar">
+
+        <div class="btn-group">
+          <button class="action-btn btn-pass" id="pass-btn" title="Confirm test passed and return">
+            <svg style="width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2.5;"
+              viewBox="0 0 24 24">
+              <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+            Pass Test
+          </button>
+          <button class="action-btn btn-fail" id="fail-btn" title="Report failure and return">
+            <svg style="width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2.5;"
+              viewBox="0 0 24 24">
+              <path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+            Fail Test
+          </button>
+          <button class="action-btn btn-reset" id="reset-btn">
+            <svg style="width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2;"
+              viewBox="0 0 24 24">
+              <path
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+            Reset All
+          </button>
+        </div>
+      </div>
+
+      <div class="keyboard-scale-wrapper" id="keyboard-scale-wrapper">
+      <div class="key-deck" id="key-deck">
+        <!-- INTEGRATED ORGANIC RGB SHADER PLATE -->
+        <div class="lighting-glow" style="display:block;">
+          <canvas id="shader-canvas-glow" style="display:block;width:100%;height:100%"></canvas>
+        </div>
+
+        <div class="flex justify-center relative" style="z-index: 20;">
+          <div class="flex">
+            <!-- LEFT: Main Cluster -->
+            <div class="flex flex-col cluster-gap">
+              <!-- Function Row -->
+              <div class="key-row f-row">
+                <div class="key-cap u-1" data-key="Escape">Esc</div>
+                <div class="u-1" style="visibility: hidden; width: 40px;"></div> <!-- Esc Spacer -->
+                <div class="flex gap-2 f-group-gap">
+                  <div class="key-cap u-1" data-key="F1">F1</div>
+                  <div class="key-cap u-1" data-key="F2">F2</div>
+                  <div class="key-cap u-1" data-key="F3">F3</div>
+                  <div class="key-cap u-1" data-key="F4">F4</div>
+                </div>
+                <div class="flex gap-2 f-group-gap">
+                  <div class="key-cap u-1" data-key="F5">F5</div>
+                  <div class="key-cap u-1" data-key="F6">F6</div>
+                  <div class="key-cap u-1" data-key="F7">F7</div>
+                  <div class="key-cap u-1" data-key="F8">F8</div>
+                </div>
+                <div class="flex gap-2">
+                  <div class="key-cap u-1" data-key="F9">F9</div>
+                  <div class="key-cap u-1" data-key="F10">F10</div>
+                  <div class="key-cap u-1" data-key="F11">F11</div>
+                  <div class="key-cap u-1" data-key="F12">F12</div>
+                </div>
+              </div>
+
+              <!-- Alpha Rows -->
+              <div class="key-row">
+                <div class="key-cap u-1" data-key="`">`</div>
+                <div class="key-cap u-1" data-key="1">1</div>
+                <div class="key-cap u-1" data-key="2">2</div>
+                <div class="key-cap u-1" data-key="3">3</div>
+                <div class="key-cap u-1" data-key="4">4</div>
+                <div class="key-cap u-1" data-key="5">5</div>
+                <div class="key-cap u-1" data-key="6">6</div>
+                <div class="key-cap u-1" data-key="7">7</div>
+                <div class="key-cap u-1" data-key="8">8</div>
+                <div class="key-cap u-1" data-key="9">9</div>
+                <div class="key-cap u-1" data-key="0">0</div>
+                <div class="key-cap u-1" data-key="-">-</div>
+                <div class="key-cap u-1" data-key="=">=</div>
+                <div class="key-cap u-2" data-key="Backspace">BKSP</div>
+              </div>
+              <div class="key-row">
+                <div class="key-cap u-1-5" data-key="Tab">Tab</div>
+                <div class="key-cap u-1" data-key="q">Q</div>
+                <div class="key-cap u-1" data-key="w">W</div>
+                <div class="key-cap u-1" data-key="e">E</div>
+                <div class="key-cap u-1" data-key="r">R</div>
+                <div class="key-cap u-1" data-key="t">T</div>
+                <div class="key-cap u-1" data-key="y">Y</div>
+                <div class="key-cap u-1" data-key="u">U</div>
+                <div class="key-cap u-1" data-key="i">I</div>
+                <div class="key-cap u-1" data-key="o">O</div>
+                <div class="key-cap u-1" data-key="p">P</div>
+                <div class="key-cap u-1" data-key="[">[</div>
+                <div class="key-cap u-1" data-key="]">]</div>
+                <div class="key-cap u-1-5" data-key="\">\</div>
+              </div>
+              <div class="key-row">
+                <div class="key-cap u-1-75" data-key="CapsLock">Caps</div>
+                <div class="key-cap u-1" data-key="a">A</div>
+                <div class="key-cap u-1" data-key="s">S</div>
+                <div class="key-cap u-1" data-key="d">D</div>
+                <div class="key-cap u-1" data-key="f">F</div>
+                <div class="key-cap u-1" data-key="g">G</div>
+                <div class="key-cap u-1" data-key="h">H</div>
+                <div class="key-cap u-1" data-key="j">J</div>
+                <div class="key-cap u-1" data-key="k">K</div>
+                <div class="key-cap u-1" data-key="l">L</div>
+                <div class="key-cap u-1" data-key=";">;</div>
+                <div class="key-cap u-1" data-key="'">'</div>
+                <div class="key-cap u-2-25" data-key="Enter">Enter</div>
+              </div>
+              <div class="key-row">
+                <div class="key-cap u-2-25" data-key="Shift">Shift</div>
+                <div class="key-cap u-1" data-key="z">Z</div>
+                <div class="key-cap u-1" data-key="x">X</div>
+                <div class="key-cap u-1" data-key="c">C</div>
+                <div class="key-cap u-1" data-key="v">V</div>
+                <div class="key-cap u-1" data-key="b">B</div>
+                <div class="key-cap u-1" data-key="n">N</div>
+                <div class="key-cap u-1" data-key="m">M</div>
+                <div class="key-cap u-1" data-key=",">,</div>
+                <div class="key-cap u-1" data-key=".">.</div>
+                <div class="key-cap u-1" data-key="/">/</div>
+                <div class="key-cap u-2-75" data-key="Shift">Shift</div>
+              </div>
+              <div class="key-row">
+                <div class="key-cap u-1-25" data-key="Control">Ctrl</div>
+                <div class="key-cap u-1-25" data-key="Meta">Win</div>
+                <div class="key-cap u-1-25" data-key="Alt">Alt</div>
+                <div class="key-cap u-6-25" data-key=" ">Spacebar</div>
+                <div class="key-cap u-1-25" data-key="Alt">Alt</div>
+                <div class="key-cap u-1-25" data-key="fn">FN</div>
+                <div class="key-cap u-1-25" data-key="ContextMenu">Menu</div>
+                <div class="key-cap u-1-25" data-key="Control">Ctrl</div>
+              </div>
+            </div>
+
+            <!-- MIDDLE: Navigation Group -->
+            <div class="flex flex-col cluster-gap">
+              <!-- Nav Top Bar -->
+              <div class="key-row f-row">
+                <div class="key-cap u-1" data-key="PrintScreen">PrtSc</div>
+                <div class="key-cap u-1" data-key="ScrollLock">ScrLk</div>
+                <div class="key-cap u-1" data-key="Pause">Pause</div>
+              </div>
+              <!-- Nav Cluster -->
+              <div class="key-row">
+                <div class="key-cap u-1" data-key="Insert">Ins</div>
+                <div class="key-cap u-1" data-key="Home">Home</div>
+                <div class="key-cap u-1" data-key="PageUp">PgUp</div>
+              </div>
+              <div class="key-row" style="margin-bottom: 48px;">
+                <div class="key-cap u-1" data-key="Delete">Del</div>
+                <div class="key-cap u-1" data-key="End">End</div>
+                <div class="key-cap u-1" data-key="PageDown">PgDn</div>
+              </div>
+              <div class="flex flex-col" style="margin-top: auto; align-items: flex-start; width: 100%;">
+                <div class="key-row">
+                  <div style="width: 42px; flex-shrink: 0;"></div>
+                  <div class="key-cap u-1" data-key="ArrowUp">↑</div>
+                </div>
+                <div class="key-row">
+                  <div class="key-cap u-1" data-key="ArrowLeft">←</div>
+                  <div class="key-cap u-1" data-key="ArrowDown">↓</div>
+                  <div class="key-cap u-1" data-key="ArrowRight">→</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- RIGHT: Numpad -->
+            <div class="flex flex-col relative">
+              <!-- Numpad Branding Overlay -->
+              <div class="absolute" style="top: -4px; right: 8px; z-index: 30;">
+                <span
+                  style="font-size: 11px; font-weight: 900; font-style: italic; color: #37393d; letter-spacing: 2px; opacity: 0.3;">BIZZ
+                  CO HUB</span>
+              </div>
+              <div class="key-row f-row">
+                <div style="width: 100%; height: 42px;"></div> <!-- Matching height of F row -->
+              </div>
+              <!-- Numpad Content -->
+              <div class="key-row">
+                <div class="key-cap u-1" data-key="NumLock">Num</div>
+                <div class="key-cap u-1" data-key="Divide">/</div>
+                <div class="key-cap u-1" data-key="Multiply">*</div>
+                <div class="key-cap u-1" data-key="Subtract">-</div>
+              </div>
+              <div class="flex gap-2 relative" style="z-index: 20;">
+                <div class="flex flex-col">
+                  <div class="key-row">
+                    <div class="key-cap u-1" data-key="7">7</div>
+                    <div class="key-cap u-1" data-key="8">8</div>
+                    <div class="key-cap u-1" data-key="9">9</div>
+                  </div>
+                  <div class="key-row">
+                    <div class="key-cap u-1" data-key="4">4</div>
+                    <div class="key-cap u-1" data-key="5">5</div>
+                    <div class="key-cap u-1" data-key="6">6</div>
+                  </div>
+                </div>
+                <div class="key-cap u-1 v-2" data-key="Add">+</div>
+              </div>
+              <div class="flex gap-2 relative" style="z-index: 20;">
+                <div class="flex flex-col">
+                  <div class="key-row">
+                    <div class="key-cap u-1" data-key="1">1</div>
+                    <div class="key-cap u-1" data-key="2">2</div>
+                    <div class="key-cap u-1" data-key="3">3</div>
+                  </div>
+                  <div class="key-row">
+                    <div class="key-cap u-2" data-key="0">0</div>
+                    <div class="key-cap u-1" data-key="Decimal">.</div>
+                  </div>
+                </div>
+                <div class="key-cap u-1 v-2" data-key="Enter">Ent</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- END: MainKeyboardInterface -->
+  </main>
+
+  <script data-purpose="keyboard-interactivity">
+    // Helper to send message back to parent window
+    function exitTest(status) {
+      if (window.parent && typeof window.parent.closeKeyboardTestView === 'function') {
+        window.parent.closeKeyboardTestView(status);
+      } else {
+        alert("Keyboard Test Complete! Status: " + status.toUpperCase() + "\n(Running in standalone mode)");
+      }
+    }
+
+    document.getElementById('back-btn').addEventListener('click', () => {
+      const testedCount = document.querySelectorAll('.key-cap.tested').length;
+      const status = testedCount > 0 ? 'passed' : 'idle';
+      exitTest(status);
+    });
+
+    document.getElementById('pass-btn').addEventListener('click', () => {
+      exitTest('passed');
+    });
+
+    document.getElementById('fail-btn').addEventListener('click', () => {
+      exitTest('failed');
+    });
+
+    document.getElementById('help-btn').addEventListener('click', () => {
+      alert("KeyProbe Pro Keyboard Tester\n\n- Press physical keys to test the layout.\n- Pressed keys light up based on their grid position.\n- 'Tested' keys remain highlighted.\n- Latency Delta displays your browser event processing latency.\n- Click 'Pass Test' or 'Fail Test' to record the result and return.");
+    });
+
+    // Apply initial RGB Hues based on horizontal position for individual keys
+    function initRGB() {
+      const allKeys = document.querySelectorAll('.key-cap');
+      const keyboard = document.querySelector('.key-deck');
+      if (!keyboard) return;
+      const keyboardRect = keyboard.getBoundingClientRect();
+
+      allKeys.forEach(key => {
+        const rect = key.getBoundingClientRect();
+        // Calculate relative horizontal position (0 to 1)
+        const relativeX = keyboardRect.width > 0 ? (rect.left - keyboardRect.left) / keyboardRect.width : 0.5;
+        // Map 0-1 to 0-360 hue spectrum
+        const hue = Math.floor(relativeX * 360);
+        key.style.setProperty('--hue', hue);
+        // Individual backlight
+        key.style.setProperty('--key-rgb', `hsl(${hue}, 80%, 50%)`);
+      });
+    }
+
+    // Auto-scale keyboard to fit the available container width
+    function scaleKeyboard() {
+      const wrapper = document.getElementById('keyboard-scale-wrapper');
+      const deck = document.getElementById('key-deck');
+      if (!wrapper || !deck) return;
+
+      // Deterministic layout calculations: main paddings (48px) + case paddings (48px)
+      const availableWidth = window.innerWidth - 96;
+      const naturalWidth = 1210; // Fixed natural unscaled width of keyboard (including padding)
+      const naturalHeight = 336; // Fixed natural unscaled height of keyboard (including padding)
+
+      if (availableWidth > 0) {
+        const scale = Math.min(1, availableWidth / naturalWidth);
+        deck.style.transform = `scale(${scale})`;
+        wrapper.style.height = (naturalHeight * scale) + 'px';
+      }
+    }
+
+    // Call after a short delay to ensure layout is stable
+    window.addEventListener('load', () => {
+      setTimeout(() => { initRGB(); scaleKeyboard(); }, 150);
+    });
+    window.addEventListener('resize', () => { initRGB(); scaleKeyboard(); });
+
+    // Observe container size changes (e.g. sidebar toggle, window resize)
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => { scaleKeyboard(); initRGB(); });
+      const wrapper = document.querySelector('.keyboard-case') || document.body;
+      if (wrapper) ro.observe(wrapper);
+    }
+
+    // Latency Tracking
+    let latencyTimes = [];
+    const latencyVal = document.getElementById('latency-avg');
+
+    function trackLatency(e) {
+      const latency = Math.max(0, performance.now() - e.timeStamp);
+      // Filter out high outlier delays caused by focus transitions or system lag
+      if (latency < 200) {
+        latencyTimes.push(latency);
+        if (latencyTimes.length > 50) {
+          latencyTimes.shift(); // keep last 50 keypresses for rolling average
+        }
+        const avg = (latencyTimes.reduce((a, b) => a + b, 0) / latencyTimes.length).toFixed(2);
+        if (latencyVal) latencyVal.textContent = avg;
+      }
+    }
+
+    // Key Mapping Helper to normalize standard web event keys to layout data-key
+    function getLayoutKey(e) {
+      // Direct code matching for space
+      if (e.code === 'Space') return ' ';
+
+      // Match by event.key
+      let keyCap = document.querySelector(`.key-cap[data-key="${e.key}"]`);
+      if (keyCap) return e.key;
+
+      // Match by event.code
+      keyCap = document.querySelector(`.key-cap[data-key="${e.code}"]`);
+      if (keyCap) return e.code;
+
+      // Special mappings for modifiers/common keys
+      if (e.key === 'Control') return 'Control';
+      if (e.key === 'Alt') return 'Alt';
+      if (e.key === 'Meta' || e.key === 'OS' || e.key === 'Super') return 'Meta';
+      if (e.key === 'Shift') return 'Shift';
+      if (e.key === 'Enter') return 'Enter';
+
+      // Normalize arrow keys
+      if (e.key === 'ArrowUp') return 'ArrowUp';
+      if (e.key === 'ArrowDown') return 'ArrowDown';
+      if (e.key === 'ArrowLeft') return 'ArrowLeft';
+      if (e.key === 'ArrowRight') return 'ArrowRight';
+
+      // Numpad mappings
+      if (e.code.startsWith('Numpad')) {
+        const numPart = e.code.replace('Numpad', '');
+        if (numPart === 'Enter') return 'Enter';
+        if (numPart === 'Add') return 'Add';
+        if (numPart === 'Subtract') return 'Subtract';
+        if (numPart === 'Multiply') return 'Multiply';
+        if (numPart === 'Divide') return 'Divide';
+        if (numPart === 'Decimal') return 'Decimal';
+        if (!isNaN(numPart)) return numPart;
+      }
+
+      return e.key;
+    }
+
+    document.addEventListener('keydown', (e) => {
+      // Prevent browser default shortcut events (like Backspace navigation, tab navigation, or F5 reloads)
+      e.preventDefault();
+
+      trackLatency(e);
+
+      const matchedKey = getLayoutKey(e);
+
+      // Query active key caps (there might be multiple for Shift, Ctrl, Alt)
+      const keyCaps = document.querySelectorAll(`.key-cap[data-key="${matchedKey}"]`);
+
+      if (keyCaps.length > 0) {
+        keyCaps.forEach(keyCap => {
+          keyCap.classList.add('is-pressed');
+          keyCap.classList.add('tested');
+
+          // Visual reactive feedback for indicator box (opacity/glow boost)
+          const indicatorBox = document.getElementById('key-indicator-box');
+          if (indicatorBox) {
+            const hue = keyCap.style.getPropertyValue('--hue') || 180;
+            indicatorBox.style.boxShadow = `0 0 25px hsl(${hue}, 80%, 50%)`;
+          }
+        });
+
+        // Update display text (from the first matched key)
+        const firstKey = keyCaps[0];
+        document.getElementById('display-code').innerText = `CODE: ${e.code.toUpperCase()}`;
+        document.getElementById('display-hex').innerText = `HEX: 0x${e.keyCode.toString(16).toUpperCase()}`;
+
+        setTimeout(() => {
+          const indicatorBox = document.getElementById('key-indicator-box');
+          if (indicatorBox) indicatorBox.style.boxShadow = '0 0 10px rgba(255,255,255,0.1)';
+        }, 150);
+      }
+    });
+
+    document.addEventListener('keyup', (e) => {
+      e.preventDefault();
+      const matchedKey = getLayoutKey(e);
+      const keyCaps = document.querySelectorAll(`.key-cap[data-key="${matchedKey}"]`);
+      keyCaps.forEach(keyCap => {
+        keyCap.classList.remove('is-pressed');
+      });
+    });
+
+    document.getElementById('reset-btn').addEventListener('click', () => {
+      document.querySelectorAll('.key-cap').forEach(k => {
+        k.classList.remove('is-pressed');
+        k.classList.remove('tested');
+      });
+      document.getElementById('display-code').innerText = 'CODE: N/A';
+      document.getElementById('display-hex').innerText = 'HEX: 0x00';
+      const indicatorBox = document.getElementById('key-indicator-box');
+      if (indicatorBox) indicatorBox.style.boxShadow = '0 0 10px rgba(255,255,255,0.1)';
+      latencyTimes = [];
+      if (latencyVal) latencyVal.textContent = '0.00';
+    });
+
+    // Mouse interactivity
+    document.querySelectorAll('.key-cap').forEach(key => {
+      key.addEventListener('mousedown', () => {
+        key.classList.add('is-pressed');
+        key.classList.add('tested');
+
+        const indicatorBox = document.getElementById('key-indicator-box');
+        if (indicatorBox) {
+          const hue = key.style.getPropertyValue('--hue') || 180;
+          indicatorBox.style.boxShadow = `0 0 25px hsl(${hue}, 80%, 50%)`;
+        }
+
+        const dataKey = key.getAttribute('data-key');
+        document.getElementById('display-code').innerText = `CODE: CLICK_${dataKey.toUpperCase()}`;
+        document.getElementById('display-hex').innerText = `HEX: MOUSE`;
+      });
+      key.addEventListener('mouseup', () => {
+        key.classList.remove('is-pressed');
+        const indicatorBox = document.getElementById('key-indicator-box');
+        if (indicatorBox) indicatorBox.style.boxShadow = '0 0 10px rgba(255,255,255,0.1)';
+      });
+      key.addEventListener('mouseleave', () => key.classList.remove('is-pressed'));
+    });
+  </script>
+
+  <!-- WebGL Background Shaders Setup -->
+  <script>
+    // 1. Setup Indicator WebGL Canvas
+    (function () {
+      const canvas = document.getElementById('shader-canvas-indicator');
+      if (!canvas) return;
+
+      function syncSize() {
+        const w = canvas.clientWidth || 48;
+        const h = canvas.clientHeight || 24;
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+      }
+      if (typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(syncSize).observe(canvas);
+      }
+      syncSize();
+
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (!gl) return;
+
+      const vs = `attribute vec2 a_position;
+varying vec2 v_texCoord;
+void main() {
+  v_texCoord = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+      const fs = `precision highp float;
+uniform float u_time;
+uniform vec2 u_resolution;
+varying vec2 v_texCoord;
+
+float hash(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+
+float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    float a = hash(i);
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+}
+
+vec3 hsv2rgb(vec3 c) {
+    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+void main() {
+    vec2 uv = v_texCoord;
+    float n1 = noise(uv * 3.0 + u_time * 0.2);
+    float n2 = noise(uv * 6.0 - u_time * 0.1);
+    float mixNoise = (n1 + n2) * 0.5;
+    float wave = uv.x + mixNoise * 0.15 + u_time * 0.12;
+    vec3 color = hsv2rgb(vec3(fract(wave), 0.85, 0.9));
+    float bloom = 0.7 + 0.3 * noise(uv * 10.0 + u_time * 0.5);
+    color *= bloom;
+    float pulse = 0.92 + 0.08 * sin(u_time * 1.2);
+    color *= pulse;
+    float ledMask = 0.5 + 0.5 * sin(uv.x * 20.0);
+    color *= 0.8 + 0.2 * ledMask;
+    gl_FragColor = vec4(color, 1.0);
+}`;
+
+      function cs(type, src) {
+        const s = gl.createShader(type);
+        gl.shaderSource(s, src);
+        gl.compileShader(s);
+        return s;
+      }
+      const prog = gl.createProgram();
+      gl.attachShader(prog, cs(gl.VERTEX_SHADER, vs));
+      gl.attachShader(prog, cs(gl.FRAGMENT_SHADER, fs));
+      gl.linkProgram(prog);
+      gl.useProgram(prog);
+
+      const buf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+
+      const pos = gl.getAttribLocation(prog, 'a_position');
+      gl.enableVertexAttribArray(pos);
+      gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+
+      const uTime = gl.getUniformLocation(prog, 'u_time');
+      const uRes = gl.getUniformLocation(prog, 'u_resolution');
+
+      function render(t) {
+        if (typeof ResizeObserver === 'undefined') syncSize();
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        if (uTime) gl.uniform1f(uTime, t * 0.001);
+        if (uRes) gl.uniform2f(uRes, canvas.width, canvas.height);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        requestAnimationFrame(render);
+      }
+      render(0);
+    })();
+
+    // 2. Setup Deck Glow WebGL Canvas
+    (function () {
+      const canvas = document.getElementById('shader-canvas-glow');
+      if (!canvas) return;
+
+      function syncSize() {
+        const w = canvas.clientWidth || 1280;
+        const h = canvas.clientHeight || 400;
+        if (canvas.width !== w || canvas.height !== h) {
+          canvas.width = w;
+          canvas.height = h;
+        }
+      }
+      if (typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(syncSize).observe(canvas);
+      }
+      syncSize();
+
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (!gl) return;
+
+      const vs = `attribute vec2 a_position;
+varying vec2 v_texCoord;
+void main() {
+  v_texCoord = a_position * 0.5 + 0.5;
+  gl_Position = vec4(a_position, 0.0, 1.0);
+}`;
+      const fs = `precision highp float;
+uniform float u_time;
+uniform vec2 u_resolution;
+varying vec2 v_texCoord;
+
+float hash(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+
+float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    float a = hash(i);
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+}
+
+vec3 hsv2rgb(vec3 c) {
+    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+void main() {
+    vec2 uv = v_texCoord;
+    float n1 = noise(uv * 3.0 + u_time * 0.2);
+    float n2 = noise(uv * 6.0 - u_time * 0.1);
+    float mixNoise = (n1 + n2) * 0.5;
+    float wave = uv.x + mixNoise * 0.15 + u_time * 0.12;
+    vec3 color = hsv2rgb(vec3(fract(wave), 0.85, 0.9));
+    float bloom = 0.7 + 0.3 * noise(uv * 10.0 + u_time * 0.5);
+    color *= bloom;
+    float pulse = 0.92 + 0.08 * sin(u_time * 1.2);
+    color *= pulse;
+    float ledMask = 0.5 + 0.5 * sin(uv.x * 20.0);
+    color *= 0.8 + 0.2 * ledMask;
+    gl_FragColor = vec4(color, 1.0);
+}`;
+
+      function cs(type, src) {
+        const s = gl.createShader(type);
+        gl.shaderSource(s, src);
+        gl.compileShader(s);
+        return s;
+      }
+      const prog = gl.createProgram();
+      gl.attachShader(prog, cs(gl.VERTEX_SHADER, vs));
+      gl.attachShader(prog, cs(gl.FRAGMENT_SHADER, fs));
+      gl.linkProgram(prog);
+      gl.useProgram(prog);
+
+      const buf = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+
+      const pos = gl.getAttribLocation(prog, 'a_position');
+      gl.enableVertexAttribArray(pos);
+      gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+
+      const uTime = gl.getUniformLocation(prog, 'u_time');
+      const uRes = gl.getUniformLocation(prog, 'u_resolution');
+
+      function render(t) {
+        if (typeof ResizeObserver === 'undefined') syncSize();
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        if (uTime) gl.uniform1f(uTime, t * 0.001);
+        if (uRes) gl.uniform2f(uRes, canvas.width, canvas.height);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        requestAnimationFrame(render);
+      }
+      render(0);
+    })();
+  </script>
+</body>
+
+</html>
