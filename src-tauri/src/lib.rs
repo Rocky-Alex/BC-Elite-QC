@@ -199,20 +199,47 @@ fn run_battery_diagnostics() -> Result<String, String> {
     }
 }
 
-// 6. Save records table to Desktop as CSV
+// 6. Save records table / spec text with a native Save As file dialog
 #[tauri::command]
 fn save_table_file(data: String, file_name: String) -> Result<String, String> {
     let home = std::env::var("USERPROFILE")
         .or_else(|_| std::env::var("HOME"))
         .unwrap_or_else(|_| ".".to_string());
-    let desktop_path = Path::new(&home).join("Desktop");
-    let file_path = desktop_path.join(file_name);
     
-    match fs::write(&file_path, data) {
-        Ok(_) => Ok(file_path.to_string_lossy().to_string()),
-        Err(e) => Err(e.to_string()),
+    let onedrive_desktop = Path::new(&home).join("OneDrive").join("Desktop");
+    let standard_desktop = Path::new(&home).join("Desktop");
+
+    let default_dir = if onedrive_desktop.exists() && onedrive_desktop.is_dir() {
+        onedrive_desktop
+    } else {
+        standard_desktop
+    };
+
+    let mut dialog = rfd::FileDialog::new()
+        .set_directory(&default_dir)
+        .set_file_name(&file_name);
+
+    if file_name.ends_with(".txt") {
+        dialog = dialog.add_filter("Text Document (*.txt)", &["txt"]);
+    } else if file_name.ends_with(".csv") {
+        dialog = dialog.add_filter("CSV Document (*.csv)", &["csv"]);
+    } else if file_name.ends_with(".pdf") {
+        dialog = dialog.add_filter("PDF Document (*.pdf)", &["pdf"]);
+    } else if file_name.ends_with(".json") {
+        dialog = dialog.add_filter("JSON Document (*.json)", &["json"]);
+    }
+    dialog = dialog.add_filter("All Files (*.*)", &["*"]);
+
+    if let Some(file_path) = dialog.save_file() {
+        match fs::write(&file_path, data) {
+            Ok(_) => Ok(file_path.to_string_lossy().to_string()),
+            Err(e) => Err(e.to_string()),
+        }
+    } else {
+        Err("SAVE_CANCELLED".to_string())
     }
 }
+
 
 // 7. Read text file contents
 #[tauri::command]

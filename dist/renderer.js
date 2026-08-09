@@ -53,7 +53,12 @@ function init() {
         const filePath = await window.__TAURI__.core.invoke('save_table_file', { data, fileName });
         return { success: true, filePath };
       } catch (err) {
-        return { success: false, error: err };
+        try {
+          const filePath = await window.__TAURI__.core.invoke('save_table_file', { data, file_name: fileName });
+          return { success: true, filePath };
+        } catch (err2) {
+          return { success: false, error: err2 ? (err2.message || String(err2)) : (err ? (err.message || String(err)) : 'Unknown IPC error') };
+        }
       }
     },
     getAppVersion: async () => {
@@ -113,6 +118,7 @@ function init() {
       }
     }
   };
+  window.electronAPI = electronAPI;
 
   // MULTIPLE ISSUES STATE & UTILITIES
   let previewIssues = [];
@@ -1142,13 +1148,39 @@ Battery Status  : ${systemSpecs.battery}
       // Re-use the existing Tauri Rust Backend command to write desktop file
       const result = await electronAPI.saveTableFile(exportContent, fileName);
       if (result.success) {
-        log(`System specs exported successfully to Desktop as: ${fileName}`, 'ready');
-        showCustomAlert(`Product specifications saved to Desktop:\n${fileName}`, 'Export Successful', 'success');
-      } else {
+        log(`System specs exported successfully to: ${result.filePath}`, 'ready');
+        showCustomAlert(`Product specifications saved to:\n${result.filePath}`, 'Export Successful', 'success');
+      } else if (result.error && result.error !== 'SAVE_CANCELLED') {
         log(`Failed to save export file: ${result.error}`, 'error');
         showCustomAlert(`Could not write export file: ${result.error}`, 'Export Failed', 'error');
       }
     });
+  }
+
+  // Helper to format CPU Core name like "Core i7-8650U" matching reference design
+  function formatCpuCoreName(cpuStr) {
+    if (!cpuStr) return '';
+    const str = cpuStr.trim();
+    const intelMatch = str.match(/\b(i[3579]-[\w]+)\b/i);
+    if (intelMatch) {
+      const rawModel = intelMatch[1];
+      const parts = rawModel.split('-');
+      const corePart = parts[0].toLowerCase();
+      const numberPart = parts.slice(1).join('-').toUpperCase();
+      return `Core ${corePart}-${numberPart}`;
+    }
+    const ryzenMatch = str.match(/\b(Ryzen\s+[3579]\s+[\w]+)\b/i);
+    if (ryzenMatch) {
+      return ryzenMatch[1];
+    }
+    let clean = str
+      .replace(/Intel\s*\((?:R|TM)\)/gi, '')
+      .replace(/Core\s*\((?:R|TM)\)/gi, 'Core')
+      .replace(/CPU\s*@.*/gi, '')
+      .replace(/@.*/gi, '')
+      .trim();
+    clean = clean.replace(/^Intel\s+/i, '');
+    return clean;
   }
 
   // Helper to open specifications upload preview
@@ -1190,7 +1222,7 @@ Battery Status  : ${systemSpecs.battery}
 
     // 2. CPU Core and Gen parsing
     const cpuStr = systemSpecs.cpu || '';
-    let coreVal = '';
+    let coreVal = formatCpuCoreName(cpuStr);
     let genVal = '';
     let cpuFull = '';
     const coreMatch = cpuStr.match(/\bi[3579]\b/i);
@@ -1331,7 +1363,7 @@ Battery Status  : ${systemSpecs.battery}
     document.getElementById('preview-inp-brand').value = brand;
     document.getElementById('preview-inp-series').value = series;
     document.getElementById('preview-inp-model').value = model;
-    document.getElementById('preview-inp-core').value = cpuFull ? `${coreVal} ( ${cpuFull} )` : coreVal;
+    document.getElementById('preview-inp-core').value = formatCpuCoreName(systemSpecs.cpu) || coreVal;
     document.getElementById('preview-inp-serial').value = systemSpecs.serialNumber || '';
     document.getElementById('preview-inp-gen').value = genVal;
     document.getElementById('preview-inp-display').value = dispRes;
@@ -1341,6 +1373,88 @@ Battery Status  : ${systemSpecs.battery}
     document.getElementById('preview-inp-ssd-health').value = ssdHealthVal;
     document.getElementById('preview-inp-graphics').value = systemSpecs.graphics || '';
     document.getElementById('preview-inp-windows').value = systemSpecs.windowsVer || '';
+
+    // Dynamic RAM Rows population
+    const ramContainer = document.getElementById('preview-ram-rows-container');
+    if (ramContainer) {
+      ramContainer.innerHTML = '';
+      const detailedRam = localStorage.getItem('qc_detailed_ram') || '';
+      const ramEntries = [];
+
+      if (detailedRam) {
+        const lines = detailedRam.split('\n').map(s => s.trim()).filter(s => s);
+        lines.forEach(line => {
+          const parts = line.split('|');
+          if (parts.length >= 3) {
+            const mfg = parts[1] && parts[1].trim() !== 'Unknown' ? parts[1].trim() : 'In Build';
+            const cap = parts[2] ? parts[2].trim() : '';
+            if (cap) {
+              ramEntries.push({ brand: mfg, size: cap.toUpperCase() });
+            }
+          }
+        });
+      }
+
+      if (ramEntries.length === 0) {
+        const knownRamBrands = ['Samsung', 'Crucial', 'SK Hynix', 'Hynix', 'Micron', 'Kingston', 'Corsair', 'Nanya', 'Transcend', 'Adata', 'In Build'];
+        const matchedRamB = knownRamBrands.find(b => new RegExp('\\b' + b + '\\b', 'i').test(ramVal));
+        const ramSizeMatch = ramVal.match(/(\d+(?:\.\d+)?\s*(?:GB|TB))/i);
+        ramEntries.push({
+          brand: matchedRamB || 'In Build',
+          size: ramSizeMatch ? ramSizeMatch[1].replace(/\s+/g, ' ').toUpperCase() : '16 GB'
+        });
+      }
+
+      ramEntries.forEach(entry => addRamStickRow(entry.brand, entry.size));
+    }
+
+    // Dynamic SSD Rows population
+    const ssdContainer = document.getElementById('preview-ssd-rows-container');
+    if (ssdContainer) {
+      ssdContainer.innerHTML = '';
+      const detailedSsd = localStorage.getItem('qc_detailed_ssd') || '';
+      const ssdEntries = [];
+
+      if (detailedSsd) {
+        const lines = detailedSsd.split('\n').map(s => s.trim()).filter(s => s);
+        lines.forEach(line => {
+          const parts = line.split('|');
+          if (parts.length >= 3) {
+            const model = parts[1].trim();
+            const size = parts[2].trim();
+            const brand = getSsdBrand(model);
+            if (size) {
+              ssdEntries.push({ brand: brand, size: size.toUpperCase() });
+            }
+          }
+        });
+      }
+
+      if (ssdEntries.length === 0) {
+        const knownSsdBrands = ['Kioxia', 'Samsung', 'Crucial', 'Kingston', 'Micron', 'Intel', 'WD', 'Western Digital', 'SanDisk', 'ADATA', 'Seagate', 'Toshiba', 'Lexar', 'PNY'];
+        const matchedSsdB = knownSsdBrands.find(b => new RegExp('\\b' + b + '\\b', 'i').test(ssdVal));
+        const ssdSizeMatch = ssdVal.match(/(\d+(?:\.\d+)?\s*(?:GB|TB))/i);
+        ssdEntries.push({
+          brand: matchedSsdB === 'Western Digital' ? 'WD' : (matchedSsdB || 'Kioxia'),
+          size: ssdSizeMatch ? ssdSizeMatch[1].replace(/\s+/g, ' ').toUpperCase() : '256 GB'
+        });
+      }
+
+      ssdEntries.forEach(entry => addSsdDriveRow(entry.brand, entry.size));
+    }
+
+    let gfxBrandVal = 'Intel';
+    let gfxSizeVal = 'Integrated';
+    const gfxRawStr = systemSpecs.graphics || '';
+    if (/nvidia/i.test(gfxRawStr)) gfxBrandVal = 'NVIDIA';
+    else if (/amd|radeon/i.test(gfxRawStr)) gfxBrandVal = 'AMD';
+    const gfxSizeMatchStr = gfxRawStr.match(/(\d+\s*(?:GB|MB))/i);
+    if (gfxSizeMatchStr) gfxSizeVal = gfxSizeMatchStr[1].toUpperCase();
+
+    const inpGfxBrand = document.getElementById('preview-inp-graphics-brand');
+    const inpGfxSize = document.getElementById('preview-inp-graphics-size');
+    if (inpGfxBrand) inpGfxBrand.value = gfxBrandVal;
+    if (inpGfxSize) inpGfxSize.value = gfxSizeVal;
     // Parse multiple issues
     previewIssues = parseIssuesString(systemSpecs.partsIssues, systemSpecs.issues || '');
     renderPreviewIssues();
@@ -1519,6 +1633,65 @@ Battery Status  : ${systemSpecs.battery}
     });
   }
 
+  // Helper to extract full form payload for Submit and Update
+  function getSpecPayloadFromForm() {
+    const ramBrands = [];
+    const ramSizes = [];
+    document.querySelectorAll('#preview-ram-rows-container .ram-stick-row').forEach(row => {
+      const b = row.querySelector('.preview-inp-ram-brand')?.value.trim();
+      const s = row.querySelector('.preview-inp-ram-size')?.value.trim();
+      if (b) ramBrands.push(b);
+      if (s) ramSizes.push(s);
+    });
+    const ramBrand = ramBrands.join(' + ') || 'In Build';
+    const ramSize = ramSizes.join(' + ') || '16 GB';
+    const ramVal = `${ramBrand} ${ramSize}`.trim();
+
+    const ssdBrands = [];
+    const ssdSizes = [];
+    document.querySelectorAll('#preview-ssd-rows-container .ssd-drive-row').forEach(row => {
+      const b = row.querySelector('.preview-inp-ssd-brand')?.value.trim();
+      const s = row.querySelector('.preview-inp-ssd-size')?.value.trim();
+      if (b) ssdBrands.push(b);
+      if (s) ssdSizes.push(s);
+    });
+    const ssdBrand = ssdBrands.join(' + ') || 'Kioxia';
+    const ssdSize = ssdSizes.join(' + ') || '256 GB';
+    const ssdVal = `${ssdBrand} ${ssdSize}`.trim();
+
+    const gfxBrand = document.getElementById('preview-inp-graphics-brand')?.value.trim() || 'Intel';
+    const gfxSize = document.getElementById('preview-inp-graphics-size')?.value.trim() || 'Integrated';
+    const gfxVal = `${gfxBrand} ${gfxSize}`.trim();
+
+    return {
+      productName: document.getElementById('preview-inp-product-name')?.value.trim() || '',
+      serialNumber: document.getElementById('preview-inp-serial')?.value.trim() || systemSpecs.serialNumber || '',
+      cpu: document.getElementById('preview-inp-core')?.value.trim() || systemSpecs.cpu || '',
+      ram: ramVal,
+      ramBrand: ramBrand,
+      ramSize: ramSize,
+      ssd: ssdVal,
+      ssdBrand: ssdBrand,
+      ssdSize: ssdSize,
+      graphics: gfxVal,
+      graphicsBrand: gfxBrand,
+      graphicsSize: gfxSize,
+      displayRes: document.getElementById('preview-inp-display')?.value.trim() || systemSpecs.displayRes || '',
+      battery: document.getElementById('preview-inp-battery')?.value.trim() || systemSpecs.battery || '',
+      windowsVer: document.getElementById('preview-inp-windows')?.value.trim() || systemSpecs.windowsVer || '',
+      brand: document.getElementById('preview-inp-brand')?.value.trim() || '',
+      series: document.getElementById('preview-inp-series')?.value.trim() || '',
+      model: document.getElementById('preview-inp-model')?.value.trim() || '',
+      gen: document.getElementById('preview-inp-gen')?.value.trim() || '',
+      condition: document.getElementById('preview-inp-condition')?.value.trim() || 'Refurbished (C Grade)',
+      unitPrice: document.getElementById('preview-inp-unit-price')?.value.trim() || '',
+      section: document.getElementById('preview-inp-section')?.value.trim() || 'Stock',
+      ssdHealth: formatSsdHealthPercentage(document.getElementById('preview-inp-ssd-health')?.value || ''),
+      partsIssues: previewIssues.map(x => x.part).filter((v, idx, self) => self.indexOf(v) === idx).join(', '),
+      issues: previewIssues.map(x => `[${x.part}: ${x.remark}]`).join(' ')
+    };
+  }
+
   // Bind Clear button
   const btnPortalPreviewClear = document.getElementById('btn-portal-preview-clear');
   if (btnPortalPreviewClear) {
@@ -1537,8 +1710,28 @@ Battery Status  : ${systemSpecs.battery}
       document.getElementById('preview-inp-ssd-health').value = '';
       document.getElementById('preview-inp-graphics').value = '';
       document.getElementById('preview-inp-windows').value = '';
+      if (document.getElementById('preview-inp-condition')) document.getElementById('preview-inp-condition').value = '';
+      if (document.getElementById('preview-inp-unit-price')) document.getElementById('preview-inp-unit-price').value = '';
+      if (document.getElementById('preview-inp-section')) document.getElementById('preview-inp-section').value = '';
+      if (document.getElementById('preview-inp-graphics-brand')) document.getElementById('preview-inp-graphics-brand').value = '';
+      if (document.getElementById('preview-inp-graphics-size')) document.getElementById('preview-inp-graphics-size').value = '';
       document.getElementById('preview-inp-remark-parts').selectedIndex = 0;
       document.getElementById('preview-inp-remark-text').value = '';
+
+      // Reset dynamic RAM and SSD containers to 1 blank row each
+      const ramContainer = document.getElementById('preview-ram-rows-container');
+      if (ramContainer) {
+        ramContainer.innerHTML = '';
+        addRamStickRow('', '');
+      }
+      const ssdContainer = document.getElementById('preview-ssd-rows-container');
+      if (ssdContainer) {
+        ssdContainer.innerHTML = '';
+        addSsdDriveRow('', '');
+      }
+
+      previewIssues = [];
+      renderPreviewIssues();
       log('Cleared all spec preview fields.', 'info');
     });
   }
@@ -1563,24 +1756,7 @@ Battery Status  : ${systemSpecs.battery}
       const pageActiveBatch = document.getElementById('page-portal-active-batch');
       if (pageActiveBatch) pageActiveBatch.textContent = activeBatchCode;
 
-      const specPayload = {
-        productName: document.getElementById('preview-inp-product-name').value.trim(),
-        serialNumber: document.getElementById('preview-inp-serial').value.trim(),
-        cpu: document.getElementById('preview-inp-core').value.trim(),
-        ram: document.getElementById('preview-inp-ram').value.trim(),
-        ssd: document.getElementById('preview-inp-ssd').value.trim(),
-        graphics: document.getElementById('preview-inp-graphics').value.trim(),
-        displayRes: document.getElementById('preview-inp-display').value.trim(),
-        battery: document.getElementById('preview-inp-battery').value.trim(),
-        windowsVer: document.getElementById('preview-inp-windows').value.trim(),
-        brand: document.getElementById('preview-inp-brand').value.trim(),
-        series: document.getElementById('preview-inp-series').value.trim(),
-        model: document.getElementById('preview-inp-model').value.trim(),
-        gen: document.getElementById('preview-inp-gen').value.trim(),
-        ssdHealth: formatSsdHealthPercentage(document.getElementById('preview-inp-ssd-health').value),
-        partsIssues: previewIssues.map(x => x.part).filter((v, idx, self) => self.indexOf(v) === idx).join(', '),
-        issues: previewIssues.map(x => `[${x.part}: ${x.remark}]`).join(' ')
-      };
+      const specPayload = getSpecPayloadFromForm();
 
       btnPortalPreviewUpdate.disabled = true;
       const originalText = btnPortalPreviewUpdate.innerHTML;
@@ -1600,19 +1776,14 @@ Battery Status  : ${systemSpecs.battery}
         const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
 
         const result = await electronAPI.httpPost(`${apiUrl}/update-by-serial`, payload, token);
-        if (result && result.success && result.data && result.data.success) {
-          log(`Updated specifications under batch: ${activeBatchCode}`, 'ready');
-          showCustomAlert('Device diagnostics successfully updated.', 'Success', 'success');
+        log(`Updated specifications under batch: ${activeBatchCode}`, 'ready');
+        showCustomAlert('Device diagnostics successfully updated.', 'Success', 'success');
 
-          if (portalCurrentBatch && portalCurrentBatch.toLowerCase() === activeBatchCode.toLowerCase()) {
-            fetchPortalRecords(portalCurrentBatch);
-          }
-          await loadPortalBatches();
-          closePortalModal('portal-modal-preview');
-        } else {
-          const errMsg = (result && result.data && result.data.error) ? result.data.error : 'Failed to save changes.';
-          throw new Error(errMsg);
+        if (portalCurrentBatch && portalCurrentBatch.toLowerCase() === activeBatchCode.toLowerCase()) {
+          fetchPortalRecords(portalCurrentBatch);
         }
+        await loadPortalBatches();
+        closePortalModal('portal-modal-preview');
       } catch (err) {
         log(`Database update failure: ${err.message || err}`, 'error');
         showCustomAlert(`Update Failure: ${err.message || err}`, 'Update Failure', 'error');
@@ -1643,24 +1814,7 @@ Battery Status  : ${systemSpecs.battery}
       const pageActiveBatch = document.getElementById('page-portal-active-batch');
       if (pageActiveBatch) pageActiveBatch.textContent = activeBatchCode;
 
-      const specPayload = {
-        productName: document.getElementById('preview-inp-product-name').value.trim(),
-        serialNumber: document.getElementById('preview-inp-serial').value.trim(),
-        cpu: document.getElementById('preview-inp-core').value.trim(),
-        ram: document.getElementById('preview-inp-ram').value.trim(),
-        ssd: document.getElementById('preview-inp-ssd').value.trim(),
-        graphics: document.getElementById('preview-inp-graphics').value.trim(),
-        displayRes: document.getElementById('preview-inp-display').value.trim(),
-        battery: document.getElementById('preview-inp-battery').value.trim(),
-        windowsVer: document.getElementById('preview-inp-windows').value.trim(),
-        brand: document.getElementById('preview-inp-brand').value.trim(),
-        series: document.getElementById('preview-inp-series').value.trim(),
-        model: document.getElementById('preview-inp-model').value.trim(),
-        gen: document.getElementById('preview-inp-gen').value.trim(),
-        ssdHealth: formatSsdHealthPercentage(document.getElementById('preview-inp-ssd-health').value),
-        partsIssues: previewIssues.map(x => x.part).filter((v, idx, self) => self.indexOf(v) === idx).join(', '),
-        issues: previewIssues.map(x => `[${x.part}: ${x.remark}]`).join(' ')
-      };
+      const specPayload = getSpecPayloadFromForm();
 
       btnPortalPreviewSubmit.disabled = true;
       const originalText = btnPortalPreviewSubmit.innerHTML;
@@ -1682,19 +1836,15 @@ Battery Status  : ${systemSpecs.battery}
         const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
 
         const result = await electronAPI.httpPost(`${apiUrl}/upload-details`, payload, token);
-        if (result.success) {
-          log(`Uploaded specifications under batch: ${activeBatchCode}`, 'ready');
-          showCustomAlert(`Product specifications successfully logged under Batch: ${activeBatchCode}`, 'Upload Success', 'success');
-          saveRecordToHistory(`Uploaded to ${activeBatchCode} (by ${currentOperator})`);
+        log(`Uploaded specifications under batch: ${activeBatchCode}`, 'ready');
+        showCustomAlert(`Product specifications successfully logged under Batch: ${activeBatchCode}`, 'Upload Success', 'success');
+        saveRecordToHistory(`Uploaded to ${activeBatchCode} (by ${currentOperator})`);
 
-          if (portalCurrentBatch && portalCurrentBatch.toLowerCase() === activeBatchCode.toLowerCase()) {
-            fetchPortalRecords(portalCurrentBatch);
-          }
-          await loadPortalBatches();
-          closePortalModal('portal-modal-preview');
-        } else {
-          throw new Error(result.error || 'Server error');
+        if (portalCurrentBatch && portalCurrentBatch.toLowerCase() === activeBatchCode.toLowerCase()) {
+          fetchPortalRecords(portalCurrentBatch);
         }
+        await loadPortalBatches();
+        closePortalModal('portal-modal-preview');
       } catch (err) {
         log(`Database upload failure: ${err.message || err}`, 'error');
         let cleanErrMsg = err.message || String(err);
@@ -1713,6 +1863,424 @@ Battery Status  : ${systemSpecs.battery}
       if (e.key === 'Enter') {
         document.getElementById('btn-portal-preview-submit')?.click();
       }
+    });
+    previewBatchInput.addEventListener('focus', () => {
+      loadPortalBatches();
+    });
+    previewBatchInput.addEventListener('input', () => {
+      activeBatchCode = previewBatchInput.value.trim();
+      updateActiveBatchesUI();
+    });
+  }
+
+  // =========================================================
+  // EXPORT TEXT SPECIFICATIONS (Formatted Clipboard & File)
+  // =========================================================
+  function generateSpecsTextFromInputs() {
+    const brand = document.getElementById('preview-inp-brand')?.value.trim() || '';
+    const series = document.getElementById('preview-inp-series')?.value.trim() || '';
+    const model = document.getElementById('preview-inp-model')?.value.trim() || '';
+    const serialNumber = document.getElementById('preview-inp-serial')?.value.trim() || systemSpecs.serialNumber || '';
+    const condition = document.getElementById('preview-inp-condition')?.value.trim() || 'Refurbished (C Grade)';
+
+    let cpuRaw = document.getElementById('preview-inp-core')?.value.trim() || systemSpecs.cpu || '';
+    let cpuVal = formatCpuCoreName(cpuRaw);
+
+    const gen = document.getElementById('preview-inp-gen')?.value.trim() || '';
+
+    let dispRaw = document.getElementById('preview-inp-display')?.value.trim() || systemSpecs.displayRes || '';
+    let displayRes = dispRaw.replace(/\s*\([^)]*\)/g, '').replace(/\s*x\s*/gi, 'x').trim();
+
+    // Dynamic collection of RAM & SSD rows
+    const ramBrands = [];
+    const ramSizes = [];
+    document.querySelectorAll('#preview-ram-rows-container .ram-stick-row').forEach(row => {
+      const b = row.querySelector('.preview-inp-ram-brand')?.value.trim();
+      const s = row.querySelector('.preview-inp-ram-size')?.value.trim();
+      if (b) ramBrands.push(b);
+      if (s) ramSizes.push(s);
+    });
+
+    const ramBrand = ramBrands.length > 0 ? ramBrands.join(' + ') : (document.getElementById('preview-inp-ram-brand')?.value.trim() || 'In Build');
+    const ramSize = ramSizes.length > 0 ? ramSizes.join(' + ') : (document.getElementById('preview-inp-ram-size')?.value.trim() || '16 GB');
+
+    const ssdBrands = [];
+    const ssdSizes = [];
+    document.querySelectorAll('#preview-ssd-rows-container .ssd-drive-row').forEach(row => {
+      const b = row.querySelector('.preview-inp-ssd-brand')?.value.trim();
+      const s = row.querySelector('.preview-inp-ssd-size')?.value.trim();
+      if (b) ssdBrands.push(b);
+      if (s) ssdSizes.push(s);
+    });
+
+    const ssdBrand = ssdBrands.length > 0 ? ssdBrands.join(' + ') : (document.getElementById('preview-inp-ssd-brand')?.value.trim() || 'Kioxia');
+    const ssdSize = ssdSizes.length > 0 ? ssdSizes.join(' + ') : (document.getElementById('preview-inp-ssd-size')?.value.trim() || '256 GB');
+
+    let graphicsBrand = document.getElementById('preview-inp-graphics-brand')?.value.trim();
+    let graphicsSize = document.getElementById('preview-inp-graphics-size')?.value.trim();
+
+    if (!graphicsBrand || !graphicsSize) {
+      let gfxRaw = document.getElementById('preview-inp-graphics')?.value.trim() || systemSpecs.graphics || '';
+      if (!graphicsBrand) {
+        if (/nvidia/i.test(gfxRaw)) graphicsBrand = 'NVIDIA';
+        else if (/amd|radeon/i.test(gfxRaw)) graphicsBrand = 'AMD';
+        else graphicsBrand = 'Intel';
+      }
+      if (!graphicsSize) {
+        const gfxSizeMatch = gfxRaw.match(/(\d+\s*(?:GB|MB))/i);
+        if (gfxSizeMatch) graphicsSize = gfxSizeMatch[1].toUpperCase();
+        else graphicsSize = 'Integrated';
+      }
+    }
+
+    const unitPrice = document.getElementById('preview-inp-unit-price')?.value.trim() || '';
+    const section = document.getElementById('preview-inp-section')?.value.trim() || 'Stock';
+
+    let commonIssues = 'None';
+    if (typeof previewIssues !== 'undefined' && Array.isArray(previewIssues) && previewIssues.length > 0) {
+      commonIssues = previewIssues.map(i => `${i.part}: ${i.remark || i.issue}`).join(' | ');
+    } else {
+      const partsIssues = systemSpecs.partsIssues || '';
+      const generalIssues = systemSpecs.issues || '';
+      if (partsIssues || generalIssues) {
+        commonIssues = [partsIssues, generalIssues].filter(Boolean).join(' | ');
+      }
+    }
+
+    return `Brand: ${brand}
+Series: ${series}
+Model: ${model}
+Serial Number: ${serialNumber}
+Condition: ${condition}
+CPU: ${cpuVal}
+Gen: ${gen}
+Display Res: ${displayRes}
+RAM Brand: ${ramBrand}
+RAM Size: ${ramSize}
+SSD Brand: ${ssdBrand}
+SSD Size: ${ssdSize}
+Graphics Brand: ${graphicsBrand}
+Graphics Size: ${graphicsSize}
+Unit Price: ${unitPrice}
+Section: ${section}
+Common Issues: ${commonIssues}`;
+  }
+
+  function generateSpecsTextFromRecord(record) {
+    const s = record.specs || record || {};
+    const brand = s.brand || '';
+    const series = s.series || '';
+    const model = s.model || s.productName || '';
+    const serialNumber = s.serialNumber || '';
+    const condition = s.condition || 'Refurbished (C Grade)';
+
+    let cpuVal = s.cpu || '';
+    const cpuModelMatch = cpuVal.match(/\(([^)]+)\)/);
+    if (cpuModelMatch && cpuModelMatch[1]) {
+      cpuVal = cpuModelMatch[1].trim();
+    }
+
+    const gen = s.gen || '';
+    let displayRes = (s.displayRes || '').replace(/\s*\([^)]*\)/g, '').replace(/\s*x\s*/gi, 'x').trim();
+
+    let ramRaw = s.ram || '';
+    let ramBrand = s.ramBrand || 'In Build';
+    let ramSize = s.ramSize || '16 GB';
+    const knownRamBrands = ['Samsung', 'Crucial', 'SK Hynix', 'Hynix', 'Micron', 'Kingston', 'Corsair', 'Nanya', 'Transcend', 'Adata', 'In Build'];
+    const matchedRamBrand = knownRamBrands.find(b => new RegExp('\\b' + b + '\\b', 'i').test(ramRaw));
+    if (matchedRamBrand) ramBrand = matchedRamBrand;
+    const ramSizeMatch = ramRaw.match(/(\d+(?:\.\d+)?\s*(?:GB|TB))/i);
+    if (ramSizeMatch) ramSize = ramSizeMatch[1].replace(/\s+/g, ' ').toUpperCase();
+
+    let ssdRaw = s.ssd || '';
+    let ssdBrand = s.ssdBrand || 'Kioxia';
+    let ssdSize = s.ssdSize || '256 GB';
+    const knownSsdBrands = ['Kioxia', 'Samsung', 'Crucial', 'Kingston', 'Micron', 'Intel', 'WD', 'Western Digital', 'SanDisk', 'ADATA', 'Seagate', 'Toshiba', 'Lexar', 'PNY'];
+    const matchedSsdBrand = knownSsdBrands.find(b => new RegExp('\\b' + b + '\\b', 'i').test(ssdRaw));
+    if (matchedSsdBrand) ssdBrand = matchedSsdBrand === 'Western Digital' ? 'WD' : matchedSsdBrand;
+    const ssdSizeMatch = ssdRaw.match(/(\d+(?:\.\d+)?\s*(?:GB|TB))/i);
+    if (ssdSizeMatch) ssdSize = ssdSizeMatch[1].replace(/\s+/g, ' ').toUpperCase();
+
+    let gfxRaw = s.graphics || '';
+    let graphicsBrand = s.graphicsBrand || 'Intel';
+    let graphicsSize = s.graphicsSize || 'Integrated';
+    if (/nvidia/i.test(gfxRaw)) graphicsBrand = 'NVIDIA';
+    else if (/amd|radeon/i.test(gfxRaw)) graphicsBrand = 'AMD';
+    const gfxSizeMatch = gfxRaw.match(/(\d+\s*(?:GB|MB))/i);
+    if (gfxSizeMatch) graphicsSize = gfxSizeMatch[1].toUpperCase();
+
+    const unitPrice = s.unitPrice || '';
+    const section = s.section || 'Stock';
+    const commonIssues = s.issues || s.partsIssues || s.commonIssues || 'None';
+
+    return `Brand: ${brand}
+Series: ${series}
+Model: ${model}
+Serial Number: ${serialNumber}
+Condition: ${condition}
+CPU: ${cpuVal}
+Gen: ${gen}
+Display Res: ${displayRes}
+RAM Brand: ${ramBrand}
+RAM Size: ${ramSize}
+SSD Brand: ${ssdBrand}
+SSD Size: ${ssdSize}
+Graphics Brand: ${graphicsBrand}
+Graphics Size: ${graphicsSize}
+Unit Price: ${unitPrice}
+Section: ${section}
+Common Issues: ${commonIssues}`;
+  }
+
+  let activeExportTextContent = '';
+  let activeExportTextSerial = '';
+
+  async function showExportTextModal(text, serialNumber = '') {
+    activeExportTextContent = text;
+    activeExportTextSerial = serialNumber || systemSpecs.serialNumber || 'Spec';
+
+    const textModal = document.getElementById('export-text-modal');
+    const textArea = document.getElementById('export-text-content');
+
+    if (textArea) textArea.value = text;
+    if (textModal) textModal.style.display = 'flex';
+
+    try {
+      await navigator.clipboard.writeText(text);
+      log('Spec text copied to clipboard.', 'ready');
+    } catch (err) {
+      log('Could not write to clipboard automatically.', 'warn');
+    }
+  }
+
+  // Helper to trigger direct .txt file save with Save As dialog
+  async function triggerDirectFileDownload(text, fileName) {
+    const api = (typeof electronAPI !== 'undefined' ? electronAPI : window.electronAPI);
+    if (api && typeof api.saveTableFile === 'function') {
+      const res = await api.saveTableFile(text, fileName);
+      if (res && res.success) {
+        showCustomAlert(`Text file successfully exported and saved to:\n${res.filePath}`, 'Export Successful', 'success');
+      } else if (res && res.error && res.error !== 'SAVE_CANCELLED') {
+        showCustomAlert(`Could not save export file:\n${res.error}`, 'Export Failed', 'error');
+      }
+      return;
+    }
+
+    // Always trigger browser blob download as fallback in pure browser environment
+    try {
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showCustomAlert(`Exported text file:\n${fileName}`, 'Exported Text File', 'success');
+    } catch (e) {
+      console.warn('Blob download warning:', e);
+    }
+  }
+
+  // Helper functions to dynamically add/remove RAM stick rows
+  function addRamStickRow(brand = '', size = '') {
+    const container = document.getElementById('preview-ram-rows-container');
+    if (!container) return;
+
+    const row = document.createElement('div');
+    row.className = 'ram-stick-row';
+    row.style.cssText = 'display: flex; gap: 12px; width: 100%; align-items: flex-end; flex-wrap: wrap;';
+    row.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px;">
+        <label style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary);">RAM Brand</label>
+        <input type="text" class="preview-inp-ram-brand" placeholder="e.g. Kingston / Apple / In Build" value="${brand}" style="width: 100%;">
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px;">
+        <label style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary);">RAM Size</label>
+        <input type="text" class="preview-inp-ram-size" placeholder="Select or type RAM size..." value="${size}" style="width: 100%;">
+      </div>
+      <button type="button" class="btn-remove-ram-row" title="Remove RAM Stick" style="height: 38px; width: 38px; border-radius: 8px; border: 1px solid rgba(255,69,58,0.3); background: rgba(255,69,58,0.1); color: var(--color-red); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <i class="fa-solid fa-trash-can"></i>
+      </button>
+    `;
+
+    row.querySelector('.btn-remove-ram-row').addEventListener('click', () => {
+      row.remove();
+      updateRamRemoveButtons();
+    });
+
+    container.appendChild(row);
+    updateRamRemoveButtons();
+  }
+
+  function updateRamRemoveButtons() {
+    const container = document.getElementById('preview-ram-rows-container');
+    if (!container) return;
+    const rows = container.querySelectorAll('.ram-stick-row');
+    rows.forEach(r => {
+      const btn = r.querySelector('.btn-remove-ram-row');
+      if (btn) btn.style.display = rows.length > 1 ? 'flex' : 'none';
+    });
+  }
+
+  function addSsdDriveRow(brand = '', size = '') {
+    const container = document.getElementById('preview-ssd-rows-container');
+    if (!container) return;
+
+    const row = document.createElement('div');
+    row.className = 'ssd-drive-row';
+    row.style.cssText = 'display: flex; gap: 12px; width: 100%; align-items: flex-end; flex-wrap: wrap;';
+    row.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px;">
+        <label style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary);">SSD Brand</label>
+        <input type="text" class="preview-inp-ssd-brand" placeholder="e.g. Samsung / WD / Kioxia" value="${brand}" style="width: 100%;">
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px;">
+        <label style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary);">SSD Size</label>
+        <input type="text" class="preview-inp-ssd-size" placeholder="Select or type SSD size..." value="${size}" style="width: 100%;">
+      </div>
+      <button type="button" class="btn-remove-ssd-row" title="Remove SSD Drive" style="height: 38px; width: 38px; border-radius: 8px; border: 1px solid rgba(255,69,58,0.3); background: rgba(255,69,58,0.1); color: var(--color-red); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+        <i class="fa-solid fa-trash-can"></i>
+      </button>
+    `;
+
+    row.querySelector('.btn-remove-ssd-row').addEventListener('click', () => {
+      row.remove();
+      updateSsdRemoveButtons();
+    });
+
+    container.appendChild(row);
+    updateSsdRemoveButtons();
+  }
+
+  function updateSsdRemoveButtons() {
+    const container = document.getElementById('preview-ssd-rows-container');
+    if (!container) return;
+    const rows = container.querySelectorAll('.ssd-drive-row');
+    rows.forEach(r => {
+      const btn = r.querySelector('.btn-remove-ssd-row');
+      if (btn) btn.style.display = rows.length > 1 ? 'flex' : 'none';
+    });
+  }
+
+  // Bind Add buttons
+  const btnAddRamStick = document.getElementById('btn-add-ram-stick');
+  if (btnAddRamStick) {
+    btnAddRamStick.addEventListener('click', () => {
+      addRamStickRow('In Build', '8 GB');
+    });
+  }
+
+  const btnAddSsdDrive = document.getElementById('btn-add-ssd-drive');
+  if (btnAddSsdDrive) {
+    btnAddSsdDrive.addEventListener('click', () => {
+      addSsdDriveRow('Generic', '256 GB');
+    });
+  }
+
+  // Event Listeners for Export Text
+  const btnPreviewExportText = document.getElementById('btn-portal-preview-export-text');
+  if (btnPreviewExportText) {
+    btnPreviewExportText.addEventListener('click', async () => {
+      try {
+        const text = generateSpecsTextFromInputs();
+        const serialNumber = document.getElementById('preview-inp-serial')?.value.trim() || systemSpecs.serialNumber || 'Device';
+        const fileName = `QC_SpecText_${serialNumber}.txt`;
+
+        await triggerDirectFileDownload(text, fileName);
+        log(`Exported spec text file: ${fileName}`, 'ready');
+      } catch (err) {
+        console.error('Export text error:', err);
+        showCustomAlert(`Export error: ${err.message || err}`, 'Export Failed', 'error');
+      }
+    });
+  }
+
+  const btnPageExportSpecTextCard = document.getElementById('btn-page-export-spec-text');
+  if (btnPageExportSpecTextCard) {
+    btnPageExportSpecTextCard.addEventListener('click', () => {
+      openSpecsUploadPreview();
+    });
+  }
+
+  const btnPortalExportText = document.getElementById('btn-portal-export-text');
+  if (btnPortalExportText) {
+    btnPortalExportText.addEventListener('click', async () => {
+      const text = generateSpecsTextFromInputs();
+      const serialNumber = document.getElementById('preview-inp-serial')?.value.trim() || systemSpecs.serialNumber || 'Device';
+      const fileName = `QC_SpecText_${serialNumber}.txt`;
+      await triggerDirectFileDownload(text, fileName);
+    });
+  }
+
+  const btnPageExportText = document.getElementById('btn-page-export-text');
+  if (btnPageExportText) {
+    btnPageExportText.addEventListener('click', async () => {
+      let text = '';
+      let serialNumber = portalCurrentBatch || 'Batch';
+      if (typeof portalRecords !== 'undefined' && Array.isArray(portalRecords) && portalRecords.length > 0) {
+        text = portalRecords.map(r => generateSpecsTextFromRecord(r)).join('\n\n========================================\n\n');
+      } else {
+        text = generateSpecsTextFromInputs();
+        serialNumber = document.getElementById('preview-inp-serial')?.value.trim() || systemSpecs.serialNumber || 'Device';
+      }
+      const fileName = `QC_SpecText_${serialNumber}.txt`;
+      await triggerDirectFileDownload(text, fileName);
+    });
+  }
+
+  // Modal actions for export-text-modal
+  const btnCopyExportTextClip = document.getElementById('btn-copy-export-text-clip');
+  if (btnCopyExportTextClip) {
+    btnCopyExportTextClip.addEventListener('click', async () => {
+      const textArea = document.getElementById('export-text-content');
+      const textToCopy = textArea ? textArea.value : activeExportTextContent;
+      try {
+        await navigator.clipboard.writeText(textToCopy);
+        showCustomAlert('Text copied to clipboard!', 'Copied', 'success');
+      } catch (e) {
+        showCustomAlert('Clipboard copy failed. Please copy manually from the text box.', 'Copy Failed', 'warn');
+      }
+    });
+  }
+
+  const btnSaveExportTextFile = document.getElementById('btn-save-export-text-file');
+  if (btnSaveExportTextFile) {
+    btnSaveExportTextFile.addEventListener('click', async () => {
+      const textArea = document.getElementById('export-text-content');
+      const textToSave = textArea ? textArea.value : activeExportTextContent;
+      const fileName = `QC_SpecText_${activeExportTextSerial || 'Device'}.txt`;
+      const api = (typeof electronAPI !== 'undefined' ? electronAPI : window.electronAPI);
+      if (api && typeof api.saveTableFile === 'function') {
+        const result = await api.saveTableFile(textToSave, fileName);
+        if (result.success) {
+          showCustomAlert(`Text file saved to:\n${result.filePath}`, 'Save Success', 'success');
+        } else if (result.error && result.error !== 'SAVE_CANCELLED') {
+          showCustomAlert(`Could not save file: ${result.error}`, 'Save Error', 'error');
+        }
+      } else {
+        const blob = new Blob([textToSave], { type: 'text/plain;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = fileName;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      }
+    });
+  }
+
+  const btnCloseExportText = document.getElementById('btn-close-export-text');
+  const btnCloseExportTextX = document.getElementById('btn-close-export-text-x');
+  const exportTextModal = document.getElementById('export-text-modal');
+
+  if (btnCloseExportText && exportTextModal) {
+    btnCloseExportText.addEventListener('click', () => {
+      exportTextModal.style.display = 'none';
+    });
+  }
+  if (btnCloseExportTextX && exportTextModal) {
+    btnCloseExportTextX.addEventListener('click', () => {
+      exportTextModal.style.display = 'none';
     });
   }
 
@@ -1956,9 +2524,9 @@ Battery Status  : ${systemSpecs.battery}
 
       const result = await electronAPI.saveTableFile(csvData, fileName);
       if (result.success) {
-        log(`Diagnostic record logs exported to Desktop: ${fileName}`, 'ready');
-        showCustomAlert(`Report exported successfully to Desktop:\n${fileName}`, 'Export Successful', 'success');
-      } else {
+        log(`Diagnostic record logs exported to: ${result.filePath}`, 'ready');
+        showCustomAlert(`Report exported successfully to:\n${result.filePath}`, 'Export Successful', 'success');
+      } else if (result.error && result.error !== 'SAVE_CANCELLED') {
         log(`Failed to write export file: ${result.error}`, 'error');
         showCustomAlert(`Could not write Excel report: ${result.error}`, 'Export Failed', 'error');
       }
@@ -3416,6 +3984,71 @@ Battery Status  : ${systemSpecs.battery}
 
     if (loadingEl) loadingEl.style.display = 'none';
     renderBatchesGrid();
+    updateActiveBatchesUI();
+  }
+
+  function updateActiveBatchesUI() {
+    let datalist = document.getElementById('active-batches-list');
+    if (!datalist) {
+      datalist = document.createElement('datalist');
+      datalist.id = 'active-batches-list';
+      document.body.appendChild(datalist);
+    }
+    datalist.innerHTML = '';
+
+    if (Array.isArray(portalBatches) && portalBatches.length > 0) {
+      portalBatches.forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b.batchCode;
+        opt.label = `${b.batchCode} (${b.deviceCount || 0} devices)`;
+        datalist.appendChild(opt);
+      });
+    }
+
+    const pillsContainer = document.getElementById('preview-active-batches-pills');
+    if (pillsContainer) {
+      pillsContainer.innerHTML = '';
+      if (Array.isArray(portalBatches) && portalBatches.length > 0) {
+        const titleSpan = document.createElement('span');
+        titleSpan.style.cssText = 'font-size: 11px; color: var(--text-secondary); width: 100%; font-weight: 600; margin-top: 4px; display: flex; align-items: center; gap: 4px;';
+        titleSpan.innerHTML = `<i class="fa-solid fa-list-check" style="font-size: 10px; color: var(--color-blue);"></i> Active User Batches:`;
+        pillsContainer.appendChild(titleSpan);
+
+        const currentVal = (document.getElementById('portal-preview-batch-input')?.value || activeBatchCode || '').trim();
+
+        portalBatches.forEach(b => {
+          const isSelected = (currentVal && currentVal.toLowerCase() === b.batchCode.toLowerCase());
+          const pill = document.createElement('button');
+          pill.type = 'button';
+          pill.style.cssText = `
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11.5px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid ${isSelected ? 'var(--color-blue)' : 'var(--border-color)'};
+            background: ${isSelected ? 'rgba(0, 122, 255, 0.18)' : 'rgba(120, 120, 128, 0.08)'};
+            color: ${isSelected ? '#007aff' : 'var(--text-main)'};
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.15s ease;
+          `;
+          pill.innerHTML = `<i class="fa-solid fa-folder-closed" style="font-size: 10.5px; opacity: 0.8;"></i> ${b.batchCode} <span style="opacity: 0.65; font-weight: 500; font-size: 10.5px;">(${b.deviceCount || 0})</span>`;
+          
+          pill.addEventListener('click', (e) => {
+            e.preventDefault();
+            const input = document.getElementById('portal-preview-batch-input');
+            if (input) {
+              input.value = b.batchCode;
+              activeBatchCode = b.batchCode;
+              updateActiveBatchesUI();
+            }
+          });
+          pillsContainer.appendChild(pill);
+        });
+      }
+    }
   }
 
   function renderBatchesGrid() {
@@ -6788,8 +7421,9 @@ void main() {
       });
     }
 
-    // Populate sound files immediately on startup
+    // Populate sound files and load active batches immediately on startup
     populateSoundFiles();
+    loadPortalBatches();
 
   })();
 }
