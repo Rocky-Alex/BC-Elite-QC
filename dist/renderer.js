@@ -400,10 +400,10 @@ function init() {
     inputEl.value = '';
     if (errEl) errEl.style.display = 'none';
     modal.style.display = 'flex';
-    
-    setTimeout(() => { 
+
+    setTimeout(() => {
       modal.classList.add('open');
-      inputEl.focus(); 
+      inputEl.focus();
     }, 50);
 
     const cleanup = () => {
@@ -925,7 +925,7 @@ $specs | ConvertTo-Json`;
   // Query and update version
   async function updateAppVersion() {
     try {
-      let ver = '1.5';
+      let ver = '1.5.1';
       if (typeof window !== 'undefined' && window.APP_VERSION) {
         ver = window.APP_VERSION;
       } else {
@@ -1198,7 +1198,7 @@ Battery Status  : ${systemSpecs.battery}
     let series = '';
     let model = systemSpecs.productName || '';
 
-    const brands = ['HP', 'Dell', 'Lenovo', 'Apple', 'Asus', 'Acer', 'MSI', 'Microsoft', 'Toshiba', 'Samsung', 'Gigabyte', 'Huawei'];
+    const brands = ['HP', 'Dell', 'Lenovo', 'Microsoft'];
     const matchedBrand = brands.find(b => new RegExp('\\b' + b + '\\b', 'i').test(systemSpecs.productName));
     if (matchedBrand) {
       brand = matchedBrand;
@@ -1208,8 +1208,7 @@ Battery Status  : ${systemSpecs.battery}
         'HP': ['EliteBook', 'ProBook', 'Pavilion', 'Envy', 'Spectre', 'ZBook', 'Omen', 'Victus', 'Essential', 'Notebook'],
         'Dell': ['Latitude', 'Inspiron', 'XPS', 'Precision', 'Vostro', 'Alienware'],
         'Lenovo': ['ThinkPad', 'IdeaPad', 'Yoga', 'Legion', 'ThinkBook'],
-        'Microsoft': ['Surface Laptop', 'Surface Book', 'Surface Pro', 'Surface'],
-        'Apple': ['MacBook Pro', 'MacBook Air', 'MacBook']
+        'Microsoft': ['Surface Laptop', 'Surface Book', 'Surface Pro', 'Surface']
       };
 
       const brandSeries = seriesMap[brand] || [];
@@ -2094,11 +2093,11 @@ Common Issues: ${commonIssues}`;
     row.innerHTML = `
       <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px;">
         <label style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary);">RAM Brand</label>
-        <input type="text" class="preview-inp-ram-brand" placeholder="e.g. Kingston / Apple / In Build" value="${brand}" style="width: 100%;">
+        <input type="text" class="preview-inp-ram-brand" list="ram-brand-list" placeholder="e.g. Kingston / Apple / In Build" value="${brand}" style="width: 100%;">
       </div>
       <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px;">
         <label style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary);">RAM Size</label>
-        <input type="text" class="preview-inp-ram-size" placeholder="Select or type RAM size..." value="${size}" style="width: 100%;">
+        <input type="text" class="preview-inp-ram-size" list="ram-size-list" placeholder="Select or type RAM size..." value="${size}" style="width: 100%;">
       </div>
       <button type="button" class="btn-remove-ram-row" title="Remove RAM Stick" style="height: 38px; width: 38px; border-radius: 8px; border: 1px solid rgba(255,69,58,0.3); background: rgba(255,69,58,0.1); color: var(--color-red); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
         <i class="fa-solid fa-trash-can"></i>
@@ -2134,11 +2133,11 @@ Common Issues: ${commonIssues}`;
     row.innerHTML = `
       <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px;">
         <label style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary);">SSD Brand</label>
-        <input type="text" class="preview-inp-ssd-brand" placeholder="e.g. Samsung / WD / Kioxia" value="${brand}" style="width: 100%;">
+        <input type="text" class="preview-inp-ssd-brand" list="ssd-brand-list" placeholder="e.g. Samsung / WD / Kioxia" value="${brand}" style="width: 100%;">
       </div>
       <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px;">
         <label style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary);">SSD Size</label>
-        <input type="text" class="preview-inp-ssd-size" placeholder="Select or type SSD size..." value="${size}" style="width: 100%;">
+        <input type="text" class="preview-inp-ssd-size" list="ssd-size-list" placeholder="Select or type SSD size..." value="${size}" style="width: 100%;">
       </div>
       <button type="button" class="btn-remove-ssd-row" title="Remove SSD Drive" style="height: 38px; width: 38px; border-radius: 8px; border: 1px solid rgba(255,69,58,0.3); background: rgba(255,69,58,0.1); color: var(--color-red); cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
         <i class="fa-solid fa-trash-can"></i>
@@ -3082,7 +3081,7 @@ Common Issues: ${commonIssues}`;
         }
       }
 
-       // Close Sound checker mic/sine wave cycles if navigating away from it, and display floating mini player on all tabs
+      // Close Sound checker mic/sine wave cycles if navigating away from it, and display floating mini player on all tabs
       if (targetViewId !== 'view-sound-checking') {
         if (typeof window.closeSoundCheck === 'function') {
           window.closeSoundCheck();
@@ -4035,7 +4034,7 @@ Common Issues: ${commonIssues}`;
             transition: all 0.15s ease;
           `;
           pill.innerHTML = `<i class="fa-solid fa-folder-closed" style="font-size: 10.5px; opacity: 0.8;"></i> ${b.batchCode} <span style="opacity: 0.65; font-weight: 500; font-size: 10.5px;">(${b.deviceCount || 0})</span>`;
-          
+
           pill.addEventListener('click', (e) => {
             e.preventDefault();
             const input = document.getElementById('portal-preview-batch-input');
@@ -4215,52 +4214,52 @@ Common Issues: ${commonIssues}`;
               showCustomAlert('Deletion cancelled or confirmation mismatch.', 'Cancelled', 'info');
               return;
             }
-             try {
-               const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
-               const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
-               
-               const endpoints = [
-                 '/delete-by-serial',
-                 '/delete-device',
-                 '/delete-record',
-                 '/delete-details',
-                 '/delete-specs'
-               ];
-               
-               let success = false;
-               let errMsg = '';
-               
-               for (const endpoint of endpoints) {
-                 try {
-                   const result = await electronAPI.httpPost(`${apiUrl}${endpoint}`, { serialNumber: s.serialNumber, batchCode: portalCurrentBatch }, token);
-                   if (result.success || (result.data && result.data.success)) {
-                     success = true;
-                     break;
-                   } else {
-                     const errorStr = String(result.error || '');
-                     if (errorStr.includes('404') || errorStr.includes('Not Found')) {
-                       continue;
-                     }
-                     errMsg = result.error || 'Failed to delete';
-                   }
-                 } catch (e) {
-                   const errMessage = String(e.message || e || '');
-                   if (errMessage.includes('404') || errMessage.includes('Not Found')) {
-                     continue;
-                   }
-                   errMsg = errMessage;
-                 }
-               }
+            try {
+              const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
+              const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
 
-               if (success) {
-                 showCustomAlert('Device specifications successfully deleted.', 'Deleted', 'success');
-                 await fetchPortalRecords(portalCurrentBatch);
-               } else {
-                 showCustomAlert(errMsg || 'Failed to delete device (404/not found).', 'Delete Error', 'error');
-               }
-             } catch (err) {
-               showCustomAlert(`Delete failure: ${err.message}`, 'Error', 'error');
-             }
+              const endpoints = [
+                '/delete-by-serial',
+                '/delete-device',
+                '/delete-record',
+                '/delete-details',
+                '/delete-specs'
+              ];
+
+              let success = false;
+              let errMsg = '';
+
+              for (const endpoint of endpoints) {
+                try {
+                  const result = await electronAPI.httpPost(`${apiUrl}${endpoint}`, { serialNumber: s.serialNumber, batchCode: portalCurrentBatch }, token);
+                  if (result.success || (result.data && result.data.success)) {
+                    success = true;
+                    break;
+                  } else {
+                    const errorStr = String(result.error || '');
+                    if (errorStr.includes('404') || errorStr.includes('Not Found')) {
+                      continue;
+                    }
+                    errMsg = result.error || 'Failed to delete';
+                  }
+                } catch (e) {
+                  const errMessage = String(e.message || e || '');
+                  if (errMessage.includes('404') || errMessage.includes('Not Found')) {
+                    continue;
+                  }
+                  errMsg = errMessage;
+                }
+              }
+
+              if (success) {
+                showCustomAlert('Device specifications successfully deleted.', 'Deleted', 'success');
+                await fetchPortalRecords(portalCurrentBatch);
+              } else {
+                showCustomAlert(errMsg || 'Failed to delete device (404/not found).', 'Delete Error', 'error');
+              }
+            } catch (err) {
+              showCustomAlert(`Delete failure: ${err.message}`, 'Error', 'error');
+            }
           });
         });
       }
@@ -6270,9 +6269,6 @@ void main() {
       audioEl.crossOrigin = "anonymous";
       audioEl.loop = true;
 
-      // Default local sound checker path
-      audioEl.src = "../Sound_checking/Sound_checking.mp4";
-
       // Time updates
       audioEl.addEventListener('timeupdate', () => {
         if (!audioEl) return;
@@ -6290,9 +6286,11 @@ void main() {
           const fallbackSrc = `Sound_checking/${encodeURIComponent(currentSelectedFile)}`;
           log(`Primary audio src failed. Trying bundled asset fallback: ${fallbackSrc}`, 'warn');
           audioEl.src = fallbackSrc;
-          audioEl.play().catch(err => {
-            log(`Fallback audio playback error: ${err.message}`, 'error');
-          });
+          if (isPlaying) {
+            audioEl.play().catch(err => {
+              log(`Fallback audio playback error: ${err.message}`, 'error');
+            });
+          }
           return;
         }
         log(`Audio player load error. Check path: ${audioEl.src}`, 'error');
@@ -6427,22 +6425,25 @@ void main() {
       });
     }
 
-    // Audio Play/Pause
+    // Audio Play/Pause (Single-click toggle)
     function toggleAudio() {
       initPlaybackPipeline();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
 
-      if (isPlaying) {
+      if (audioEl && !audioEl.paused && isPlaying) {
         audioEl.pause();
         isPlaying = false;
-        audioPlayPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+        if (audioPlayPauseBtn) audioPlayPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
         syncPlaylistPlayIcon(false);
         updateMiniAudioWidget();
         log('Audio playback paused.', 'debug');
       } else {
+        if (!audioEl) loadAudioElement();
         audioEl.play().then(() => {
           isPlaying = true;
-          audioPlayPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+          if (audioPlayPauseBtn) audioPlayPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
           syncPlaylistPlayIcon(true);
           updateMiniAudioWidget();
           log('Audio playback started.', 'debug');
@@ -6461,7 +6462,7 @@ void main() {
     let currentSelectedFile = null;
 
     // Load track by file name
-    function loadTrack(file, autoPlay = true) {
+    function loadTrack(file, autoPlay = false) {
       loadAudioElement();
       initPlaybackPipeline();
       if (audioCtx && audioCtx.state === 'suspended') {
@@ -6496,32 +6497,36 @@ void main() {
 
       if (file) {
         setAudioSrc(file);
-        audioTrackTitle.textContent = file;
+        if (audioTrackTitle) audioTrackTitle.textContent = file;
         log(`Loaded audio track: ${file}`, 'info');
       } else {
         setAudioSrc('Sound_checking.mp4');
-        audioTrackTitle.textContent = 'Sound_checking.mp4';
+        if (audioTrackTitle) audioTrackTitle.textContent = 'Sound_checking.mp4';
         log('Reset audio track to default Sound_checking.mp4', 'info');
       }
 
-      // If autoplay is requested, start playback immediately
+      // If autoplay is requested, start playback immediately on single click / open
       if (autoPlay) {
         audioEl.play().then(() => {
           isPlaying = true;
-          audioPlayPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+          if (audioPlayPauseBtn) audioPlayPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
           syncPlaylistPlayIcon(true);
+          updateMiniAudioWidget();
         }).catch(err => {
-          log(`Failed to play track: ${err.message}`, 'error');
+          log(`Autoplay prompt requirement: ${err.message}`, 'debug');
+          isPlaying = false;
+          if (audioPlayPauseBtn) audioPlayPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+          syncPlaylistPlayIcon(false);
         });
       } else {
         isPlaying = false;
-        audioPlayPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+        if (audioPlayPauseBtn) audioPlayPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
         syncPlaylistPlayIcon(false);
       }
     }
 
     // Dynamic populator for Sound_checking folder songs in the playlist
-    async function populateSoundFiles() {
+    async function populateSoundFiles(autoPlayOnLoad = false) {
       const container = soundPlaylistContainer || document.getElementById('sound-playlist-container');
       if (!container) return;
 
@@ -6606,7 +6611,7 @@ void main() {
         soundPlaylistContainer.appendChild(item);
       });
 
-      // Autoselect and load first file silently by default on initialization
+      // Autoselect first file and auto-play ONLY if requested (when sound view is opened)
       if (files.length > 0) {
         const defaultFile = files.includes("Sound_checking.mp4") ? "Sound_checking.mp4" : files[0];
         currentSelectedFile = defaultFile;
@@ -6619,7 +6624,7 @@ void main() {
           }
         });
 
-        loadTrack(defaultFile, false);
+        loadTrack(defaultFile, autoPlayOnLoad);
       }
     }
 
@@ -6880,8 +6885,8 @@ void main() {
     window.initSoundCheck = () => {
       createVUBars();
       populateMicSources();
-      populateSoundFiles();
-      log('Sound Checker interactive assets loaded.', 'info');
+      populateSoundFiles(false);
+      log('Sound Checker interactive view opened.', 'info');
     };
 
     window.closeSoundCheck = () => {
@@ -6909,6 +6914,58 @@ void main() {
     // BIND DOM EVENT LISTENERS
     if (audioPlayPauseBtn) {
       audioPlayPauseBtn.addEventListener('click', toggleAudio);
+    }
+
+    const audioBackwardBtn = document.getElementById('audio-backward-btn');
+    if (audioBackwardBtn) {
+      audioBackwardBtn.addEventListener('click', () => {
+        if (!audioEl) return;
+        audioEl.currentTime = Math.max(0, audioEl.currentTime - 5);
+        log('Rewound audio track by 5 seconds.', 'debug');
+      });
+    }
+
+    const audioStopBtn = document.getElementById('audio-stop-btn');
+    if (audioStopBtn) {
+      audioStopBtn.addEventListener('click', () => {
+        if (!audioEl) return;
+        audioEl.pause();
+        audioEl.currentTime = 0;
+        isPlaying = false;
+        if (audioPlayPauseBtn) audioPlayPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+        syncPlaylistPlayIcon(false);
+        updateMiniAudioWidget();
+        log('Audio playback stopped and reset.', 'debug');
+      });
+    }
+
+    const audioForwardBtn = document.getElementById('audio-forward-btn');
+    if (audioForwardBtn) {
+      audioForwardBtn.addEventListener('click', () => {
+        if (!audioEl) return;
+        const dur = audioEl.duration || 0;
+        audioEl.currentTime = Math.min(dur, audioEl.currentTime + 5);
+        log('Forwarded audio track by 5 seconds.', 'debug');
+      });
+    }
+
+    let isAudioMuted = false;
+    const audioMuteBtn = document.getElementById('audio-mute-btn');
+    if (audioMuteBtn) {
+      audioMuteBtn.addEventListener('click', () => {
+        if (!audioEl) return;
+        isAudioMuted = !isAudioMuted;
+        audioEl.muted = isAudioMuted;
+        if (isAudioMuted) {
+          audioMuteBtn.innerHTML = '<i class="fa-solid fa-volume-xmark" style="font-size: 13px; color: var(--color-red);"></i>';
+          audioMuteBtn.title = "Unmute";
+          log('Audio output muted.', 'debug');
+        } else {
+          audioMuteBtn.innerHTML = '<i class="fa-solid fa-volume-high" style="font-size: 13px;"></i>';
+          audioMuteBtn.title = "Mute";
+          log('Audio output unmuted.', 'debug');
+        }
+      });
     }
     if (audioProgressContainer) {
       audioProgressContainer.addEventListener('click', (e) => {
@@ -7031,26 +7088,7 @@ void main() {
     const miniInfoWrap = document.getElementById('mini-player-info-wrap');
 
     function updateMiniAudioWidget(overrideTargetViewId) {
-      if (!miniWidget) return;
-
-      let activeViewId = overrideTargetViewId;
-      if (!activeViewId) {
-        const activeView = document.querySelector('.view-pane.active');
-        activeViewId = activeView ? activeView.id : '';
-      }
-
-      const isSoundViewActive = activeViewId === 'view-sound-checking';
-
-      if (!isSoundViewActive && currentSelectedFile) {
-        miniWidget.style.display = 'block';
-        if (miniTitle) miniTitle.textContent = currentSelectedFile;
-        if (miniTime) miniTime.textContent = audioTimeDisplay ? audioTimeDisplay.textContent : '00:00 / 00:00';
-        if (miniPlayBtn) miniPlayBtn.innerHTML = isPlaying ? '<i class="fa-solid fa-pause"></i>' : '<i class="fa-solid fa-play"></i>';
-        if (miniDiscIcon) {
-          if (isPlaying) miniDiscIcon.classList.add('playing');
-          else miniDiscIcon.classList.remove('playing');
-        }
-      } else {
+      if (miniWidget) {
         miniWidget.style.display = 'none';
       }
     }
@@ -7096,14 +7134,14 @@ void main() {
 
     async function initCameraTest() {
       log('Initializing Camera Diagnostics...', 'info');
-      
+
       const selectSource = document.getElementById('camera-source-select');
       if (selectSource) {
         selectSource.innerHTML = '<option value="none">Scanning for cameras...</option>';
         try {
           const devices = await navigator.mediaDevices.enumerateDevices();
           const videoDevices = devices.filter(device => device.kind === 'videoinput');
-          
+
           if (videoDevices.length === 0) {
             selectSource.innerHTML = '<option value="none">No webcams found</option>';
             log('No camera devices detected.', 'warn');
@@ -7132,7 +7170,7 @@ void main() {
 
       const selectSource = document.getElementById('camera-source-select');
       const deviceId = selectSource ? selectSource.value : null;
-      
+
       const constraints = {
         video: deviceId && deviceId !== 'none' ? { deviceId: { exact: deviceId } } : true
       };
@@ -7154,11 +7192,11 @@ void main() {
       try {
         log('Starting Live Camera diagnostics stream...', 'info');
         cameraTestStream = await navigator.mediaDevices.getUserMedia(constraints);
-        
+
         if (videoFeed) {
           videoFeed.srcObject = cameraTestStream;
           videoFeed.style.display = 'block';
-          
+
           // Get track resolution details
           const track = cameraTestStream.getVideoTracks()[0];
           if (track) {
@@ -7190,7 +7228,7 @@ void main() {
         cameraTestStream.getTracks().forEach(track => track.stop());
         cameraTestStream = null;
       }
-      
+
       const videoFeed = document.getElementById('camera-test-feed');
       const placeholder = document.getElementById('camera-test-placeholder');
       const statusText = document.getElementById('camera-status-text');
@@ -7238,10 +7276,10 @@ void main() {
         const videoFeed = document.getElementById('camera-test-feed');
         const snapshotImg = document.getElementById('camera-snapshot-img');
         const transformStyle = isVideoMirrored ? 'scaleX(-1)' : 'scaleX(1)';
-        
+
         if (videoFeed) videoFeed.style.transform = transformStyle;
         if (snapshotImg) snapshotImg.style.transform = transformStyle;
-        
+
         btnCamMirror.classList.toggle('active', isVideoMirrored);
         log(`Camera horizontal mirror set to: ${isVideoMirrored}`, 'debug');
       });
@@ -7281,7 +7319,7 @@ void main() {
             canvas.height = videoFeed.videoHeight;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(videoFeed, 0, 0, canvas.width, canvas.height);
-            
+
             snapshotImg.src = canvas.toDataURL('image/png');
             snapshotImg.style.display = 'block';
             videoFeed.style.display = 'none';
@@ -7317,7 +7355,7 @@ void main() {
 
     function exitCameraTest(status, remark = '') {
       stopCameraTest();
-      
+
       const navItem = document.getElementById('nav-system-health');
       if (navItem) navItem.click();
 
@@ -7356,7 +7394,7 @@ void main() {
       btn.addEventListener('click', () => {
         const targetId = btn.getAttribute('data-target');
         if (settingsHubView) settingsHubView.style.display = 'none';
-        
+
         settingsSubviews.forEach(view => {
           view.style.display = view.id === targetId ? 'block' : 'none';
         });
@@ -7421,8 +7459,171 @@ void main() {
       });
     }
 
+    /* ==========================================================================
+       CUSTOM SEARCHABLE DROPDOWN COMBOBOX MANAGER
+       ========================================================================== */
+    let activePopover = null;
+    let activeInput = null;
+
+    function closeActivePopover() {
+      if (activePopover) {
+        activePopover.remove();
+        activePopover = null;
+      }
+      if (activeInput && activeInput.parentElement) {
+        activeInput.parentElement.classList.remove('active');
+      }
+      activeInput = null;
+    }
+
+    function getOptionsForInput(input) {
+      const listId = input.getAttribute('data-list-id') || input.getAttribute('list');
+      if (listId) {
+        const datalist = document.getElementById(listId);
+        if (datalist) {
+          return Array.from(datalist.querySelectorAll('option')).map(opt => opt.value || opt.textContent).filter(Boolean);
+        }
+      }
+      return [];
+    }
+
+    function openDropdownPopover(input) {
+      const nativeListId = input.getAttribute('list');
+      if (nativeListId) {
+        input.setAttribute('data-list-id', nativeListId);
+        input.removeAttribute('list');
+      }
+      input.setAttribute('autocomplete', 'off');
+
+      const options = getOptionsForInput(input);
+      if (!options || options.length === 0) return;
+
+      if (activeInput === input && activePopover) return;
+
+      closeActivePopover();
+      activeInput = input;
+
+      const rect = input.getBoundingClientRect();
+
+      const popover = document.createElement('div');
+      popover.className = 'custom-dropdown-popover';
+      popover.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+      popover.style.left = (rect.left + window.scrollX) + 'px';
+      popover.style.width = Math.max(rect.width, 180) + 'px';
+
+      function renderItems(filterText = '') {
+        popover.innerHTML = '';
+        const filterLower = filterText.toLowerCase().trim();
+        const matched = options.filter(opt => opt.toLowerCase().includes(filterLower));
+
+        if (matched.length === 0) {
+          const emptyDiv = document.createElement('div');
+          emptyDiv.className = 'custom-dropdown-item';
+          emptyDiv.style.color = 'var(--text-muted)';
+          emptyDiv.style.fontStyle = 'italic';
+          emptyDiv.textContent = 'No matching options';
+          popover.appendChild(emptyDiv);
+          return;
+        }
+
+        matched.forEach(optVal => {
+          const item = document.createElement('div');
+          item.className = 'custom-dropdown-item';
+          if (input.value.trim().toLowerCase() === optVal.toLowerCase()) {
+            item.classList.add('selected');
+          }
+
+          item.innerHTML = `
+            <span>${optVal}</span>
+            ${input.value.trim().toLowerCase() === optVal.toLowerCase() ? '<i class="fa-solid fa-check check-icon"></i>' : ''}
+          `;
+
+          item.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            input.value = optVal;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            closeActivePopover();
+          });
+
+          popover.appendChild(item);
+        });
+      }
+
+      renderItems(input.value);
+      document.body.appendChild(popover);
+      activePopover = popover;
+
+      if (input.parentElement) {
+        input.parentElement.classList.add('active');
+      }
+    }
+
+    // Bind delegated listeners for all spec & portal dropdown inputs
+    document.addEventListener('focusin', (e) => {
+      const target = e.target;
+      if (target && target.tagName === 'INPUT' && (target.hasAttribute('list') || target.hasAttribute('data-list-id'))) {
+        openDropdownPopover(target);
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      const target = e.target;
+      if (target && target.tagName === 'INPUT' && (target.hasAttribute('list') || target.hasAttribute('data-list-id'))) {
+        openDropdownPopover(target);
+      }
+    });
+
+    document.addEventListener('input', (e) => {
+      const target = e.target;
+      if (activeInput && activeInput === target && activePopover) {
+        const options = getOptionsForInput(target);
+        const filterLower = target.value.toLowerCase().trim();
+        const matched = options.filter(opt => opt.toLowerCase().includes(filterLower));
+
+        activePopover.innerHTML = '';
+        if (matched.length === 0) {
+          const emptyDiv = document.createElement('div');
+          emptyDiv.className = 'custom-dropdown-item';
+          emptyDiv.style.color = 'var(--text-muted)';
+          emptyDiv.style.fontStyle = 'italic';
+          emptyDiv.textContent = 'No matching options';
+          activePopover.appendChild(emptyDiv);
+        } else {
+          matched.forEach(optVal => {
+            const item = document.createElement('div');
+            item.className = 'custom-dropdown-item';
+            if (target.value.trim().toLowerCase() === optVal.toLowerCase()) {
+              item.classList.add('selected');
+            }
+            item.innerHTML = `
+              <span>${optVal}</span>
+              ${target.value.trim().toLowerCase() === optVal.toLowerCase() ? '<i class="fa-solid fa-check check-icon"></i>' : ''}
+            `;
+            item.addEventListener('mousedown', (ev) => {
+              ev.preventDefault();
+              target.value = optVal;
+              target.dispatchEvent(new Event('input', { bubbles: true }));
+              target.dispatchEvent(new Event('change', { bubbles: true }));
+              closeActivePopover();
+            });
+            activePopover.appendChild(item);
+          });
+        }
+      }
+    });
+
+    document.addEventListener('mousedown', (e) => {
+      if (activePopover && !activePopover.contains(e.target) && e.target !== activeInput) {
+        closeActivePopover();
+      }
+    });
+
+    window.addEventListener('resize', closeActivePopover);
+    window.addEventListener('scroll', closeActivePopover, true);
+
     // Populate sound files and load active batches immediately on startup
-    populateSoundFiles();
+    populateSoundFiles(false);
     loadPortalBatches();
 
   })();

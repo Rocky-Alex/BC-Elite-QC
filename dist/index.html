@@ -22,7 +22,7 @@
           <img src="app_logo.png" class="logo-image">
           <span class="logo-text">BC Elite QC</span>
         </div>
-        <span class="version-badge">SYSTEM V1.5</span>
+        <span class="version-badge">SYSTEM V1.5.1</span>
       </div>
 
       <nav class="sidebar-nav">
@@ -995,6 +995,150 @@
                     class="fa-solid fa-xmark"></i></button>
               </div>
 
+              <!-- PRE-SET DATALISTS FOR ALL HARDWARE SPECIFICATION DROPDOWNS -->
+              <datalist id="brand-list">
+                <option value="DELL"></option>
+                <option value="HP"></option>
+                <option value="Lenovo"></option>
+                <option value="Microsoft"></option>
+              </datalist>
+
+              <datalist id="series-list">
+                <option value="Latitude"></option>
+                <option value="ThinkPad"></option>
+                <option value="EliteBook"></option>
+                <option value="Inspiron"></option>
+                <option value="Pavilion"></option>
+                <option value="ProBook"></option>
+                <option value="XPS"></option>
+                <option value="Precision"></option>
+                <option value="IdeaPad"></option>
+                <option value="Legion"></option>
+                <option value="Yoga"></option>
+                <option value="Vostro"></option>
+                <option value="Surface"></option>
+              </datalist>
+
+              <datalist id="condition-list">
+                <option value="New"></option>
+                <option value="Pending Diagnosis"></option>
+                <option value="Refurbished (A Grade)"></option>
+                <option value="Refurbished (B Grade)"></option>
+                <option value="Refurbished (C Grade)"></option>
+                <option value="Refurbished (D Grade)"></option>
+                <option value="No Power/ Dead"></option>
+              </datalist>
+
+              <datalist id="core-list">
+                <option value="Intel Core i3"></option>
+                <option value="Intel Core i5"></option>
+                <option value="Intel Core i7"></option>
+                <option value="Intel Core i9"></option>
+                <option value="Intel Core Ultra 5"></option>
+                <option value="Intel Core Ultra 7"></option>
+                <option value="Intel Celeron"></option>
+                <option value="Intel Pentium"></option>
+                <option value="AMD Ryzen 3"></option>
+                <option value="AMD Ryzen 5"></option>
+                <option value="AMD Ryzen 7"></option>
+                <option value="AMD Ryzen 9"></option>
+              </datalist>
+
+              <datalist id="gen-list">
+                <option value="6th Gen"></option>
+                <option value="7th Gen"></option>
+                <option value="8th Gen"></option>
+                <option value="9th Gen"></option>
+                <option value="10th Gen"></option>
+                <option value="11th Gen"></option>
+                <option value="12th Gen"></option>
+                <option value="13th Gen"></option>
+                <option value="14th Gen"></option>
+              </datalist>
+
+              <datalist id="display-list">
+                <option value="1366x768 (HD)"></option>
+                <option value="1600x900 (HD+)"></option>
+                <option value="1920x1080 (FHD)"></option>
+                <option value="1920x1200 (WUXGA)"></option>
+                <option value="2560x1440 (QHD)"></option>
+                <option value="2560x1600 (2.5K)"></option>
+                <option value="2880x1800 (2.8K)"></option>
+                <option value="3840x2160 (4K UHD)"></option>
+                <option value="3456x2234 (Retina)"></option>
+              </datalist>
+
+              <datalist id="ram-brand-list">
+                <option value="Samsung"></option>
+                <option value="SK Hynix"></option>
+                <option value="Micron"></option>
+                <option value="Crucial"></option>
+                <option value="Kingston"></option>
+                <option value="Corsair"></option>
+                <option value="G.Skill"></option>
+                <option value="In Build / Onboard"></option>
+              </datalist>
+
+              <datalist id="ram-size-list">
+                <option value="4GB"></option>
+                <option value="8GB"></option>
+                <option value="16GB"></option>
+                <option value="32GB"></option>
+                <option value="64GB"></option>
+                <option value="No RAM"></option>
+              </datalist>
+
+              <datalist id="ssd-brand-list">
+                <option value="Samsung"></option>
+                <option value="Western Digital (WD)"></option>
+                <option value="SK Hynix"></option>
+                <option value="Crucial"></option>
+                <option value="Kioxia"></option>
+                <option value="SanDisk"></option>
+                <option value="Kingston"></option>
+                <option value="Intel"></option>
+                <option value="Micron"></option>
+                <option value="Sabrent"></option>
+              </datalist>
+
+              <datalist id="ssd-size-list">
+                <option value="128GB"></option>
+                <option value="256GB"></option>
+                <option value="512GB"></option>
+                <option value="1TB"></option>
+                <option value="2TB"></option>
+                <option value="4TB"></option>
+                <option value="No Storage"></option>
+              </datalist>
+
+              <datalist id="gfx-brand-list">
+                <option value="Intel"></option>
+                <option value="NVIDIA"></option>
+                <option value="AMD"></option>
+                <option value="Apple"></option>
+                <option value="Qualcomm"></option>
+              </datalist>
+
+              <datalist id="gfx-size-list">
+                <option value="Integrated"></option>
+                <option value="2GB"></option>
+                <option value="4GB"></option>
+                <option value="6GB"></option>
+                <option value="8GB"></option>
+                <option value="12GB"></option>
+                <option value="16GB"></option>
+              </datalist>
+
+              <datalist id="section-list">
+                <option value="Stock"></option>
+                <option value="LCD Section"></option>
+                <option value="Painting Section"></option>
+                <option value="Ready Stock"></option>
+                <option value="In Repair (Motherboard)"></option>
+                <option value="Sold"></option>
+                <option value="Order Placed"></option>
+              </datalist>
+
               <!-- MAIN FORM CARDS CONTAINER -->
               <div style="display: flex; flex-direction: column; gap: 20px; margin-bottom: 20px;">
 
@@ -1010,13 +1154,13 @@
                   <div style="display: flex; gap: 16px; width: 100%; flex-wrap: wrap;">
                     <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 220px;">
                       <label style="font-size: 12px; font-weight: 600; color: var(--text-main);">Brand</label>
-                      <input type="text" id="preview-inp-brand" placeholder="Select or type Brand..."
+                      <input type="text" id="preview-inp-brand" list="brand-list" placeholder="Select or type Brand..."
                         style="width: 100%;">
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 220px;">
                       <label style="font-size: 12px; font-weight: 600; color: var(--text-main);">Series</label>
-                      <input type="text" id="preview-inp-series" placeholder="Select or type Series..."
-                        style="width: 100%;">
+                      <input type="text" id="preview-inp-series" list="series-list"
+                        placeholder="Select or type Series..." style="width: 100%;">
                     </div>
                   </div>
 
@@ -1039,7 +1183,7 @@
                   <div style="display: flex; gap: 16px; width: 100%; flex-wrap: wrap;">
                     <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
                       <label style="font-size: 12px; font-weight: 600; color: var(--text-main);">Condition</label>
-                      <input type="text" id="preview-inp-condition" value="Refurbished (C Grade)"
+                      <input type="text" id="preview-inp-condition" list="condition-list" value="Refurbished (C Grade)"
                         placeholder="Select or type Condition..." style="width: 100%;">
                     </div>
                     <input type="hidden" id="preview-inp-product-name">
@@ -1057,7 +1201,7 @@
                     </div>
                     <span
                       style="font-size: 11.5px; color: var(--color-blue); background: rgba(59,130,246,0.1); padding: 4px 10px; border-radius: 20px; font-weight: 600; border: 1px solid rgba(59,130,246,0.2);">
-                      <i class="fa-solid fa-sliders" style="margin-right: 4px;"></i> Configure Drop Lists &rarr;
+                      <i class="fa-solid fa-sliders" style="margin-right: 4px;"></i> Pre-Set Drop Lists Active
                     </span>
                   </div>
 
@@ -1066,17 +1210,19 @@
                     <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px;">
                       <label style="font-size: 12px; font-weight: 600; color: var(--text-main);">Processor (CPU)
                         Core</label>
-                      <input type="text" id="preview-inp-core" placeholder="Select or type CPU..." style="width: 100%;">
+                      <input type="text" id="preview-inp-core" list="core-list" placeholder="Select or type CPU..."
+                        style="width: 100%;">
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px;">
                       <label style="font-size: 12px; font-weight: 600; color: var(--text-main);">Processor Gen</label>
-                      <input type="text" id="preview-inp-gen" placeholder="Select or type Gen..." style="width: 100%;">
+                      <input type="text" id="preview-inp-gen" list="gen-list" placeholder="Select or type Gen..."
+                        style="width: 100%;">
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px;">
                       <label style="font-size: 12px; font-weight: 600; color: var(--text-main);">Display
                         Resolution</label>
-                      <input type="text" id="preview-inp-display" placeholder="Select or type Res..."
-                        style="width: 100%;">
+                      <input type="text" id="preview-inp-display" list="display-list"
+                        placeholder="Select or type Res..." style="width: 100%;">
                     </div>
                   </div>
 
@@ -1101,14 +1247,14 @@
                         <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px;">
                           <label style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary);">RAM
                             Brand</label>
-                          <input type="text" class="preview-inp-ram-brand"
+                          <input type="text" class="preview-inp-ram-brand" list="ram-brand-list"
                             placeholder="e.g. Kingston / Apple / In Build" style="width: 100%;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px;">
                           <label style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary);">RAM
                             Size</label>
-                          <input type="text" class="preview-inp-ram-size" placeholder="Select or type RAM size..."
-                            style="width: 100%;">
+                          <input type="text" class="preview-inp-ram-size" list="ram-size-list"
+                            placeholder="Select or type RAM size..." style="width: 100%;">
                         </div>
                         <button type="button" class="btn-remove-ram-row" title="Remove RAM Stick"
                           style="height: 38px; width: 38px; border-radius: 8px; border: 1px solid rgba(255,69,58,0.3); background: rgba(255,69,58,0.1); color: var(--color-red); cursor: pointer; display: none; align-items: center; justify-content: center; flex-shrink: 0;">
@@ -1142,14 +1288,14 @@
                         <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px;">
                           <label style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary);">SSD
                             Brand</label>
-                          <input type="text" class="preview-inp-ssd-brand" placeholder="e.g. Samsung / WD / Kioxia"
-                            style="width: 100%;">
+                          <input type="text" class="preview-inp-ssd-brand" list="ssd-brand-list"
+                            placeholder="e.g. Samsung / WD / Kioxia" style="width: 100%;">
                         </div>
                         <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px;">
                           <label style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary);">SSD
                             Size</label>
-                          <input type="text" class="preview-inp-ssd-size" placeholder="Select or type SSD size..."
-                            style="width: 100%;">
+                          <input type="text" class="preview-inp-ssd-size" list="ssd-size-list"
+                            placeholder="Select or type SSD size..." style="width: 100%;">
                         </div>
                         <button type="button" class="btn-remove-ssd-row" title="Remove SSD Drive"
                           style="height: 38px; width: 38px; border-radius: 8px; border: 1px solid rgba(255,69,58,0.3); background: rgba(255,69,58,0.1); color: var(--color-red); cursor: pointer; display: none; align-items: center; justify-content: center; flex-shrink: 0;">
@@ -1167,13 +1313,13 @@
                   <div style="display: flex; gap: 16px; width: 100%; flex-wrap: wrap;">
                     <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px;">
                       <label style="font-size: 12px; font-weight: 600; color: var(--text-main);">Graphics Brand</label>
-                      <input type="text" id="preview-inp-graphics-brand" placeholder="e.g. NVIDIA / AMD / Intel"
-                        style="width: 100%;">
+                      <input type="text" id="preview-inp-graphics-brand" list="gfx-brand-list"
+                        placeholder="e.g. NVIDIA / AMD / Intel" style="width: 100%;">
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px;">
                       <label style="font-size: 12px; font-weight: 600; color: var(--text-main);">Graphics Size</label>
-                      <input type="text" id="preview-inp-graphics-size" placeholder="e.g. Integrated / 4GB VRAM"
-                        style="width: 100%;">
+                      <input type="text" id="preview-inp-graphics-size" list="gfx-size-list"
+                        placeholder="e.g. Integrated / 4GB VRAM" style="width: 100%;">
                     </div>
                     <input type="hidden" id="preview-inp-graphics">
                   </div>
@@ -1196,8 +1342,8 @@
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 200px;">
                       <label style="font-size: 12px; font-weight: 600; color: var(--text-main);">Section</label>
-                      <input type="text" id="preview-inp-section" value="Stock" placeholder="e.g. Stock"
-                        style="width: 100%;">
+                      <input type="text" id="preview-inp-section" list="section-list" value="Stock"
+                        placeholder="e.g. Stock" style="width: 100%;">
                     </div>
                   </div>
 
@@ -2223,11 +2369,35 @@
                 <!-- Transport Deck -->
                 <div
                   style="display: flex; align-items: center; gap: 16px; padding: 14px; background: rgba(0,0,0,0.18); border-radius: 10px; border: 1px solid var(--border-color);">
-                  <button id="audio-play-pause-btn"
-                    style="width: 40px; height: 40px; border-radius: 50%; background: var(--color-blue); border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: transform 0.1s ease, background-color 0.2s;"
-                    onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-                    <i class="fa-solid fa-play" style="font-size: 15px;"></i>
-                  </button>
+                  <!-- Media Transport Buttons: Backward, Play/Pause, Stop, Forward, Mute -->
+                  <div class="audio-transport-controls"
+                    style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                    <button id="audio-backward-btn" title="Rewind 5 Seconds"
+                      style="width: 36px; height: 36px; border-radius: 50%; background: rgba(120,120,128,0.15); border: 1px solid var(--border-color); color: var(--text-main); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s ease;"
+                      onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+                      <i class="fa-solid fa-backward-step" style="font-size: 13px;"></i>
+                    </button>
+                    <button id="audio-play-pause-btn" title="Play / Pause"
+                      style="width: 42px; height: 42px; border-radius: 50%; background: var(--color-blue); border: none; color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: all 0.15s ease;"
+                      onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+                      <i class="fa-solid fa-play" style="font-size: 15px;"></i>
+                    </button>
+                    <button id="audio-stop-btn" title="Stop Playback"
+                      style="width: 36px; height: 36px; border-radius: 50%; background: rgba(120,120,128,0.15); border: 1px solid var(--border-color); color: var(--color-red); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s ease;"
+                      onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+                      <i class="fa-solid fa-stop" style="font-size: 13px;"></i>
+                    </button>
+                    <button id="audio-forward-btn" title="Forward 5 Seconds"
+                      style="width: 36px; height: 36px; border-radius: 50%; background: rgba(120,120,128,0.15); border: 1px solid var(--border-color); color: var(--text-main); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s ease;"
+                      onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+                      <i class="fa-solid fa-forward-step" style="font-size: 13px;"></i>
+                    </button>
+                    <button id="audio-mute-btn" title="Mute / Unmute"
+                      style="width: 36px; height: 36px; border-radius: 50%; background: rgba(120,120,128,0.15); border: 1px solid var(--border-color); color: var(--text-main); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s ease;"
+                      onmouseover="this.style.transform='scale(1.08)'" onmouseout="this.style.transform='scale(1)'">
+                      <i class="fa-solid fa-volume-high" style="font-size: 13px;"></i>
+                    </button>
+                  </div>
                   <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 6px;">
                     <div
                       style="display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-main);">
@@ -2927,26 +3097,6 @@
 
     <!-- Hidden title for JS tracking only -->
     <span id="lcd-active-test-title" style="display:none;"></span>
-    <!-- FLOATING MINI AUDIO PLAYER WIDGET (POP-OVER IN BOTTOM-RIGHT CORNER) -->
-    <div id="mini-audio-player-widget" class="mini-audio-widget" style="display: none;">
-      <div class="mini-audio-content">
-        <div class="mini-audio-icon-wrap" id="mini-player-jump-btn" title="Click to open Sound Checking">
-          <i class="fa-solid fa-compact-disc mini-disc-spin" id="mini-disc-icon"></i>
-        </div>
-        <div class="mini-audio-info" id="mini-player-info-wrap" title="Click to open Sound Checking">
-          <span class="mini-audio-title" id="mini-player-title">Sound_checking.mp4</span>
-          <span class="mini-audio-time" id="mini-player-time">00:00 / 00:00</span>
-        </div>
-        <div class="mini-audio-controls">
-          <button id="mini-player-play-btn" class="mini-player-btn" title="Play/Pause">
-            <i class="fa-solid fa-play"></i>
-          </button>
-          <button id="mini-player-close-btn" class="mini-player-btn mini-close-btn" title="Close Popover">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
-        </div>
-      </div>
-    </div>
 
     <script src="version.js"></script>
     <script src="renderer.js" defer></script>

@@ -3102,3 +3102,109 @@ body.light-theme .mini-audio-widget {
   background: rgba(255, 69, 58, 0.85);
   color: #fff;
 }
+
+/* ==========================================================================
+   CUSTOM COMBOBOX DROPDOWN POPOVER & INPUT STYLING
+   ========================================================================== */
+.custom-dropdown-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+}
+
+.custom-dropdown-arrow {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 11px;
+  color: var(--text-muted);
+  pointer-events: none;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+.custom-dropdown-container.active .custom-dropdown-arrow {
+  transform: translateY(-50%) rotate(180deg);
+  color: var(--color-blue);
+}
+
+.custom-dropdown-popover {
+  position: absolute;
+  z-index: 99999;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.12);
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 6px;
+  backdrop-filter: var(--backdrop-blur);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  animation: dropdown-slide-down 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes dropdown-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.custom-dropdown-item {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.12s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  user-select: none;
+}
+
+.custom-dropdown-item:hover,
+.custom-dropdown-item.highlighted {
+  background: var(--color-blue-translucent);
+  color: var(--color-blue);
+  font-weight: 600;
+  padding-left: 15px;
+}
+
+.custom-dropdown-item.selected {
+  background: var(--color-blue);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.custom-dropdown-item .check-icon {
+  font-size: 11px;
+  opacity: 0.9;
+}
+
+/* Custom Sleek Scrollbar for Dropdown Popover */
+.custom-dropdown-popover::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-dropdown-popover::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-dropdown-popover::-webkit-scrollbar-thumb {
+  background: rgba(120, 120, 128, 0.3);
+  border-radius: 3px;
+}
+
+.custom-dropdown-popover::-webkit-scrollbar-thumb:hover {
+  background: rgba(120, 120, 128, 0.5);
+}
