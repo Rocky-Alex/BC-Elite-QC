@@ -10,7 +10,7 @@ console.log(`Packaging BC Elite QC version ${version}...`);
 console.log(`==================================================\n`);
 
 const sourceDir = __dirname;
-const outputDir = path.join(sourceDir, '.setup');
+const outputDir = 'f:\\Company Software\\Builded Setups';
 const tempDir = path.join(sourceDir, 'temp_portable');
 
 // Ensure output directory exists
