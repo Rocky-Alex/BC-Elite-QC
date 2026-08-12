@@ -93,6 +93,14 @@ function init() {
         return { success: false, error: String(err) };
       }
     },
+    authUser: async (username, password) => {
+      try {
+        const result = await window.__TAURI__.core.invoke('auth_user', { username, password });
+        return { success: true, data: JSON.parse(result) };
+      } catch (err) {
+        return { success: false, error: String(err) };
+      }
+    },
     getSoundFolderPath: async () => {
       try {
         const path = await window.__TAURI__.core.invoke('get_sound_folder_path');
@@ -310,9 +318,22 @@ function init() {
   const sessionId = `BH-${Math.floor(1000 + Math.random() * 9000)}-${String.fromCharCode(65 + Math.floor(Math.random() * 26))}`;
   sessionIdVal.textContent = sessionId;
 
-  // Session Operator name variable
+  // Session Operator and Customer ID variables
   let currentOperator = '';
+  let currentCustomerId = localStorage.getItem('portal_customer_id') || '';
   let activeBatchCode = '';
+
+  function parseCustomerId(val) {
+    if (val === null || val === undefined || val === '') return null;
+    const num = parseInt(val, 10);
+    return !isNaN(num) ? num : null;
+  }
+
+  async function sha256Hex(str) {
+    if (!str) return '';
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
 
   // Console logging function
   function log(message, type = 'info') {
@@ -925,7 +946,7 @@ $specs | ConvertTo-Json`;
   // Query and update version
   async function updateAppVersion() {
     try {
-      let ver = '1.5.1';
+      let ver = '1.5';
       if (typeof window !== 'undefined' && window.APP_VERSION) {
         ver = window.APP_VERSION;
       } else {
@@ -1819,14 +1840,21 @@ Battery Status  : ${systemSpecs.battery}
       const originalText = btnPortalPreviewSubmit.innerHTML;
       btnPortalPreviewSubmit.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Submitting...`;
 
+      const custId = currentCustomerId || localStorage.getItem('portal_customer_id') || currentOperator;
       const payload = {
         batchCode: activeBatchCode,
         timestamp: new Date().toISOString(),
         sessionId: sessionId,
         operator: currentOperator,
+        customerId: custId,
+        customer_id: custId,
+        userId: custId,
+        user_id: custId,
         specs: {
           ...specPayload,
-          operator: currentOperator
+          operator: currentOperator,
+          customerId: custId,
+          customer_id: custId
         }
       };
 
@@ -2304,72 +2332,68 @@ Common Issues: ${commonIssues}`;
     });
   }
 
-  // PORTAL LOGIN ACTION
+  // PORTAL LOGIN ACTION (Modal)
   if (btnPortalLogin) {
     btnPortalLogin.addEventListener('click', async () => {
-      const username = portalUsernameInput.value.trim();
-      const password = portalPasswordInput.value.trim();
+      currentOperator = '';
+      currentCustomerId = '';
+      localStorage.removeItem('portal_customer_id');
+
+      const username = document.getElementById('portal-username')?.value.trim() || '';
+      const password = document.getElementById('portal-password')?.value || '';
+      const portalLoginError = document.getElementById('portal-login-error');
+
+      const showErr = (msg) => {
+        const el = document.getElementById('portal-login-error-text');
+        if (el) el.textContent = msg;
+        else if (portalLoginError) portalLoginError.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${msg}`;
+        if (portalLoginError) portalLoginError.style.display = 'flex';
+      };
 
       if (!username || !password) {
-        portalLoginError.textContent = 'Username and password are required.';
-        portalLoginError.style.display = 'block';
+        showErr('Both username and password are required.');
         return;
       }
 
       btnPortalLogin.disabled = true;
       const originalText = btnPortalLogin.innerHTML;
-      btnPortalLogin.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Authenticating...';
-      portalLoginError.style.display = 'none';
+      btnPortalLogin.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifying...';
+      if (portalLoginError) portalLoginError.style.display = 'none';
 
       const rememberCheckbox = document.getElementById('portal-remember');
       const isRemember = rememberCheckbox ? rememberCheckbox.checked : false;
 
       try {
-        const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
-        const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
-
-        const response = await electronAPI.httpPost(`${apiUrl}/qc/auth`, { username, password }, token);
+        const response = await electronAPI.authUser(username, password);
+        log(`Auth Result: ${JSON.stringify(response)}`, 'info');
 
         if (response.success && response.data && response.data.success) {
-          currentOperator = response.data.operator;
-          portalLoggedUser.textContent = currentOperator;
-          portalLoginSection.style.display = 'none';
-          portalDashboardSection.style.display = 'flex';
-          portalLoginError.style.display = 'none';
-          log(`QC Operator Session Authorized: "${currentOperator}"`, 'ready');
+          const userData = response.data;
+          currentOperator = userData.username || username;
+          currentCustomerId = userData.id || '';
+          localStorage.setItem('portal_customer_id', String(currentCustomerId));
+          if (portalLoggedUser) portalLoggedUser.textContent = currentOperator;
+          if (portalLoginSection) portalLoginSection.style.display = 'none';
+          if (portalDashboardSection) portalDashboardSection.style.display = 'flex';
+          if (portalLoginError) portalLoginError.style.display = 'none';
+          log(`Session Authorized: "${currentOperator}" (ID: ${currentCustomerId}, Role: ${userData.role})`, 'ready');
           saveOperatorRememberCredentials(username, password, isRemember);
         } else {
-          // Fallback to local admin check in case of API offline / not configured
-          const isLocalValid = (username.toLowerCase() === 'admin' || username.toLowerCase() === 'operator') && password === 'password';
-          if (isLocalValid) {
-            currentOperator = username;
-            portalLoggedUser.textContent = currentOperator;
-            portalLoginSection.style.display = 'none';
-            portalDashboardSection.style.display = 'flex';
-            portalLoginError.style.display = 'none';
-            log(`QC Operator Session Authorized via Local Fallback: "${currentOperator}"`, 'ready');
-            saveOperatorRememberCredentials(username, password, isRemember);
-          } else {
-            const errMsg = response.data?.error || response.error || 'Invalid credentials.';
-            portalLoginError.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${errMsg}`;
-            portalLoginError.style.display = 'block';
-          }
+          currentOperator = '';
+          currentCustomerId = '';
+          localStorage.removeItem('portal_customer_id');
+          localStorage.removeItem('portal_remember');
+          localStorage.removeItem('portal_username');
+          localStorage.removeItem('portal_password');
+          showErr(response.error || 'Invalid credentials. Access denied.');
+          log(`Authentication REJECTED for "${username}": ${response.error}`, 'warn');
         }
       } catch (err) {
-        // Fallback to local admin check
-        const isLocalValid = (username.toLowerCase() === 'admin' || username.toLowerCase() === 'operator') && password === 'password';
-        if (isLocalValid) {
-          currentOperator = username;
-          portalLoggedUser.textContent = currentOperator;
-          portalLoginSection.style.display = 'none';
-          portalDashboardSection.style.display = 'flex';
-          portalLoginError.style.display = 'none';
-          log(`QC Operator Session Authorized via Local Fallback: "${currentOperator}"`, 'ready');
-          saveOperatorRememberCredentials(username, password, isRemember);
-        } else {
-          portalLoginError.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> Authentication error: ${err.message || err}`;
-          portalLoginError.style.display = 'block';
-        }
+        currentOperator = '';
+        currentCustomerId = '';
+        localStorage.removeItem('portal_customer_id');
+        showErr(`Authentication error: ${err.message || err}`);
+        log(`Authentication error for "${username}": ${err.message || err}`, 'error');
       } finally {
         btnPortalLogin.disabled = false;
         btnPortalLogin.innerHTML = originalText;
@@ -2377,11 +2401,38 @@ Common Issues: ${commonIssues}`;
     });
   }
 
+  // Toggle password visibility for modal login
+  const btnModalTogglePass = document.getElementById('btn-modal-toggle-pass');
+  const modalPassInput = document.getElementById('portal-password');
+  const iconModalTogglePass = document.getElementById('icon-modal-toggle-pass');
+  if (btnModalTogglePass && modalPassInput && iconModalTogglePass) {
+    btnModalTogglePass.addEventListener('click', () => {
+      const isPass = modalPassInput.type === 'password';
+      modalPassInput.type = isPass ? 'text' : 'password';
+      iconModalTogglePass.className = isPass ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+    });
+  }
+
+  // Keyboard Enter key submit for modal login
+  ['portal-username', 'portal-password'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          document.getElementById('btn-portal-login')?.click();
+        }
+      });
+    }
+  });
+
   // PORTAL LOGOUT ACTION
   if (btnPortalLogout) {
     btnPortalLogout.addEventListener('click', () => {
       log(`Operator "${currentOperator}" signed out.`, 'info');
       currentOperator = '';
+      currentCustomerId = '';
+      localStorage.removeItem('portal_customer_id');
       portalLoginSection.style.display = 'flex';
       portalDashboardSection.style.display = 'none';
       portalUsernameInput.value = '';
@@ -2415,9 +2466,19 @@ Common Issues: ${commonIssues}`;
           const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
           const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
 
+          const rawCustId = currentCustomerId || localStorage.getItem('portal_customer_id') || currentOperator;
+          const parsedCustId = parseCustomerId(rawCustId);
+          const custIdValue = parsedCustId !== null ? parsedCustId : rawCustId;
+
           const payload = {
             batchCode: cleanBatchCode,
             operator: currentOperator,
+            customerId: custIdValue,
+            customer_id: custIdValue,
+            ap_user_id: custIdValue,
+            userId: custIdValue,
+            user_id: custIdValue,
+            id: custIdValue,
             sessionId: sessionId,
             createdAt: new Date().toISOString()
           };
@@ -2560,23 +2621,23 @@ Common Issues: ${commonIssues}`;
               <h1>BIZZ CO HUB QUALITY CONTROL REPORT</h1>
               <p>Hardware Specification Diagnostics Summary</p>
             </div>
-            <div class="row"><span class="label">Date & Time</span><span class="val">\${new Date().toLocaleString()}</span></div>
-            <div class="row"><span class="label">Session ID</span><span class="val">\${sessionId}</span></div>
-            <div class="row"><span class="label">Operator Signature</span><span class="val">\${currentOperator || 'N/A'}</span></div>
-            <div class="row"><span class="label">Serial Number</span><span class="val">\${systemSpecs.serialNumber || 'N/A'}</span></div>
-            <div class="row"><span class="label">Product Model</span><span class="val">\${systemSpecs.productName || 'N/A'}</span></div>
+            <div class="row"><span class="label">Date & Time</span><span class="val">${new Date().toLocaleString()}</span></div>
+            <div class="row"><span class="label">Session ID</span><span class="val">${sessionId}</span></div>
+            <div class="row"><span class="label">Operator Signature</span><span class="val">${currentOperator || 'N/A'}</span></div>
+            <div class="row"><span class="label">Serial Number</span><span class="val">${systemSpecs.serialNumber || 'N/A'}</span></div>
+            <div class="row"><span class="label">Product Model</span><span class="val">${systemSpecs.productName || 'N/A'}</span></div>
             
             <div class="section-title">Hardware Configuration Profiles</div>
-            <div class="row"><span class="label">Processor (CPU)</span><span class="val">\${systemSpecs.cpu || 'N/A'}</span></div>
-            <div class="row"><span class="label">System Memory (RAM)</span><span class="val">\${systemSpecs.ram || 'N/A'}</span></div>
-            <div class="row"><span class="label">Primary Storage</span><span class="val">\${systemSpecs.ssd || 'N/A'}</span></div>
-            <div class="row"><span class="label">Graphics Adapter</span><span class="val">\${systemSpecs.graphics || 'N/A'}</span></div>
-            <div class="row"><span class="label">Display Resolution</span><span class="val">\${systemSpecs.displayRes || 'N/A'}</span></div>
-            <div class="row"><span class="label">Battery Health Condition</span><span class="val">\${systemSpecs.battery || 'N/A'}</span></div>
-            <div class="row"><span class="label">Operating System</span><span class="val">\${systemSpecs.windowsVer || 'N/A'}</span></div>
+            <div class="row"><span class="label">Processor (CPU)</span><span class="val">${systemSpecs.cpu || 'N/A'}</span></div>
+            <div class="row"><span class="label">System Memory (RAM)</span><span class="val">${systemSpecs.ram || 'N/A'}</span></div>
+            <div class="row"><span class="label">Primary Storage</span><span class="val">${systemSpecs.ssd || 'N/A'}</span></div>
+            <div class="row"><span class="label">Graphics Adapter</span><span class="val">${systemSpecs.graphics || 'N/A'}</span></div>
+            <div class="row"><span class="label">Display Resolution</span><span class="val">${systemSpecs.displayRes || 'N/A'}</span></div>
+            <div class="row"><span class="label">Battery Health Condition</span><span class="val">${systemSpecs.battery || 'N/A'}</span></div>
+            <div class="row"><span class="label">Operating System</span><span class="val">${systemSpecs.windowsVer || 'N/A'}</span></div>
             
             <div class="footer">
-              &copy; \${new Date().getFullYear()} Bizz Co Hub LLC. Automatically generated Quality Check certificate.
+              &copy; ${new Date().getFullYear()} Bizz Co Hub LLC. Automatically generated Quality Check certificate.
             </div>
             <script>
               window.onload = function() {
@@ -3849,70 +3910,66 @@ Common Issues: ${commonIssues}`;
     }
   }
 
+  // DATABASE PAGE PORTAL LOGIN ACTION
   const btnPagePortalLogin = document.getElementById('btn-page-portal-login');
   if (btnPagePortalLogin) {
     btnPagePortalLogin.addEventListener('click', async () => {
+      currentOperator = '';
+      currentCustomerId = '';
+      localStorage.removeItem('portal_customer_id');
+
       const username = document.getElementById('page-portal-username')?.value.trim() || '';
-      const password = document.getElementById('page-portal-password')?.value.trim() || '';
+      const password = document.getElementById('page-portal-password')?.value || '';
       const loginError = document.getElementById('page-portal-login-error');
 
+      const showErr = (msg) => {
+        const el = document.getElementById('page-portal-login-error-text');
+        if (el) el.textContent = msg;
+        else if (loginError) loginError.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${msg}`;
+        if (loginError) loginError.style.display = 'flex';
+      };
+
       if (!username || !password) {
-        if (loginError) {
-          loginError.textContent = 'Username and password are required.';
-          loginError.style.display = 'block';
-        }
+        showErr('Both username and password are required.');
         return;
       }
 
       btnPagePortalLogin.disabled = true;
       const originalText = btnPagePortalLogin.innerHTML;
-      btnPagePortalLogin.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Authenticating...';
+      btnPagePortalLogin.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifying...';
       if (loginError) loginError.style.display = 'none';
 
       const rememberCheckbox = document.getElementById('page-portal-remember');
       const isRemember = rememberCheckbox ? rememberCheckbox.checked : false;
 
       try {
-        const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
-        const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
-
-        const response = await electronAPI.httpPost(`${apiUrl}/qc/auth`, { username, password }, token);
+        const response = await electronAPI.authUser(username, password);
+        log(`Auth Result (Database page): ${JSON.stringify(response)}`, 'info');
 
         if (response.success && response.data && response.data.success) {
-          currentOperator = response.data.operator;
-          log(`QC Operator Session Authorized (Database page): "${currentOperator}"`, 'ready');
+          const userData = response.data;
+          currentOperator = userData.username || username;
+          currentCustomerId = userData.id || '';
+          localStorage.setItem('portal_customer_id', String(currentCustomerId));
+          log(`Session Authorized (DB page): "${currentOperator}" (ID: ${currentCustomerId}, Role: ${userData.role})`, 'ready');
           loadDatabasePortalView();
           saveOperatorRememberCredentials(username, password, isRemember);
         } else {
-          // Fallback to local admin check
-          const isLocalValid = (username.toLowerCase() === 'admin' || username.toLowerCase() === 'operator') && password === 'password';
-          if (isLocalValid) {
-            currentOperator = username;
-            log(`QC Operator Session Authorized via Local Fallback (Database page): "${currentOperator}"`, 'ready');
-            loadDatabasePortalView();
-            saveOperatorRememberCredentials(username, password, isRemember);
-          } else {
-            if (loginError) {
-              const errMsg = response.data?.error || response.error || 'Invalid credentials.';
-              loginError.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${errMsg}`;
-              loginError.style.display = 'block';
-            }
-          }
+          currentOperator = '';
+          currentCustomerId = '';
+          localStorage.removeItem('portal_customer_id');
+          localStorage.removeItem('portal_remember');
+          localStorage.removeItem('portal_username');
+          localStorage.removeItem('portal_password');
+          showErr(response.error || 'Invalid credentials. Access denied.');
+          log(`Authentication REJECTED for "${username}": ${response.error}`, 'warn');
         }
       } catch (err) {
-        // Fallback to local admin check
-        const isLocalValid = (username.toLowerCase() === 'admin' || username.toLowerCase() === 'operator') && password === 'password';
-        if (isLocalValid) {
-          currentOperator = username;
-          log(`QC Operator Session Authorized via Local Fallback (Database page): "${currentOperator}"`, 'ready');
-          loadDatabasePortalView();
-          saveOperatorRememberCredentials(username, password, isRemember);
-        } else {
-          if (loginError) {
-            loginError.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> Authentication error: ${err.message || err}`;
-            loginError.style.display = 'block';
-          }
-        }
+        currentOperator = '';
+        currentCustomerId = '';
+        localStorage.removeItem('portal_customer_id');
+        showErr(`Authentication error: ${err.message || err}`);
+        log(`Authentication error for "${username}": ${err.message || err}`, 'error');
       } finally {
         btnPagePortalLogin.disabled = false;
         btnPagePortalLogin.innerHTML = originalText;
@@ -3920,11 +3977,38 @@ Common Issues: ${commonIssues}`;
     });
   }
 
+  // Toggle password visibility for page login
+  const btnPageTogglePass = document.getElementById('btn-page-toggle-pass');
+  const pagePassInput = document.getElementById('page-portal-password');
+  const iconPageTogglePass = document.getElementById('icon-page-toggle-pass');
+  if (btnPageTogglePass && pagePassInput && iconPageTogglePass) {
+    btnPageTogglePass.addEventListener('click', () => {
+      const isPass = pagePassInput.type === 'password';
+      pagePassInput.type = isPass ? 'text' : 'password';
+      iconPageTogglePass.className = isPass ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+    });
+  }
+
+  // Keyboard Enter key submit for page login
+  ['page-portal-username', 'page-portal-password'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          document.getElementById('btn-page-portal-login')?.click();
+        }
+      });
+    }
+  });
+
   const btnPagePortalLogout = document.getElementById('btn-page-portal-logout');
   if (btnPagePortalLogout) {
     btnPagePortalLogout.addEventListener('click', () => {
       log(`Operator "${currentOperator}" signed out from Database page.`, 'info');
       currentOperator = '';
+      currentCustomerId = '';
+      localStorage.removeItem('portal_customer_id');
       loadDatabasePortalView();
     });
   }
@@ -3975,8 +4059,26 @@ Common Issues: ${commonIssues}`;
     try {
       const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
       const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
-      const result = await electronAPI.httpGet(`${apiUrl}/create-batch`, token);
-      portalBatches = (result && result.success && result.data && result.data.batches) ? result.data.batches : [];
+      const custId = currentCustomerId || localStorage.getItem('portal_customer_id') || currentOperator;
+      const queryParams = [];
+      if (custId) {
+        queryParams.push(`customerId=${encodeURIComponent(custId)}`);
+        queryParams.push(`customer_id=${encodeURIComponent(custId)}`);
+        queryParams.push(`operator=${encodeURIComponent(currentOperator)}`);
+      }
+      const queryString = queryParams.length > 0 ? `?${queryParams.join('&')}` : '';
+      const result = await electronAPI.httpGet(`${apiUrl}/create-batch${queryString}`, token);
+      let rawBatches = (result && result.success && result.data && result.data.batches) ? result.data.batches : [];
+      if (custId && Array.isArray(rawBatches)) {
+        // If batch objects have customer/operator ownership fields, ensure user-level filtering
+        const userFiltered = rawBatches.filter(b => {
+          const bCust = b.customerId || b.customer_id || b.userId || b.user_id || b.operator;
+          return !bCust || bCust === custId || bCust === currentOperator;
+        });
+        portalBatches = userFiltered;
+      } else {
+        portalBatches = rawBatches;
+      }
     } catch (e) {
       portalBatches = [];
     }
@@ -4295,7 +4397,23 @@ Common Issues: ${commonIssues}`;
       try {
         const apiUrl = (localStorage.getItem('setting_api_url') || 'https://www.bizzcohub.com/api').replace(/\/$/, '');
         const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
-        const result = await electronAPI.httpPost(`${apiUrl}/create-batch`, { batchCode: cleanBatchCode, operator: currentOperator, sessionId }, token);
+        const rawCustId = currentCustomerId || localStorage.getItem('portal_customer_id') || currentOperator;
+        const parsedCustId = parseCustomerId(rawCustId);
+        const custIdValue = parsedCustId !== null ? parsedCustId : rawCustId;
+
+        const payload = {
+          batchCode: cleanBatchCode,
+          operator: currentOperator,
+          customerId: custIdValue,
+          customer_id: custIdValue,
+          ap_user_id: custIdValue,
+          userId: custIdValue,
+          user_id: custIdValue,
+          id: custIdValue,
+          sessionId: sessionId,
+          createdAt: new Date().toISOString()
+        };
+        const result = await electronAPI.httpPost(`${apiUrl}/create-batch`, payload, token);
 
         if (result.success) {
           activeBatchCode = cleanBatchCode;
@@ -4455,14 +4573,21 @@ Common Issues: ${commonIssues}`;
 
     const formattedSpecs = formatSpecsForUpload(systemSpecs);
 
+    const custId = currentCustomerId || localStorage.getItem('portal_customer_id') || currentOperator;
     const payload = {
       batchCode: activeBatchCode,
       timestamp: new Date().toISOString(),
       sessionId: sessionId,
       operator: currentOperator,
+      customerId: custId,
+      customer_id: custId,
+      userId: custId,
+      user_id: custId,
       specs: {
         ...formattedSpecs,
-        operator: currentOperator
+        operator: currentOperator,
+        customerId: custId,
+        customer_id: custId
       }
     };
 
@@ -4880,24 +5005,34 @@ Common Issues: ${commonIssues}`;
           const token = localStorage.getItem('setting_api_token') || 'bch_live_secret_7742a';
 
           const response = await electronAPI.httpPost(`${apiUrl}/qc/auth`, { username, password }, token);
+          const resData = response.data || {};
+          const hasError = resData.error || (typeof resData.message === 'string' && (resData.message.toLowerCase().includes('invalid') || resData.message.toLowerCase().includes('wrong') || resData.message.toLowerCase().includes('incorrect') || resData.message.toLowerCase().includes('failed'))) || resData.success === false || resData.status === 'error' || resData.status === 'failed' || resData.status === false;
+          const isAuthorized = response.success && resData && !hasError && (resData.success === true || resData.status === 'success' || resData.status === 'ok' || resData.authenticated === true);
 
-          if (response.success && response.data && response.data.success) {
-            currentOperator = response.data.operator;
-            log(`QC Operator Session Auto-Authorized: "${currentOperator}"`, 'ready');
+          if (isAuthorized) {
+            currentOperator = resData.operator || username;
+            const userObj = resData.user || resData.data || resData.result || resData.ap_user || resData;
+            const rawId = userObj.id || userObj.ap_user_id || userObj.user_id || userObj.customer_id || userObj.customerId || userObj.userId || resData.id || resData.customer_id;
+            const parsedId = parseCustomerId(rawId);
+            currentCustomerId = parsedId !== null ? parsedId : (rawId || currentOperator);
+            localStorage.setItem('portal_customer_id', currentCustomerId);
+            log(`QC Operator Session Auto-Authorized: "${currentOperator}" (Customer ID: ${currentCustomerId})`, 'ready');
             loadDatabasePortalView();
           } else {
-            // Local fallback check
-            const isLocalValid = (username.toLowerCase() === 'admin' || username.toLowerCase() === 'operator') && password === 'password';
-            if (isLocalValid) {
-              currentOperator = username;
-              log(`QC Operator Session Auto-Authorized via Local Fallback: "${currentOperator}"`, 'ready');
-              loadDatabasePortalView();
-            } else {
-              log(`Auto-authorization failed: Invalid stored credentials.`, 'warn');
-            }
+            currentOperator = '';
+            currentCustomerId = '';
+            localStorage.removeItem('portal_customer_id');
+            localStorage.removeItem('portal_remember');
+            localStorage.removeItem('portal_username');
+            localStorage.removeItem('portal_password');
+            log(`Auto-authorization failed for "${username}": Stored credentials rejected by server database.`, 'warn');
+            loadDatabasePortalView();
           }
         } catch (err) {
-          log(`Auto-authorization error: ${err.message || err}`, 'error');
+          currentOperator = '';
+          currentCustomerId = '';
+          localStorage.removeItem('portal_customer_id');
+          log(`Auto-authorization error for "${username}": ${err.message || err}`, 'error');
         }
       }
     }

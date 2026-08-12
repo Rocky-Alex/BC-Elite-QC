@@ -58,6 +58,11 @@ identifier = "allow-http-get"
 description = "Allow http_get command"
 commands.allow = ["http_get"]
 
+[[permission]]
+identifier = "allow-auth-user"
+description = "Allow auth_user command"
+commands.allow = ["auth_user"]
+
 [default]
 description = "Allow all custom commands"
 permissions = [
@@ -72,5 +77,6 @@ permissions = [
   "allow-set-fullscreen",
   "allow-get-app-version",
   "allow-http-post",
-  "allow-http-get"
+  "allow-http-get",
+  "allow-auth-user"
 ]

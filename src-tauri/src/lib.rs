@@ -1,6 +1,7 @@
 use std::process::Command;
 use std::path::{Path, PathBuf};
 use std::fs;
+use sha2::{Sha256, Digest};
 
 // Helper function to resolve tool paths dynamically
 fn resolve_tool_path(file_name: &str, folder_name: &str) -> PathBuf {
@@ -467,6 +468,74 @@ async fn http_get(url: String, token: String) -> Result<String, String> {
     }
 }
 
+// 11. Direct Neon PostgreSQL authentication — queries ap_users and verifies SHA-256 password hash
+#[tauri::command]
+async fn auth_user(username: String, password: String) -> Result<String, String> {
+    // Compute SHA-256 hex of entered password
+    let mut hasher = Sha256::new();
+    hasher.update(password.as_bytes());
+    let entered_hash = hex::encode(hasher.finalize());
+
+    // Connect to Neon PostgreSQL via TLS
+    let conn_str = "host=ep-restless-wave-aytxak6k-pooler.c-5.us-east-2.aws.neon.tech \
+        port=5432 \
+        dbname=neondb \
+        user=neondb_owner \
+        password=npg_3xEmveHMs5za \
+        sslmode=require";
+
+    let connector = native_tls::TlsConnector::builder()
+        .danger_accept_invalid_certs(false)
+        .build()
+        .map_err(|e| format!("TLS connector error: {}", e))?;
+    let connector = postgres_native_tls::MakeTlsConnector::new(connector);
+
+    let (client, connection) = tokio_postgres::connect(conn_str, connector)
+        .await
+        .map_err(|e| format!("DB connection failed: {}", e))?;
+
+    // Run connection in background
+    tokio::spawn(async move {
+        if let Err(e) = connection.await {
+            eprintln!("DB connection error: {}", e);
+        }
+    });
+
+    // Query for active user by username (case-insensitive)
+    let rows = client
+        .query(
+            "SELECT id, username, password_hash, role, status FROM ap_users WHERE LOWER(username) = LOWER($1) AND status = 'Active' LIMIT 1",
+            &[&username],
+        )
+        .await
+        .map_err(|e| format!("DB query failed: {}", e))?;
+
+    if rows.is_empty() {
+        return Err("User not found or account inactive.".to_string());
+    }
+
+    let row = &rows[0];
+    let db_hash: String = row.get("password_hash");
+    let user_id: i32 = row.get("id");
+    let user_role: String = row.get("role");
+    let db_username: String = row.get("username");
+
+    // Strict password hash comparison
+    if db_hash != entered_hash {
+        return Err("Invalid password. Access denied.".to_string());
+    }
+
+    // Return user info as JSON on success
+    let result = serde_json::json!({
+        "success": true,
+        "id": user_id,
+        "username": db_username,
+        "role": user_role
+    });
+
+    Ok(result.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -516,7 +585,8 @@ pub fn run() {
             get_sound_files,
             open_sound_folder,
             http_post,
-            http_get
+            http_get,
+            auth_user
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

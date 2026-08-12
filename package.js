@@ -47,8 +47,8 @@ try {
   process.exit(1);
 }
 
-// Temporarily overwrite version to "1.5.1" for setup compiling and zip archiving
-const releasePkg = { ...pkg, version: '1.5.1' };
+// Temporarily overwrite version to "1.5" for setup compiling and zip archiving
+const releasePkg = { ...pkg, version: '1.5' };
 fs.writeFileSync('package.json', JSON.stringify(releasePkg, null, 2), 'utf8');
 
 try {
@@ -111,8 +111,8 @@ try {
   }
 
   // 4. Zip the Portable Version using PowerShell
-  // Use "1.5.1" directly for the archive name
-  const zipName = `QC_Software_Portable_v1.5.1.zip`;
+  // Use "1.5" directly for the archive name
+  const zipName = `QC_Software_Portable_v1.5.zip`;
   const zipPath = path.join(outputDir, zipName);
 
   console.log(`\n--- Step 3: Compressing Portable Version into ${zipName} ---`);

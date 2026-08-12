@@ -22,7 +22,7 @@
           <img src="app_logo.png" class="logo-image">
           <span class="logo-text">BC Elite QC</span>
         </div>
-        <span class="version-badge">SYSTEM V1.5.1</span>
+        <span class="version-badge">SYSTEM V1.5</span>
       </div>
 
       <nav class="sidebar-nav">
@@ -484,50 +484,70 @@
 
       <!-- DATABASE PORTAL VIEW -->
       <div class="dashboard-body app-view" id="view-database-portal" style="display: none; flex-direction: column;">
-        <div class="view-header">
-          <h1 class="view-title">Database Sync &amp; Portal</h1>
-          <p class="view-subtitle">Sync diagnostic logs, manage device batch categories, and view centralized history
-            logs.</p>
-        </div>
 
         <div class="specifications-grid" style="grid-template-columns: 1fr; flex-grow: 1;">
 
-          <!-- LOGIN SECTION -->
+          <!-- CLEAN CENTERED LOGIN CARD -->
           <div class="spec-card" id="page-portal-login-section"
-            style="max-width: 500px; margin: 30px auto; width: 100%;">
-            <div class="card-header">
-              <span class="card-title"><i class="fa-solid fa-lock"
-                  style="color: var(--color-blue); margin-right: 6px;"></i> Operator Authorization</span>
+            style="max-width: 460px; margin: 40px auto; width: 100%; border: 1px solid var(--border-color); border-radius: 14px; box-shadow: 0 12px 36px rgba(0,0,0,0.12); overflow: hidden; background: var(--bg-card);">
+            <div class="card-header" style="padding: 18px 22px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+              <span class="card-title" style="font-size: 14.5px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-shield-halved" style="color: var(--color-blue); font-size: 16px;"></i> Admin Database Authorization
+              </span>
             </div>
-            <div class="card-body" style="display: flex; flex-direction: column; gap: 16px; padding: 24px;">
-              <p style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; margin-bottom: 5px;">Enter
-                credentials to authorize your QC session and sync hardware logs.</p>
-              <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div class="card-body" style="display: flex; flex-direction: column; gap: 18px; padding: 24px;">
+              <p style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+                Sign in with your registered website administrator account details.
+              </p>
+              
+              <div style="display: flex; flex-direction: column; gap: 16px;">
+                <!-- Username Input Wrapper -->
                 <div style="display: flex; flex-direction: column; gap: 6px;">
-                  <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">Operator
-                    Username</span>
-                  <input type="text" id="page-portal-username" placeholder="Username (admin or operator)..."
-                    style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(120, 120, 128, 0.1); color: var(--text-main); font-size: 13px; outline: none;">
+                  <label for="page-portal-username" style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-user-shield" style="font-size: 11px; color: var(--color-blue);"></i> Admin Username
+                  </label>
+                  <div style="position: relative; width: 100%;">
+                    <input type="text" id="page-portal-username" placeholder="Enter username..." autocomplete="username"
+                      style="width: 100%; padding: 12px 14px 12px 38px; border-radius: 10px; border: 1px solid var(--border-color); background: rgba(120, 120, 128, 0.08); color: var(--text-main); font-size: 13.5px; outline: none; transition: all 0.2s ease;">
+                    <i class="fa-solid fa-user" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 13px; color: var(--text-secondary); opacity: 0.6; pointer-events: none;"></i>
+                  </div>
                 </div>
+
+                <!-- Password Input Wrapper with Show/Hide Toggle -->
                 <div style="display: flex; flex-direction: column; gap: 6px;">
-                  <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">Access Password</span>
-                  <input type="password" id="page-portal-password" placeholder="Password..."
-                    style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(120, 120, 128, 0.1); color: var(--text-main); font-size: 13px; outline: none;">
+                  <label for="page-portal-password" style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-key" style="font-size: 11px; color: var(--color-blue);"></i> Password
+                  </label>
+                  <div style="position: relative; width: 100%;">
+                    <input type="password" id="page-portal-password" placeholder="Enter password..." autocomplete="current-password"
+                      style="width: 100%; padding: 12px 42px 12px 38px; border-radius: 10px; border: 1px solid var(--border-color); background: rgba(120, 120, 128, 0.08); color: var(--text-main); font-size: 13.5px; outline: none; transition: all 0.2s ease;">
+                    <i class="fa-solid fa-lock" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 13px; color: var(--text-secondary); opacity: 0.6; pointer-events: none;"></i>
+                    <button type="button" id="btn-page-toggle-pass" title="Toggle password visibility"
+                      style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 6px; font-size: 13px; opacity: 0.7; transition: opacity 0.15s ease;">
+                      <i class="fa-solid fa-eye" id="icon-page-toggle-pass"></i>
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; user-select: none;">
-                <input type="checkbox" id="page-portal-remember"
-                  style="width: 14px; height: 14px; cursor: pointer; accent-color: var(--color-blue);">
-                <label for="page-portal-remember"
-                  style="font-size: 11.5px; color: var(--text-secondary); cursor: pointer;">Remember credentials</label>
+
+              <div style="display: flex; align-items: center; justify-content: space-between; user-select: none;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: var(--text-secondary);">
+                  <input type="checkbox" id="page-portal-remember"
+                    style="width: 15px; height: 15px; cursor: pointer; accent-color: var(--color-blue);">
+                  <span>Remember session</span>
+                </label>
               </div>
+
+              <!-- Error Alert Banner Callout -->
               <div id="page-portal-login-error"
-                style="color: var(--color-red); font-size: 12px; font-weight: 600; display: none;">
-                <i class="fa-solid fa-circle-exclamation"></i> Invalid credentials.
+                style="display: none; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 10px; background: rgba(255, 69, 58, 0.12); border: 1px solid rgba(255, 69, 58, 0.35); color: var(--color-red); font-size: 12px; font-weight: 500; line-height: 1.45;">
+                <i class="fa-solid fa-circle-exclamation" style="font-size: 14px; margin-top: 2px; flex-shrink: 0;"></i>
+                <span id="page-portal-login-error-text">Invalid credentials. Access denied.</span>
               </div>
+
               <button class="modal-btn-action btn-blue-accent" id="btn-page-portal-login"
-                style="margin: 10px 0 0 0; padding: 12px; justify-content: center; font-weight: 600; width: 100%;">
-                <i class="fa-solid fa-lock-open"></i> Authorize Session
+                style="margin-top: 4px; padding: 13px; justify-content: center; font-weight: 600; width: 100%; font-size: 14px; border-radius: 10px; cursor: pointer; gap: 8px; box-shadow: 0 4px 14px rgba(0, 122, 255, 0.35); transition: all 0.2s ease;">
+                <i class="fa-solid fa-right-to-bracket"></i> Sign In to Database
               </button>
             </div>
           </div>
@@ -2930,37 +2950,50 @@
       <div class="modal-body" style="padding: 20px;">
 
         <!-- 1. Authorization Login Section -->
-        <div id="portal-login-section" style="display: flex; flex-direction: column; gap: 15px;">
-          <p style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.55; margin-bottom: 5px;">
-            Enter temporary credentials to authorize your QC session and sync hardware logs.
+        <div id="portal-login-section" style="display: flex; flex-direction: column; gap: 16px; padding: 4px;">
+          <p style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; margin: 0;">
+            Sign in with your registered website administrator account (from <code>ap_users</code> table) to authorize your session.
           </p>
-          <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; flex-direction: column; gap: 14px;">
             <div style="display: flex; flex-direction: column; gap: 6px;">
-              <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">Operator Username</span>
-              <input type="text" id="portal-username" placeholder="Username (e.g. admin)..."
-                style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(120, 120, 128, 0.1); color: var(--text-main); font-size: 13px; outline: none;">
+              <span style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 5px;">
+                <i class="fa-solid fa-user-shield" style="font-size: 11px;"></i> Operator Username
+              </span>
+              <div style="position: relative; width: 100%;">
+                <input type="text" id="portal-username" placeholder="Username..." autocomplete="username"
+                  style="width: 100%; padding: 11px 14px 11px 36px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(120, 120, 128, 0.08); color: var(--text-main); font-size: 13.5px; outline: none;">
+                <i class="fa-solid fa-user" style="position: absolute; left: 13px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--text-secondary); opacity: 0.6; pointer-events: none;"></i>
+              </div>
             </div>
             <div style="display: flex; flex-direction: column; gap: 6px;">
-              <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">Access Password</span>
-              <input type="password" id="portal-password" placeholder="Password..."
-                style="width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(120, 120, 128, 0.1); color: var(--text-main); font-size: 13px; outline: none;">
+              <span style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 5px;">
+                <i class="fa-solid fa-key" style="font-size: 11px;"></i> Access Password
+              </span>
+              <div style="position: relative; width: 100%;">
+                <input type="password" id="portal-password" placeholder="Password..." autocomplete="current-password"
+                  style="width: 100%; padding: 11px 40px 11px 36px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(120, 120, 128, 0.08); color: var(--text-main); font-size: 13.5px; outline: none;">
+                <i class="fa-solid fa-lock" style="position: absolute; left: 13px; top: 50%; transform: translateY(-50%); font-size: 12px; color: var(--text-secondary); opacity: 0.6; pointer-events: none;"></i>
+                <button type="button" id="btn-modal-toggle-pass" title="Toggle password visibility"
+                  style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-secondary); cursor: pointer; padding: 4px; font-size: 13px; opacity: 0.7;">
+                  <i class="fa-solid fa-eye" id="icon-modal-toggle-pass"></i>
+                </button>
+              </div>
             </div>
           </div>
-          <div
-            style="display: flex; align-items: center; gap: 8px; margin-top: 6px; user-select: none; margin-bottom: 2px;">
+          <div style="display: flex; align-items: center; gap: 8px; user-select: none;">
             <input type="checkbox" id="portal-remember"
-              style="width: 14px; height: 14px; cursor: pointer; accent-color: var(--color-blue);">
+              style="width: 15px; height: 15px; cursor: pointer; accent-color: var(--color-blue);">
             <label for="portal-remember"
-              style="font-size: 11.5px; color: var(--text-secondary); cursor: pointer;">Remember credentials</label>
+              style="font-size: 12px; color: var(--text-secondary); cursor: pointer;">Remember credentials</label>
           </div>
           <div id="portal-login-error"
-            style="color: var(--color-red); font-size: 12px; font-weight: 600; display: none; margin-top: 5px;">
-            <i class="fa-solid fa-circle-exclamation"></i> Invalid credentials. Use <code>admin</code> /
-            <code>password</code>.
+            style="display: none; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 8px; background: rgba(255, 69, 58, 0.1); border: 1px solid rgba(255, 69, 58, 0.3); color: var(--color-red); font-size: 12px; font-weight: 500; line-height: 1.45;">
+            <i class="fa-solid fa-circle-exclamation" style="font-size: 14px; margin-top: 2px; flex-shrink: 0;"></i>
+            <span id="portal-login-error-text">Invalid credentials. Check username & password.</span>
           </div>
           <button class="modal-btn-action btn-blue-accent" id="btn-portal-login"
-            style="margin: 10px 0 0 0; padding: 12px; justify-content: center; font-weight: 600; width: 100%;">
-            <i class="fa-solid fa-lock-open"></i> Authorize Session
+            style="margin-top: 4px; padding: 12px; justify-content: center; font-weight: 600; width: 100%; font-size: 13.5px; border-radius: 8px; cursor: pointer; gap: 8px;">
+            <i class="fa-solid fa-right-to-bracket"></i> Authorize Session
           </button>
         </div>
 
@@ -2969,7 +3002,7 @@
           <div
             style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--border-color);">
             <span style="font-size: 13px; color: var(--text-secondary);">Session Operator: <strong
-                id="portal-logged-user" style="color: var(--color-green);">admin</strong></span>
+                id="portal-logged-user" style="color: var(--color-green);">-</strong></span>
             <button class="modal-btn-action" id="btn-portal-logout"
               style="padding: 4px 10px; font-size: 11px; color: var(--color-red); border-color: rgba(255, 69, 58, 0.2); background: rgba(255, 69, 58, 0.05); margin: 0; font-weight: 600;">
               <i class="fa-solid fa-right-from-bracket"></i> Log Out
