@@ -1,6 +1,6 @@
 {
   "name": "bc-elite-qc",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "BC Elite QC - Quality Checking Suite",
   "scripts": {
     "start": "set PATH=C:\\msys64\\mingw64\\bin;%USERPROFILE%\\.cargo\\bin;%PATH%&& tauri dev",
