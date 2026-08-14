@@ -39,14 +39,14 @@ Source: "f:\Company Software\QC Software - Remaster\installer_logo.bmp"; Flags: 
 Source: "f:\Company Software\QC Software - Remaster\installation_bg.bmp"; Flags: dontcopy
 
 [Tasks]
-Name: "desktopicon"; Description: "Create Desktop Shortcuts"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
-Name: "desktopicon\master"; Description: "BizzCoHub QC Software (Master Checker)"; Flags: unchecked
-Name: "desktopicon\battery"; Description: "Battery Checker"; Flags: unchecked
-Name: "desktopicon\cpuz"; Description: "CPU-Z Hardware Info"; Flags: unchecked
-Name: "desktopicon\hdsentinel"; Description: "Hard Disk Sentinel"; Flags: unchecked
-Name: "desktopicon\keyboard"; Description: "Keyboard Checker"; Flags: unchecked
-Name: "desktopicon\lcd"; Description: "LCD Pixel Checker"; Flags: unchecked
-Name: "desktopicon\sound"; Description: "Sound Output Checker"; Flags: unchecked
+Name: "desktopicon"; Description: "Create Desktop Shortcuts"; GroupDescription: "Additional shortcuts:"
+Name: "desktopicon\master"; Description: "BizzCoHub QC Software (Master Checker)"
+Name: "desktopicon\battery"; Description: "Battery Checker"
+Name: "desktopicon\cpuz"; Description: "CPU-Z Hardware Info"
+Name: "desktopicon\hdsentinel"; Description: "Hard Disk Sentinel"
+Name: "desktopicon\keyboard"; Description: "Keyboard Checker"
+Name: "desktopicon\lcd"; Description: "LCD Pixel Checker"
+Name: "desktopicon\sound"; Description: "Sound Output Checker"
 
 [Icons]
 Name: "{commondesktop}\BC Elite QC"; Filename: "{app}\Master Checker\BizzCoHubQC.exe"; IconFilename: "{app}\icon.ico"; WorkingDir: "{app}\Master Checker"; Comment: "Run Quality Control Diagnostics"; Tasks: desktopicon\master

@@ -6,4 +6,4 @@
 // (e.g. "v1.0.6-Beta", "Enterprise Edition", etc.).
 // If left empty or undefined, it will fallback to the Tauri package version.
 // ============================================================================
-window.APP_VERSION = "1.5";
+window.APP_VERSION = "1.5.1";

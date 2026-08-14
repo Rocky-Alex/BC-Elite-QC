@@ -63,6 +63,31 @@ identifier = "allow-auth-user"
 description = "Allow auth_user command"
 commands.allow = ["auth_user"]
 
+[[permission]]
+identifier = "allow-save-qc-device-upload"
+description = "Allow save_qc_device_upload command"
+commands.allow = ["save_qc_device_upload"]
+
+[[permission]]
+identifier = "allow-get-qc-device-uploads"
+description = "Allow get_qc_device_uploads command"
+commands.allow = ["get_qc_device_uploads"]
+
+[[permission]]
+identifier = "allow-get-qc-device-batches"
+description = "Allow get_qc_device_batches command"
+commands.allow = ["get_qc_device_batches"]
+
+[[permission]]
+identifier = "allow-delete-qc-device-batch"
+description = "Allow delete_qc_device_batch command"
+commands.allow = ["delete_qc_device_batch"]
+
+[[permission]]
+identifier = "allow-delete-qc-device-record"
+description = "Allow delete_qc_device_record command"
+commands.allow = ["delete_qc_device_record"]
+
 [default]
 description = "Allow all custom commands"
 permissions = [
@@ -78,5 +103,12 @@ permissions = [
   "allow-get-app-version",
   "allow-http-post",
   "allow-http-get",
-  "allow-auth-user"
+  "allow-auth-user",
+  "allow-save-qc-device-upload",
+  "allow-get-qc-device-uploads",
+  "allow-get-qc-device-batches",
+  "allow-delete-qc-device-batch",
+  "allow-delete-qc-device-record"
 ]
+
+
