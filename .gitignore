@@ -35,12 +35,16 @@ BizzCoHub QC File.bat
 *.dll
 *.dlz
 *.dat
-*.dat
 *.chm
 *.lng
+log.txt
+DriveAddRemoveLog.txt
+winsched.txt
+hdsversion.txt
+hds_eula_en.txt
+
 # Temporary build & packaging directories
 temp_portable_customer/
 temp_portable_admin/
 dist_setups/
 .agents/
-
