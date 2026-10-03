@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BC Elite QC</title>
-  <!-- Locally-hosted fonts: Inter + JetBrains Mono (no external requests) -->
+  <!-- Locally-hosted fonts: Inter, JetBrains Mono & PT Serif (100% offline, no external requests) -->
   <link rel="stylesheet" href="fonts/fa/css/fonts.css">
   <!-- Locally-hosted Font Awesome 6.4.0 (no CDN, no tracking warnings) -->
   <link rel="stylesheet" href="fonts/fa/css/all.min.css">
@@ -13,6 +13,84 @@
 </head>
 
 <body>
+  <!-- APP STARTUP LOADING SCREEN (Stylish Glassmorphic Card strictly matching existing UI) -->
+  <div id="app-startup-loader" class="startup-loader-overlay">
+    <div class="startup-loader-backdrop">
+      <div class="startup-ambient-mesh-1"></div>
+      <div class="startup-ambient-mesh-2"></div>
+    </div>
+    
+    <div class="startup-loader-card">
+      <div class="startup-card-ambient-glow"></div>
+
+      <!-- Top Branding Section -->
+      <div class="startup-loader-top">
+        <div class="startup-loader-logo-wrapper">
+          <div class="startup-loader-ring-outer"></div>
+          <div class="startup-loader-ring-inner"></div>
+          <div class="startup-loader-logo-bg">
+            <img src="app_logo.png" class="startup-loader-logo" alt="BC Elite QC" style="width: 44px; height: 44px; object-fit: contain; max-width: 44px; max-height: 44px;">
+          </div>
+          <div class="startup-loader-glow"></div>
+        </div>
+        
+        <div class="startup-loader-header">
+          <div class="startup-brand-tag">QUALITY CONTROL SUITE</div>
+          <h1 class="startup-loader-title">BC Elite QC</h1>
+        </div>
+      </div>
+
+      <!-- Hardware Scanning Pipeline Matrix -->
+      <div class="startup-pipeline-chips">
+        <div class="pipeline-chip active" id="pipe-chip-core" title="CPU & Core Architecture">
+          <i class="fa-solid fa-microchip"></i>
+          <span>CPU</span>
+        </div>
+        <div class="pipeline-chip" id="pipe-chip-ram" title="Memory Subsystem">
+          <i class="fa-solid fa-memory"></i>
+          <span>RAM</span>
+        </div>
+        <div class="pipeline-chip" id="pipe-chip-ssd" title="Storage & Drives">
+          <i class="fa-solid fa-hard-drive"></i>
+          <span>Storage</span>
+        </div>
+        <div class="pipeline-chip" id="pipe-chip-gpu" title="Graphics Engine">
+          <i class="fa-solid fa-gamepad"></i>
+          <span>GPU</span>
+        </div>
+        <div class="pipeline-chip" id="pipe-chip-bat" title="Battery & Health">
+          <i class="fa-solid fa-battery-half"></i>
+          <span>Battery</span>
+        </div>
+      </div>
+
+      <!-- Progress Track & Dynamic Realtime Status -->
+      <div class="startup-loader-body">
+        <div class="startup-loader-bar-container">
+          <div class="startup-loader-bar" id="startup-loader-bar">
+            <div class="startup-bar-glow-head"></div>
+          </div>
+        </div>
+        
+        <div class="startup-loader-status-row">
+          <div class="startup-loader-status">
+            <span class="startup-pulse-beacon"></span>
+            <span id="startup-loader-status-text">Initializing hardware diagnostics engine...</span>
+          </div>
+          <span class="startup-loader-percent" id="startup-loader-percent">0%</span>
+        </div>
+      </div>
+
+      <!-- Bottom Security & Status Subtitle -->
+      <div class="startup-loader-footer">
+        <span class="startup-footer-text">
+          <i class="fa-solid fa-circle-check" style="color: var(--color-green); margin-right: 5px;"></i>
+          System hardware discovery in progress &bull; Please wait
+        </span>
+      </div>
+    </div>
+  </div>
+
   <div class="app-container">
 
     <!-- LEFT SIDEBAR -->
@@ -22,7 +100,7 @@
           <img src="app_logo.png" class="logo-image">
           <span class="logo-text">BC Elite QC</span>
         </div>
-        <span class="version-badge">SYSTEM V1.5.1</span>
+        <span class="version-badge">SYSTEM V1.6</span>
       </div>
 
       <nav class="sidebar-nav">
@@ -58,13 +136,13 @@
           <span>Battery Details</span>
         </a>
         <a href="#" class="nav-item" id="nav-keyboard-test">
-          <div class="sidebar-icon-wrapper icon-keyboard">
-            <i class="fa-solid fa-keyboard"></i>
+          <div class="sidebar-icon-wrapper icon-keyboard" style="display: flex; align-items: center; justify-content: center; padding: 2px;">
+            <img src="keyboard-icon.png" alt="Keyboard" style="width: 22px; height: 22px; object-fit: contain; border-radius: 4px; display: block;" />
           </div>
           <span>Keyboard Test</span>
         </a>
         <a href="#" class="nav-item" id="nav-lcd-test">
-          <div class="sidebar-icon-wrapper" style="background: rgba(0, 224, 255, 0.15); color: #00e0ff;">
+          <div class="sidebar-icon-wrapper icon-lcd">
             <i class="fa-solid fa-desktop"></i>
           </div>
           <span>LCD Test</span>
@@ -76,14 +154,13 @@
           <span>Sound Checking</span>
         </a>
         <a href="#" class="nav-item" id="nav-camera-test">
-          <div class="sidebar-icon-wrapper" style="background: rgba(249, 115, 22, 0.15); color: #f97316;">
+          <div class="sidebar-icon-wrapper icon-camera">
             <i class="fa-solid fa-camera"></i>
           </div>
           <span>Camera Test</span>
         </a>
         <a href="#" class="nav-item" id="nav-database-portal" style="display: none;">
-          <div class="sidebar-icon-wrapper icon-graphics"
-            style="background: rgba(16, 185, 129, 0.15); color: var(--color-green);">
+          <div class="sidebar-icon-wrapper icon-database">
             <i class="fa-solid fa-database"></i>
           </div>
           <span>Database Portal</span>
@@ -125,10 +202,16 @@
           </div>
         </div>
         <div class="title-bar-right">
-          <div class="mac-window-controls">
-            <button class="mac-btn minimize" id="win-minimize" title="Minimize"></button>
-            <button class="mac-btn maximize" id="win-maximize" title="Maximize"></button>
-            <button class="mac-btn close" id="win-close" title="Close"></button>
+          <div class="win-window-controls">
+            <button class="win-btn minimize" id="win-minimize" title="Minimize">
+              <i class="fa-solid fa-minus"></i>
+            </button>
+            <button class="win-btn maximize" id="win-maximize" title="Maximize">
+              <i class="fa-regular fa-square"></i>
+            </button>
+            <button class="win-btn close" id="win-close" title="Close">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
           </div>
         </div>
       </header>
@@ -305,8 +388,8 @@
 
               <!-- Keyboard Test -->
               <button class="test-btn" id="test-keyboard">
-                <div class="test-icon-wrapper icon-keyboard">
-                  <i class="fa-solid fa-keyboard"></i>
+                <div class="test-icon-wrapper icon-keyboard" style="display: flex; align-items: center; justify-content: center; padding: 4px;">
+                  <img src="keyboard-icon.png" alt="Keyboard" style="width: 26px; height: 26px; object-fit: contain; border-radius: 5px; display: block;" />
                 </div>
                 <div class="test-info">
                   <span class="test-name">Keyboard Test</span>
@@ -1132,12 +1215,21 @@
               </datalist>
 
               <datalist id="ssd-size-list">
-                <option value="128GB"></option>
-                <option value="256GB"></option>
-                <option value="512GB"></option>
-                <option value="1TB"></option>
-                <option value="2TB"></option>
-                <option value="4TB"></option>
+                <option value="32 GB"></option>
+                <option value="64 GB"></option>
+                <option value="120 GB"></option>
+                <option value="128 GB"></option>
+                <option value="240 GB"></option>
+                <option value="250 GB"></option>
+                <option value="256 GB"></option>
+                <option value="480 GB"></option>
+                <option value="500 GB"></option>
+                <option value="512 GB"></option>
+                <option value="960 GB"></option>
+                <option value="1 TB"></option>
+                <option value="2 TB"></option>
+                <option value="4 TB"></option>
+                <option value="8 TB"></option>
                 <option value="No Storage"></option>
               </datalist>
 
@@ -1827,294 +1919,329 @@
 
       <!-- KEYBOARD TEST VIEW -->
       <div class="dashboard-body app-view" id="view-keyboard-test"
-        style="display: none; padding: 24px; flex-direction: column; gap: 24px; overflow-y: auto; overflow-x: hidden; max-width: 100%; width: 100%; box-sizing: border-box;">
-        <!-- BEGIN: MainHeader -->
-        <div class="app-header max-w-1440"
-          style="display: flex; justify-content: space-between; align-items: center; padding: 0 16px;">
-          <div class="header-left" style="display: flex; align-items: center; gap: 16px;">
-            <button class="action-btn-kb btn-back-kb" id="back-btn">
-              <svg style="width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.5;"
-                viewBox="0 0 24 24">
+        style="display: none; padding: 16px 20px; flex-direction: column; gap: 14px; overflow-y: auto; overflow-x: hidden; max-width: 100%; width: 100%; box-sizing: border-box;">
+        <!-- APP TOOLBAR / HEADER -->
+        <header class="app-header-kb" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.04); flex-shrink: 0;">
+          <div class="header-left" style="display: flex; align-items: center; gap: 10px;">
+            <button class="action-btn-kb btn-back-kb" id="back-btn" style="margin-right: 4px;">
+              <svg style="width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2.5;" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
-              Back to Diagnostics
+              Back
             </button>
-            <h1 class="header-title" style="margin-left: 12px; margin-right: 12px;">Keyboard Tester</h1>
+            <div class="app-badge-icon" style="width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #f8fafc; border: 1px solid var(--border-color);">
+              <img src="keyboard-icon.png" alt="BC Elite Keyboard Tester" class="app-badge-img" style="width: 100%; height: 100%; object-fit: contain; display: block;" />
+            </div>
+            <div class="header-title-wrap" style="display: flex; flex-direction: column;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="header-title" style="font-size: 14px; font-weight: 800; color: var(--text-main); letter-spacing: -0.2px;">BC Elite Keyboard Tester</span>
+                <span style="font-size: 10px; font-family: monospace; background: rgba(37, 99, 235, 0.08); border: 1px solid rgba(37, 99, 235, 0.25); color: #2563eb; padding: 1px 5px; border-radius: 3px; font-weight: 700;">v1.6</span>
+              </div>
+              <span class="header-subtitle" style="font-size: 11px; font-weight: 500; color: var(--text-secondary);">Professional mechanical switch matrix testing suite</span>
+            </div>
           </div>
-          <div class="flex gap-6" style="color: #6b7280;">
-            <button class="help-btn-kb" id="help-btn" title="Keyboard tester help">
-              <svg style="width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2;"
-                viewBox="0 0 24 24">
-                <path
-                  d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  stroke-linecap="round" stroke-linejoin="round"></path>
-              </svg>
+          <div class="header-actions" style="display: flex; align-items: center; gap: 8px;">
+            <!-- Theme Selector -->
+            <div class="theme-select-wrapper" style="display: flex; align-items: center; gap: 4px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 6px; padding: 3px 6px;">
+              <span class="theme-select-label" style="font-size: 9px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">Theme</span>
+              <select id="theme-select" class="theme-select" style="background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 4px; padding: 2px 18px 2px 6px; font-size: 11px; font-weight: 600; cursor: pointer;">
+                <option value="0">RGB Rainbow Wave</option>
+                <option value="1">Ice White Backlight</option>
+                <option value="2">Stealth Black Backlight</option>
+              </select>
+            </div>
+
+            <!-- Sound Toggle -->
+            <button class="ctrl-btn active" id="sound-btn" title="Toggle Mechanical Audio Click FX" style="display: flex; align-items: center; gap: 4px; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">
+              <span>🔊 Audio Click: ON</span>
             </button>
+
+            <!-- Guide Button -->
+            <button class="ctrl-btn" id="help-btn" title="Open Help Guide" style="display: flex; align-items: center; gap: 4px; padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">
+              <span>? Guide</span>
+            </button>
+          </div>
+        </header>
+
+        <!-- MONITORS HUD -->
+        <div class="monitors-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; flex-shrink: 0;">
+          <!-- Monitor 1: Last Key Pressed -->
+          <div class="monitor-card rgb-border" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 14px; min-height: 64px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
+            <div class="monitor-title" style="font-size: 9px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.8px;">Last Key Pressed</div>
+            <div class="flex items-center gap-4" style="display: flex; align-items: center; gap: 12px;">
+              <div class="indicator-box" id="key-indicator-box" style="width: 36px; height: 20px; border-radius: 4px; border: 1px solid var(--border-color); position: relative; overflow: hidden; flex-shrink: 0;">
+                <canvas id="shader-canvas-indicator" style="display:block;width:100%;height:100%"></canvas>
+              </div>
+              <div>
+                <div class="display-code-text" id="display-code" style="font-size: 13px; font-weight: 800; color: var(--text-main); line-height: 1.1;">CODE: N/A</div>
+                <div class="display-hex-text" id="display-hex" style="font-size: 9px; font-family: monospace; color: var(--text-secondary); margin-top: 1px; text-transform: uppercase;">HEX: 0x00</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Monitor 2: Latency Average -->
+          <div class="monitor-card rgb-border" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 14px; min-height: 64px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
+            <div class="monitor-title" style="font-size: 9px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.8px;">Input Latency Delta</div>
+            <div>
+              <span class="latency-value" id="latency-avg" style="font-size: 24px; font-weight: 600; color: var(--text-main); line-height: 1;">0.00</span>
+              <span class="latency-unit" style="font-size: 9px; font-family: monospace; color: var(--text-secondary); margin-left: 4px; text-transform: uppercase;">ms (rolling avg)</span>
+            </div>
+          </div>
+
+          <!-- Monitor 3: Tested Keys Statistics -->
+          <div class="monitor-card rgb-border" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 14px; min-height: 64px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;">
+            <div class="monitor-title" style="font-size: 9px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.8px;">Audit Progress</div>
+            <div>
+              <div class="flex justify-between items-center" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                <span class="stats-count-value" id="tested-count" style="font-size: 14px; font-weight: 800; color: var(--text-main);">0 / 104 Keys</span>
+                <span class="stats-percent-value" id="tested-percent" style="font-size: 12px; font-weight: 700; color: #0284c7;">0%</span>
+              </div>
+              <div class="stats-progress-bar" style="width: 100%; height: 5px; background: rgba(0,0,0,0.1); border-radius: 3px; overflow: hidden;">
+                <div class="stats-progress-fill" id="stats-fill" style="height: 100%; width: 0%; background: linear-gradient(90deg, #2563eb, #10b981); transition: width 0.2s ease;"></div>
+              </div>
+            </div>
           </div>
         </div>
-        <!-- END: MainHeader -->
 
-        <div class="max-w-1440"
-          style="display: flex; flex-direction: column; gap: 24px; width: 100%; min-width: 0; box-sizing: border-box;">
-          <!-- BEGIN: Monitors -->
-          <div class="monitors-grid-kb">
-            <section class="monitor-card-kb rgb-border-kb">
-              <h3 class="monitor-title-kb" style="position: relative; z-index: 10;">Last Key Pressed</h3>
-              <div class="flex items-center gap-6" style="position: relative; z-index: 10;">
-                <div class="indicator-box-kb" id="key-indicator-box">
-                  <div class="absolute inset-0 w-full h-full" style="display:block;">
-                    <canvas id="shader-canvas-indicator" style="display:block;width:100%;height:100%"></canvas>
-                  </div>
-                </div>
-                <div>
-                  <div class="display-code-text-kb" id="display-code">CODE: N/A</div>
-                  <div class="display-hex-text-kb" id="display-hex">HEX: 0x00</div>
+        <!-- KEYBOARD CONTAINER -->
+        <div class="keyboard-case" id="keyboard-case-container">
+          <!-- STATUS & TOOLBAR HEADER -->
+          <div class="keyboard-bar">
+            <div class="keyboard-bar-left">
+              <div class="telemetry-pill">
+                <div class="telemetry-led"></div>
+                <div class="telemetry-meta">
+                  <span class="telemetry-tag">NKRO</span>
+                  <span class="telemetry-status">Active</span>
                 </div>
               </div>
-            </section>
-            <section class="monitor-card-kb rgb-border-kb">
-              <h3 class="monitor-title-kb">Latency Delta</h3>
-              <div>
-                <div class="latency-value-kb" id="latency-avg">0.00</div>
-                <div class="latency-unit-kb">milliseconds (avg)</div>
-              </div>
-            </section>
-          </div>
-          <!-- END: Monitors -->
-
-          <!-- BEGIN: MainKeyboardInterface -->
-          <div class="keyboard-case">
-            <div class="keyboard-bar">
-              <div class="btn-group-kb">
+            </div>
+            <div class="keyboard-bar-right">
+              <!-- PASS / FAIL ACTION BUTTONS -->
+              <div class="btn-group-kb" style="display: flex; gap: 8px; align-items: center;">
                 <button class="action-btn-kb btn-pass-kb" id="pass-btn" title="Confirm test passed and return">
-                  <svg style="width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2.5;"
-                    viewBox="0 0 24 24">
+                  <svg style="width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2.5;" viewBox="0 0 24 24">
                     <path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"></path>
                   </svg>
                   Pass Test
                 </button>
                 <button class="action-btn-kb btn-fail-kb" id="fail-btn" title="Report failure and return">
-                  <svg style="width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2.5;"
-                    viewBox="0 0 24 24">
+                  <svg style="width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2.5;" viewBox="0 0 24 24">
                     <path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"></path>
                   </svg>
                   Fail Test
                 </button>
-                <button class="action-btn-kb btn-reset-kb" id="reset-btn">
-                  <svg style="width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2;"
-                    viewBox="0 0 24 24">
-                    <path
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                      stroke-linecap="round" stroke-linejoin="round"></path>
-                  </svg>
-                  Reset All
-                </button>
               </div>
 
-              <!-- Theme Selector -->
-              <div class="theme-select-container-kb">
-                <span class="theme-label-kb">Keyboard Theme</span>
-                <select id="kb-theme-select" class="theme-select-kb">
-                  <option value="0">RGB Keyboard</option>
-                  <option value="1">White Keyboard</option>
-                  <option value="2">Black Keyboard</option>
-                </select>
-              </div>
+              <!-- RESET BUTTON -->
+              <button class="cyber-btn-reset" id="reset-btn" title="Reset All Key Matrix States">
+                <svg class="reset-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+                <span>Reset All Keys</span>
+              </button>
 
-              <span class="keyboard-brand-text"
-                style="font-size: 13px; font-weight: 900; font-style: italic; letter-spacing: 3px; text-transform: uppercase; user-select: none; pointer-events: none; margin-right: 8px;">BIZZ
-                CO HUB</span>
+              <div class="brand-badge-wrap">
+                <span class="brand-sparkle"></span>
+                <span class="keyboard-brand-text">BIZZ CO HUB</span>
+              </div>
             </div>
+          </div>
 
-            <div class="keyboard-scale-wrapper" id="keyboard-scale-wrapper">
-              <div class="key-deck" id="key-deck">
-                <!-- INTEGRATED ORGANIC RGB SHADER PLATE -->
-                <div class="lighting-glow" style="display:block;">
-                  <canvas id="shader-canvas-glow" style="display:block;width:100%;height:100%"></canvas>
-                </div>
+          <div class="keyboard-scale-wrapper" id="keyboard-scale-wrapper">
+            <div class="key-deck" id="key-deck">
+              <!-- WebGL RGB Shader plate -->
+              <div class="lighting-glow" id="lighting-glow-plate" style="display:block;">
+                <canvas id="shader-canvas-glow" style="display:block;width:100%;height:100%"></canvas>
+              </div>
 
-                <div class="flex justify-center relative" style="z-index: 20;">
-                  <div class="flex">
-                    <!-- LEFT: Main Cluster -->
-                    <div class="flex flex-col cluster-gap">
-                      <!-- Function Row -->
-                      <div class="key-row f-row">
-                        <div class="key-cap u-1" data-key="Escape">Esc</div>
-                        <div class="u-1" style="visibility: hidden; width: 40px;"></div> <!-- Esc Spacer -->
-                        <div class="flex gap-2 f-group-gap">
-                          <div class="key-cap u-1" data-key="F1">F1</div>
-                          <div class="key-cap u-1" data-key="F2">F2</div>
-                          <div class="key-cap u-1" data-key="F3">F3</div>
-                          <div class="key-cap u-1" data-key="F4">F4</div>
-                        </div>
-                        <div class="flex gap-2 f-group-gap">
-                          <div class="key-cap u-1" data-key="F5">F5</div>
-                          <div class="key-cap u-1" data-key="F6">F6</div>
-                          <div class="key-cap u-1" data-key="F7">F7</div>
-                          <div class="key-cap u-1" data-key="F8">F8</div>
-                        </div>
-                        <div class="flex gap-2">
-                          <div class="key-cap u-1" data-key="F9">F9</div>
-                          <div class="key-cap u-1" data-key="F10">F10</div>
-                          <div class="key-cap u-1" data-key="F11">F11</div>
-                          <div class="key-cap u-1" data-key="F12">F12</div>
-                        </div>
+              <div class="flex justify-center relative" style="z-index: 20;">
+                <div class="flex">
+                  <!-- LEFT: Main Alpha Cluster -->
+                  <div class="flex flex-col cluster-gap">
+                    <!-- Function Row -->
+                    <div class="key-row f-row">
+                      <div class="key-cap u-1" data-key="Escape">Esc</div>
+                      <div class="u-1" style="visibility: hidden; width: 40px;"></div>
+                      <div class="flex gap-2 f-group-gap">
+                        <div class="key-cap u-1" data-key="F1">F1</div>
+                        <div class="key-cap u-1" data-key="F2">F2</div>
+                        <div class="key-cap u-1" data-key="F3">F3</div>
+                        <div class="key-cap u-1" data-key="F4">F4</div>
                       </div>
-
-                      <!-- Alpha Rows -->
-                      <div class="key-row">
-                        <div class="key-cap u-1" data-key="Backquote">`</div>
-                        <div class="key-cap u-1" data-key="Digit1">1</div>
-                        <div class="key-cap u-1" data-key="Digit2">2</div>
-                        <div class="key-cap u-1" data-key="Digit3">3</div>
-                        <div class="key-cap u-1" data-key="Digit4">4</div>
-                        <div class="key-cap u-1" data-key="Digit5">5</div>
-                        <div class="key-cap u-1" data-key="Digit6">6</div>
-                        <div class="key-cap u-1" data-key="Digit7">7</div>
-                        <div class="key-cap u-1" data-key="Digit8">8</div>
-                        <div class="key-cap u-1" data-key="Digit9">9</div>
-                        <div class="key-cap u-1" data-key="Digit0">0</div>
-                        <div class="key-cap u-1" data-key="Minus">-</div>
-                        <div class="key-cap u-1" data-key="Equal">=</div>
-                        <div class="key-cap u-2" data-key="Backspace">BKSP</div>
+                      <div class="flex gap-2 f-group-gap">
+                        <div class="key-cap u-1" data-key="F5">F5</div>
+                        <div class="key-cap u-1" data-key="F6">F6</div>
+                        <div class="key-cap u-1" data-key="F7">F7</div>
+                        <div class="key-cap u-1" data-key="F8">F8</div>
                       </div>
-                      <div class="key-row">
-                        <div class="key-cap u-1-5" data-key="Tab">Tab</div>
-                        <div class="key-cap u-1" data-key="q">Q</div>
-                        <div class="key-cap u-1" data-key="w">W</div>
-                        <div class="key-cap u-1" data-key="e">E</div>
-                        <div class="key-cap u-1" data-key="r">R</div>
-                        <div class="key-cap u-1" data-key="t">T</div>
-                        <div class="key-cap u-1" data-key="y">Y</div>
-                        <div class="key-cap u-1" data-key="u">U</div>
-                        <div class="key-cap u-1" data-key="i">I</div>
-                        <div class="key-cap u-1" data-key="o">O</div>
-                        <div class="key-cap u-1" data-key="p">P</div>
-                        <div class="key-cap u-1" data-key="BracketLeft">[</div>
-                        <div class="key-cap u-1" data-key="BracketRight">]</div>
-                        <div class="key-cap u-1-5" data-key="Backslash">\</div>
-                      </div>
-                      <div class="key-row">
-                        <div class="key-cap u-1-75" data-key="CapsLock">Caps</div>
-                        <div class="key-cap u-1" data-key="a">A</div>
-                        <div class="key-cap u-1" data-key="s">S</div>
-                        <div class="key-cap u-1" data-key="d">D</div>
-                        <div class="key-cap u-1" data-key="f">F</div>
-                        <div class="key-cap u-1" data-key="g">G</div>
-                        <div class="key-cap u-1" data-key="h">H</div>
-                        <div class="key-cap u-1" data-key="j">J</div>
-                        <div class="key-cap u-1" data-key="k">K</div>
-                        <div class="key-cap u-1" data-key="l">L</div>
-                        <div class="key-cap u-1" data-key="Semicolon">;</div>
-                        <div class="key-cap u-1" data-key="Quote">'</div>
-                        <div class="key-cap u-2-25" data-key="Enter">Enter</div>
-                      </div>
-                      <div class="key-row">
-                        <div class="key-cap u-2-25" data-key="ShiftLeft">Shift</div>
-                        <div class="key-cap u-1" data-key="z">Z</div>
-                        <div class="key-cap u-1" data-key="x">X</div>
-                        <div class="key-cap u-1" data-key="c">C</div>
-                        <div class="key-cap u-1" data-key="v">V</div>
-                        <div class="key-cap u-1" data-key="b">B</div>
-                        <div class="key-cap u-1" data-key="n">N</div>
-                        <div class="key-cap u-1" data-key="m">M</div>
-                        <div class="key-cap u-1" data-key="Comma">,</div>
-                        <div class="key-cap u-1" data-key="Period">.</div>
-                        <div class="key-cap u-1" data-key="Slash">/</div>
-                        <div class="key-cap u-2-75" data-key="ShiftRight">Shift</div>
-                      </div>
-                      <div class="key-row">
-                        <div class="key-cap u-1-25" data-key="ControlLeft">Ctrl</div>
-                        <div class="key-cap u-1-25" data-key="MetaLeft">Win</div>
-                        <div class="key-cap u-1-25" data-key="AltLeft">Alt</div>
-                        <div class="key-cap u-6-25" data-key=" ">Spacebar</div>
-                        <div class="key-cap u-1-25" data-key="AltRight">Alt</div>
-                        <div class="key-cap u-1-25" data-key="Fn">FN</div>
-                        <div class="key-cap u-1-25" data-key="ContextMenu">Menu</div>
-                        <div class="key-cap u-1-25" data-key="ControlRight">Ctrl</div>
+                      <div class="flex gap-2">
+                        <div class="key-cap u-1" data-key="F9">F9</div>
+                        <div class="key-cap u-1" data-key="F10">F10</div>
+                        <div class="key-cap u-1" data-key="F11">F11</div>
+                        <div class="key-cap u-1" data-key="F12">F12</div>
                       </div>
                     </div>
 
-                    <!-- MIDDLE: Navigation Group -->
-                    <div class="flex flex-col cluster-gap">
-                      <!-- Nav Top Bar -->
-                      <div class="key-row f-row">
-                        <div class="key-cap u-1" data-key="PrintScreen">PrtSc</div>
-                        <div class="key-cap u-1" data-key="ScrollLock">ScrLk</div>
-                        <div class="key-cap u-1" data-key="Pause">Pause</div>
-                      </div>
-                      <!-- Nav Cluster -->
-                      <div class="key-row">
-                        <div class="key-cap u-1" data-key="Insert">Ins</div>
-                        <div class="key-cap u-1" data-key="Home">Home</div>
-                        <div class="key-cap u-1" data-key="PageUp">PgUp</div>
-                      </div>
-                      <div class="key-row" style="margin-bottom: 48px;">
-                        <div class="key-cap u-1" data-key="Delete">Del</div>
-                        <div class="key-cap u-1" data-key="End">End</div>
-                        <div class="key-cap u-1" data-key="PageDown">PgDn</div>
-                      </div>
-                      <!-- Arrow Keys -->
-                      <div class="flex flex-col" style="margin-top: auto; align-items: flex-start; width: 100%;">
-                        <div class="key-row">
-                          <div style="width: 36px; flex-shrink: 0;"></div>
-                          <div class="key-cap u-1" data-key="ArrowUp">↑</div>
-                        </div>
-                        <div class="key-row">
-                          <div class="key-cap u-1" data-key="ArrowLeft">←</div>
-                          <div class="key-cap u-1" data-key="ArrowDown">↓</div>
-                          <div class="key-cap u-1" data-key="ArrowRight">→</div>
-                        </div>
-                      </div>
+                    <!-- Number Row -->
+                    <div class="key-row">
+                      <div class="key-cap u-1" data-key="Backquote">`</div>
+                      <div class="key-cap u-1" data-key="Digit1">1</div>
+                      <div class="key-cap u-1" data-key="Digit2">2</div>
+                      <div class="key-cap u-1" data-key="Digit3">3</div>
+                      <div class="key-cap u-1" data-key="Digit4">4</div>
+                      <div class="key-cap u-1" data-key="Digit5">5</div>
+                      <div class="key-cap u-1" data-key="Digit6">6</div>
+                      <div class="key-cap u-1" data-key="Digit7">7</div>
+                      <div class="key-cap u-1" data-key="Digit8">8</div>
+                      <div class="key-cap u-1" data-key="Digit9">9</div>
+                      <div class="key-cap u-1" data-key="Digit0">0</div>
+                      <div class="key-cap u-1" data-key="Minus">-</div>
+                      <div class="key-cap u-1" data-key="Equal">=</div>
+                      <div class="key-cap u-2" data-key="Backspace">BKSP</div>
                     </div>
 
-                    <div class="flex flex-col relative">
-                      <div class="key-row f-row">
-                        <div style="width: 100%; height: 36px;"></div> <!-- Matching height of F row -->
-                      </div>
-                      <!-- Numpad Content -->
+                    <!-- QWERTY Row -->
+                    <div class="key-row">
+                      <div class="key-cap u-1-5" data-key="Tab">Tab</div>
+                      <div class="key-cap u-1" data-key="q">Q</div>
+                      <div class="key-cap u-1" data-key="w">W</div>
+                      <div class="key-cap u-1" data-key="e">E</div>
+                      <div class="key-cap u-1" data-key="r">R</div>
+                      <div class="key-cap u-1" data-key="t">T</div>
+                      <div class="key-cap u-1" data-key="y">Y</div>
+                      <div class="key-cap u-1" data-key="u">U</div>
+                      <div class="key-cap u-1" data-key="i">I</div>
+                      <div class="key-cap u-1" data-key="o">O</div>
+                      <div class="key-cap u-1" data-key="p">P</div>
+                      <div class="key-cap u-1" data-key="BracketLeft">[</div>
+                      <div class="key-cap u-1" data-key="BracketRight">]</div>
+                      <div class="key-cap u-1-5" data-key="Backslash">\</div>
+                    </div>
+
+                    <!-- Home Row (ASDF) -->
+                    <div class="key-row">
+                      <div class="key-cap u-1-75" data-key="CapsLock">Caps</div>
+                      <div class="key-cap u-1" data-key="a">A</div>
+                      <div class="key-cap u-1" data-key="s">S</div>
+                      <div class="key-cap u-1" data-key="d">D</div>
+                      <div class="key-cap u-1" data-key="f">F</div>
+                      <div class="key-cap u-1" data-key="g">G</div>
+                      <div class="key-cap u-1" data-key="h">H</div>
+                      <div class="key-cap u-1" data-key="j">J</div>
+                      <div class="key-cap u-1" data-key="k">K</div>
+                      <div class="key-cap u-1" data-key="l">L</div>
+                      <div class="key-cap u-1" data-key="Semicolon">;</div>
+                      <div class="key-cap u-1" data-key="Quote">'</div>
+                      <div class="key-cap u-2-25" data-key="Enter">Enter</div>
+                    </div>
+
+                    <!-- Bottom Row (ZXCV) -->
+                    <div class="key-row">
+                      <div class="key-cap u-2-25" data-key="ShiftLeft">Shift</div>
+                      <div class="key-cap u-1" data-key="z">Z</div>
+                      <div class="key-cap u-1" data-key="x">X</div>
+                      <div class="key-cap u-1" data-key="c">C</div>
+                      <div class="key-cap u-1" data-key="v">V</div>
+                      <div class="key-cap u-1" data-key="b">B</div>
+                      <div class="key-cap u-1" data-key="n">N</div>
+                      <div class="key-cap u-1" data-key="m">M</div>
+                      <div class="key-cap u-1" data-key="Comma">,</div>
+                      <div class="key-cap u-1" data-key="Period">.</div>
+                      <div class="key-cap u-1" data-key="Slash">/</div>
+                      <div class="key-cap u-2-75" data-key="ShiftRight">Shift</div>
+                    </div>
+
+                    <!-- Modifiers / Space Row -->
+                    <div class="key-row">
+                      <div class="key-cap u-1-25" data-key="ControlLeft">Ctrl</div>
+                      <div class="key-cap u-1-25" data-key="MetaLeft">Win</div>
+                      <div class="key-cap u-1-25" data-key="AltLeft">Alt</div>
+                      <div class="key-cap u-6-25" data-key=" ">Spacebar</div>
+                      <div class="key-cap u-1-25" data-key="AltRight">Alt</div>
+                      <div class="key-cap u-1-25" data-key="Fn">FN</div>
+                      <div class="key-cap u-1-25" data-key="ContextMenu">Menu</div>
+                      <div class="key-cap u-1-25" data-key="ControlRight">Ctrl</div>
+                    </div>
+                  </div>
+
+                  <!-- MIDDLE: Navigation Group -->
+                  <div class="flex flex-col cluster-gap">
+                    <div class="key-row f-row">
+                      <div class="key-cap u-1" data-key="PrintScreen">PrtSc</div>
+                      <div class="key-cap u-1" data-key="ScrollLock">ScrLk</div>
+                      <div class="key-cap u-1" data-key="Pause">Pause</div>
+                    </div>
+                    <div class="key-row">
+                      <div class="key-cap u-1" data-key="Insert">Ins</div>
+                      <div class="key-cap u-1" data-key="Home">Home</div>
+                      <div class="key-cap u-1" data-key="PageUp">PgUp</div>
+                    </div>
+                    <div class="key-row" style="margin-bottom: 48px;">
+                      <div class="key-cap u-1" data-key="Delete">Del</div>
+                      <div class="key-cap u-1" data-key="End">End</div>
+                      <div class="key-cap u-1" data-key="PageDown">PgDn</div>
+                    </div>
+                    <!-- Arrow Keys -->
+                    <div class="flex flex-col" style="margin-top: auto; align-items: flex-start; width: 100%;">
                       <div class="key-row">
-                        <div class="key-cap u-1" data-key="NumLock">Num</div>
-                        <div class="key-cap u-1" data-key="NumpadDivide">/</div>
-                        <div class="key-cap u-1" data-key="NumpadMultiply">*</div>
-                        <div class="key-cap u-1" data-key="NumpadSubtract">-</div>
+                        <div style="width: 36px; flex-shrink: 0;"></div>
+                        <div class="key-cap u-1" data-key="ArrowUp">↑</div>
                       </div>
-                      <div class="flex relative" style="z-index: 20; gap: 6px;">
-                        <div class="flex flex-col">
-                          <div class="key-row">
-                            <div class="key-cap u-1" data-key="Numpad7">7</div>
-                            <div class="key-cap u-1" data-key="Numpad8">8</div>
-                            <div class="key-cap u-1" data-key="Numpad9">9</div>
-                          </div>
-                          <div class="key-row">
-                            <div class="key-cap u-1" data-key="Numpad4">4</div>
-                            <div class="key-cap u-1" data-key="Numpad5">5</div>
-                            <div class="key-cap u-1" data-key="Numpad6">6</div>
-                          </div>
+                      <div class="key-row">
+                        <div class="key-cap u-1" data-key="ArrowLeft">←</div>
+                        <div class="key-cap u-1" data-key="ArrowDown">↓</div>
+                        <div class="key-cap u-1" data-key="ArrowRight">→</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- RIGHT: Numpad Group -->
+                  <div class="flex flex-col relative">
+                    <div class="key-row f-row">
+                      <div style="width: 100%; height: 36px;"></div>
+                    </div>
+                    <div class="key-row">
+                      <div class="key-cap u-1" data-key="NumLock">Num</div>
+                      <div class="key-cap u-1" data-key="NumpadDivide">/</div>
+                      <div class="key-cap u-1" data-key="NumpadMultiply">*</div>
+                      <div class="key-cap u-1" data-key="NumpadSubtract">-</div>
+                    </div>
+                    <div class="flex relative" style="z-index: 20; gap: 6px;">
+                      <div class="flex flex-col">
+                        <div class="key-row">
+                          <div class="key-cap u-1" data-key="Numpad7">7</div>
+                          <div class="key-cap u-1" data-key="Numpad8">8</div>
+                          <div class="key-cap u-1" data-key="Numpad9">9</div>
                         </div>
-                        <div class="key-cap u-1 v-2" data-key="NumpadAdd">+</div>
-                      </div>
-                      <div class="flex relative" style="z-index: 20; gap: 6px;">
-                        <div class="flex flex-col">
-                          <div class="key-row">
-                            <div class="key-cap u-1" data-key="Numpad1">1</div>
-                            <div class="key-cap u-1" data-key="Numpad2">2</div>
-                            <div class="key-cap u-1" data-key="Numpad3">3</div>
-                          </div>
-                          <div class="key-row">
-                            <div class="key-cap u-2" data-key="Numpad0">0</div>
-                            <div class="key-cap u-1" data-key="NumpadDecimal">.</div>
-                          </div>
+                        <div class="key-row">
+                          <div class="key-cap u-1" data-key="Numpad4">4</div>
+                          <div class="key-cap u-1" data-key="Numpad5">5</div>
+                          <div class="key-cap u-1" data-key="Numpad6">6</div>
                         </div>
-                        <div class="key-cap u-1 v-2" data-key="NumpadEnter">Ent</div>
                       </div>
+                      <div class="key-cap u-1 v-2" data-key="NumpadAdd">+</div>
+                    </div>
+                    <div class="flex relative" style="z-index: 20; gap: 6px;">
+                      <div class="flex flex-col">
+                        <div class="key-row">
+                          <div class="key-cap u-1" data-key="Numpad1">1</div>
+                          <div class="key-cap u-1" data-key="Numpad2">2</div>
+                          <div class="key-cap u-1" data-key="Numpad3">3</div>
+                        </div>
+                        <div class="key-row">
+                          <div class="key-cap u-2" data-key="Numpad0">0</div>
+                          <div class="key-cap u-1" data-key="NumpadDecimal">.</div>
+                        </div>
+                      </div>
+                      <div class="key-cap u-1 v-2" data-key="NumpadEnter">Ent</div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div> <!-- end keyboard-scale-wrapper -->
+            </div>
           </div>
-          <!-- END: MainKeyboardInterface -->
         </div>
       </div>
 
@@ -2349,7 +2476,14 @@
               </svg>
               Back to Diagnostics
             </button>
-            <h1 class="header-title" style="margin-left: 4px; margin-right: 4px;">Audio Diagnostic</h1>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div class="app-badge-icon"
+                style="width: 28px; height: 28px; border-radius: 6px; overflow: hidden; background: #f8fafc; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border-color);">
+                <img src="sound-icon.png" alt="Sound Checking" class="app-badge-img"
+                  style="width: 100%; height: 100%; object-fit: contain; display: block;" />
+              </div>
+              <h1 class="header-title" style="margin: 0;">Audio Diagnostic</h1>
+            </div>
           </div>
           <div
             style="background: rgba(48, 209, 88, 0.15); color: var(--color-green); padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
@@ -3135,24 +3269,28 @@
 
   <!-- KEYBOARD HELP MODAL -->
   <div class="modal-overlay" id="keyboard-help-modal" style="display: none;">
-    <div class="modal-container" style="max-width: 500px; width: 90%;">
-      <div class="modal-header">
-        <h3><i class="fa-solid fa-circle-question"></i> Keyboard Tester Help</h3>
-        <button class="modal-close-btn" id="btn-close-kb-help-modal"><i class="fa-solid fa-xmark"></i></button>
+    <div class="modal-container" style="max-width: 520px; width: 90%; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); overflow: hidden;">
+      <div class="modal-header" style="padding: 14px 18px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid fa-circle-question" style="color: #2563eb;"></i> Keyboard Diagnostics Guide
+        </h3>
+        <button class="modal-close-btn" id="btn-close-kb-help-modal" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 18px;"><i class="fa-solid fa-xmark"></i></button>
       </div>
-      <div class="modal-body" style="padding: 20px; font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
-        <p style="margin-bottom: 12px; font-weight: 600; color: var(--text-main);">Keyboard Tester Diagnostics
-          Instructions:</p>
+      <div class="modal-body" style="padding: 18px 20px; font-size: 13px; line-height: 1.6; color: var(--text-secondary);">
+        <p style="margin-bottom: 12px; font-weight: 700; color: var(--text-main);">BC Elite Keyboard Tester Instructions:</p>
         <ul style="list-style-type: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 8px;">
-          <li>Press physical keys to test the layout.</li>
-          <li>Pressed keys light up based on their grid position.</li>
-          <li>'Tested' keys remain highlighted in their respective color.</li>
-          <li>Latency Delta displays your browser event processing latency.</li>
-          <li>Click 'Pass Test' or 'Fail Test' to record the result and return.</li>
+          <li>Press physical keys on your keyboard to test switches and NKRO matrix response.</li>
+          <li>Each key turns into a highlighted <strong>Tested</strong> state after release.</li>
+          <li>Input Latency monitor measures the rolling average hardware response latency.</li>
+          <li>Supports all standard 104/108 ANSI keys, Function row, Navigation, Arrows, and Numpad.</li>
+          <li>Switch between <strong>RGB Rainbow Wave</strong>, <strong>Ice White</strong>, and <strong>Stealth Black</strong> themes anytime.</li>
+          <li>Toggle mechanical switch click sound with the <strong>Audio Click</strong> switch.</li>
+          <li>Click <strong>Reset All Keys</strong> to clear the audit results for a new testing pass.</li>
+          <li>Click <strong>Pass Test</strong> or <strong>Fail Test</strong> to submit results to QC summary.</li>
         </ul>
         <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
           <button class="modal-btn-action btn-blue-accent" id="btn-close-kb-help-ok"
-            style="margin: 0; padding: 8px 24px;">Got It</button>
+            style="margin: 0; padding: 8px 24px; background: #2563eb; color: #fff; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">Got It</button>
         </div>
       </div>
     </div>

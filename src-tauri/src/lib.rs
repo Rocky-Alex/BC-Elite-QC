@@ -3,101 +3,137 @@ use std::path::{Path, PathBuf};
 use std::fs;
 use sha2::{Sha256, Digest};
 
-// Helper function to resolve tool paths dynamically
+// Helper function to resolve tool paths dynamically across all layouts (flat root, Master Checker, Inno Setup, Dev)
 fn resolve_tool_path(file_name: &str, folder_name: &str) -> PathBuf {
-    // 1. Check in same folder as current executable
+    let mut search_dirs = Vec::new();
+
+    // 1. Current executable directory hierarchy
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
-            let path = exe_dir.join(file_name);
-            if path.exists() {
-                return path;
-            }
-            // Check parent of exe_dir directly (flat production layout where tools are in {app})
-            let path = exe_dir.join("..").join(file_name);
-            if path.exists() {
-                return path;
-            }
-            // Check parent of exe_dir (production Inno Setup installation layout)
-            let path = exe_dir.join("..").join(folder_name).join(file_name);
-            if path.exists() {
-                return path;
-            }
-            // Check dev path (e.g., current_exe is in src-tauri/target/debug/ or similar)
-            // Workspace root is exe_dir/../../..
-            if let Some(parent1) = exe_dir.parent() {
-                if let Some(parent2) = parent1.parent() {
-                    if let Some(parent3) = parent2.parent() {
-                        let path = parent3.join(file_name);
-                        if path.exists() {
-                            return path;
-                        }
+            search_dirs.push(exe_dir.to_path_buf());
+            if let Some(p1) = exe_dir.parent() {
+                search_dirs.push(p1.to_path_buf());
+                if let Some(p2) = p1.parent() {
+                    search_dirs.push(p2.to_path_buf());
+                    if let Some(p3) = p2.parent() {
+                        search_dirs.push(p3.to_path_buf());
                     }
                 }
             }
         }
     }
 
-    // 2. Check in current working directory
+    // 2. Current working directory hierarchy
     if let Ok(cwd) = std::env::current_dir() {
-        let path = cwd.join(file_name);
-        if path.exists() {
-            return path;
+        if !search_dirs.contains(&cwd) {
+            search_dirs.push(cwd.clone());
         }
-        let path = cwd.join(folder_name).join(file_name);
-        if path.exists() {
-            return path;
+        if let Some(cwd_parent) = cwd.parent() {
+            let cwd_parent_buf = cwd_parent.to_path_buf();
+            if !search_dirs.contains(&cwd_parent_buf) {
+                search_dirs.push(cwd_parent_buf);
+            }
+        }
+    }
+
+    // 3. Standard installation targets
+    search_dirs.push(PathBuf::from(r"C:\BC Elite QC"));
+    search_dirs.push(PathBuf::from(r"C:\BizzCoHub QC"));
+    search_dirs.push(PathBuf::from(r"X:\BC Elite QC"));
+    search_dirs.push(PathBuf::from(r"X:\BizzCoHub QC"));
+
+    // Check each directory for folder_name/file_name and direct file_name
+    for dir in &search_dirs {
+        let p_folder = dir.join(folder_name).join(file_name);
+        if p_folder.exists() {
+            return p_folder;
+        }
+        let p_flat = dir.join(file_name);
+        if p_flat.exists() {
+            return p_flat;
         }
     }
 
     // Default fallback
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
+            let direct = exe_dir.join(folder_name).join(file_name);
+            if direct.exists() {
+                return direct;
+            }
             return exe_dir.join("..").join(folder_name).join(file_name);
         }
     }
-    PathBuf::from(file_name)
+    PathBuf::from(folder_name).join(file_name)
 }
 
-// 1. WMI/PowerShell system specs querying
+// Helper to locate powershell.exe reliably across standard Windows and Live OS (WinPE)
+fn get_powershell_path() -> PathBuf {
+    let mut candidates = Vec::new();
+
+    // Check SystemRoot / windir environment variables
+    if let Ok(sys_root) = std::env::var("SystemRoot").or_else(|_| std::env::var("windir")) {
+        candidates.push(PathBuf::from(&sys_root).join(r"System32\WindowsPowerShell\v1.0\powershell.exe"));
+        candidates.push(PathBuf::from(&sys_root).join(r"SysWOW64\WindowsPowerShell\v1.0\powershell.exe"));
+    }
+
+    // Check known drives (including WinPE default X: and C:)
+    candidates.push(PathBuf::from(r"X:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"));
+    candidates.push(PathBuf::from(r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"));
+    candidates.push(PathBuf::from(r"D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"));
+
+    for candidate in candidates {
+        if candidate.exists() {
+            return candidate;
+        }
+    }
+
+    // Fall back to PATH search
+    PathBuf::from("powershell")
+}
+
+// 1. WMI/PowerShell system specs querying (executed in-memory via stdin to bypass AppControl/temp restrictions)
 #[tauri::command]
 fn get_system_spec(command: String) -> Result<String, String> {
+    use std::io::Write;
+    let ps_path = get_powershell_path();
+
     if command.len() > 1000 || command.contains('\n') {
-        let temp_dir = std::env::temp_dir();
-        let temp_file_path = temp_dir.join(format!("qc_script_{}.ps1", std::process::id()));
-        
-        if let Err(e) = fs::write(&temp_file_path, &command) {
-            return Err(format!("Failed to write temp script file: {}", e));
-        }
-        
-        let output = Command::new("powershell")
+        // Stream command directly via stdin without writing temporary files to %TEMP%
+        let mut child = Command::new(&ps_path)
             .arg("-NoProfile")
             .arg("-ExecutionPolicy")
             .arg("Bypass")
-            .arg("-File")
-            .arg(&temp_file_path)
-            .output();
-            
-        let _ = fs::remove_file(&temp_file_path);
-        
-        match output {
-            Ok(out) => {
-                if out.status.success() {
-                    let stdout = String::from_utf8_lossy(&out.stdout).to_string();
-                    Ok(stdout.trim().to_string())
-                } else {
-                    let stderr = String::from_utf8_lossy(&out.stderr).to_string();
-                    Err(stderr.trim().to_string())
-                }
-            }
-            Err(err) => Err(err.to_string()),
+            .arg("-Command")
+            .arg("-")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Failed to spawn PowerShell ({:?}): {}", ps_path, e))?;
+
+        if let Some(mut stdin) = child.stdin.take() {
+            let _ = stdin.write_all(command.as_bytes());
+        }
+
+        let output = child.wait_with_output().map_err(|e| format!("PowerShell execution error: {}", e))?;
+
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+            Ok(stdout.trim().to_string())
+        } else {
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            Err(stderr.trim().to_string())
         }
     } else {
-        let output = Command::new("powershell")
+        let output = Command::new(&ps_path)
             .arg("-NoProfile")
+            .arg("-ExecutionPolicy")
+            .arg("Bypass")
             .arg("-Command")
             .arg(&command)
             .output();
-            
+
         match output {
             Ok(out) => {
                 if out.status.success() {
@@ -128,6 +164,8 @@ fn launch_tool(file_name: String, folder_name: String) -> Result<String, String>
         return Err(format!("File not found: {:?}", path));
     }
 
+    let parent_dir = path.parent().unwrap_or_else(|| Path::new("."));
+
     if file_name.ends_with(".mp4") {
         let status = Command::new("cmd")
             .arg("/c")
@@ -141,19 +179,28 @@ fn launch_tool(file_name: String, folder_name: String) -> Result<String, String>
             Err(e) => Err(e.to_string()),
         }
     } else {
-        let status = Command::new("powershell")
-            .arg("-NoProfile")
-            .arg("-Command")
-            .arg(format!(
-                "Start-Process -FilePath '{}' -Verb RunAs -WorkingDirectory '{}'",
-                path.to_str().unwrap_or(""),
-                path.parent().unwrap_or_else(|| Path::new(".")).to_str().unwrap_or("")
-            ))
-            .status();
-        match status {
-            Ok(stat) if stat.success() => Ok(format!("Executed {} with elevation", file_name)),
-            Ok(stat) => Err(format!("Failed to start elevated process (exit status: {:?})", stat)),
-            Err(e) => Err(e.to_string()),
+        // First try launching directly (0ms latency, works on Live OS / SYSTEM user / Admin)
+        match Command::new(&path).current_dir(parent_dir).spawn() {
+            Ok(_) => Ok(format!("Executed {} directly", file_name)),
+            Err(err) => {
+                // If direct launch fails because elevation is required (ERROR_ELEVATION_REQUIRED = 740)
+                // or access is denied, request elevation via PowerShell Start-Process -Verb RunAs
+                let ps_path = get_powershell_path();
+                let runas_status = Command::new(&ps_path)
+                    .arg("-NoProfile")
+                    .arg("-Command")
+                    .arg(format!(
+                        "Start-Process -FilePath '{}' -Verb RunAs -WorkingDirectory '{}'",
+                        path.to_str().unwrap_or(""),
+                        parent_dir.to_str().unwrap_or("")
+                    ))
+                    .status();
+
+                match runas_status {
+                    Ok(stat) if stat.success() => Ok(format!("Executed {} with elevation", file_name)),
+                    _ => Err(format!("Failed to launch {}: {}", file_name, err)),
+                }
+            }
         }
     }
 }
@@ -294,6 +341,57 @@ fn get_app_version(app: tauri::AppHandle) -> String {
     app.package_info().version.to_string()
 }
 
+// Determines if application runs in Admin mode or Customer mode
+#[tauri::command]
+fn get_app_mode() -> String {
+    // 1. Check CLI arguments
+    for arg in std::env::args() {
+        let lower = arg.to_lowercase();
+        if lower == "--admin" || lower == "-admin" || lower == "--mode=admin" || lower == "-mode=admin" {
+            return "admin".to_string();
+        }
+        if lower == "--customer" || lower == "-customer" || lower == "--mode=customer" || lower == "-mode=customer" {
+            return "customer".to_string();
+        }
+    }
+
+    // 2. Check app_mode.json in executable directory, parent directory, or working directory
+    let mut candidate_paths = Vec::new();
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            candidate_paths.push(exe_dir.join("app_mode.json"));
+            if let Some(parent) = exe_dir.parent() {
+                candidate_paths.push(parent.join("app_mode.json"));
+                if let Some(grandparent) = parent.parent() {
+                    candidate_paths.push(grandparent.join("app_mode.json"));
+                    if let Some(great_grandparent) = grandparent.parent() {
+                        candidate_paths.push(great_grandparent.join("app_mode.json"));
+                    }
+                }
+            }
+        }
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        candidate_paths.push(cwd.join("app_mode.json"));
+    }
+
+    for path in candidate_paths {
+        if path.exists() {
+            if let Ok(content) = fs::read_to_string(&path) {
+                let lower = content.to_lowercase();
+                if lower.contains("\"mode\": \"admin\"") || lower.contains("\"mode\":\"admin\"") || lower.contains("\"admin\"") {
+                    return "admin".to_string();
+                } else if lower.contains("\"mode\": \"customer\"") || lower.contains("\"mode\":\"customer\"") || lower.contains("\"customer\"") {
+                    return "customer".to_string();
+                }
+            }
+        }
+    }
+
+    // Default fallback: "customer"
+    "customer".to_string()
+}
+
 // Cleanly normalizes a Path to remove '..' and '.' relative components and UNC prefixes
 fn normalize_path(path: &Path) -> String {
     if let Ok(canonical) = path.canonicalize() {
@@ -307,39 +405,52 @@ fn normalize_path(path: &Path) -> String {
 // Returns the absolute path to the Sound_checking folder so JS can build audio src URLs
 #[tauri::command]
 fn get_sound_folder_path() -> Result<String, String> {
-    // First check default installation path
-    let default_install = PathBuf::from(r"C:\BizzCoHub QC\Sound_checking");
-    if default_install.exists() {
-        return Ok(normalize_path(&default_install));
-    }
+    let mut search_dirs = Vec::new();
 
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
-            let candidates = vec![
-                exe_dir.join("Sound_checking"),
-                exe_dir.join("..").join("Sound_checking"),
-                exe_dir.join("..").join("..").join("Sound_checking"),
-                exe_dir.join("..").join("..").join("..").join("Sound_checking"),
-            ];
-            for candidate in candidates {
-                if candidate.exists() {
-                    return Ok(normalize_path(&candidate));
+            search_dirs.push(exe_dir.to_path_buf());
+            if let Some(p1) = exe_dir.parent() {
+                search_dirs.push(p1.to_path_buf());
+                if let Some(p2) = p1.parent() {
+                    search_dirs.push(p2.to_path_buf());
+                    if let Some(p3) = p2.parent() {
+                        search_dirs.push(p3.to_path_buf());
+                    }
                 }
             }
         }
     }
+
     if let Ok(cwd) = std::env::current_dir() {
-        let candidates = vec![
-            cwd.join("Sound_checking"),
-            cwd.join("dist").join("Sound_checking"),
-        ];
-        for candidate in candidates {
-            if candidate.exists() {
-                return Ok(normalize_path(&candidate));
+        if !search_dirs.contains(&cwd) {
+            search_dirs.push(cwd.clone());
+        }
+        if let Some(cwd_parent) = cwd.parent() {
+            let cwd_parent_buf = cwd_parent.to_path_buf();
+            if !search_dirs.contains(&cwd_parent_buf) {
+                search_dirs.push(cwd_parent_buf);
             }
         }
     }
 
+    search_dirs.push(PathBuf::from(r"C:\BC Elite QC"));
+    search_dirs.push(PathBuf::from(r"C:\BizzCoHub QC"));
+    search_dirs.push(PathBuf::from(r"X:\BC Elite QC"));
+    search_dirs.push(PathBuf::from(r"X:\BizzCoHub QC"));
+
+    for dir in &search_dirs {
+        let sound_cand = dir.join("Sound_checking");
+        if sound_cand.exists() {
+            return Ok(normalize_path(&sound_cand));
+        }
+        let dist_sound = dir.join("dist").join("Sound_checking");
+        if dist_sound.exists() {
+            return Ok(normalize_path(&dist_sound));
+        }
+    }
+
+    // Default fallback: create next to exe or cwd
     let target = if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
             if exe_dir.file_name().and_then(|n| n.to_str()) == Some("Master Checker") {
@@ -351,13 +462,9 @@ fn get_sound_folder_path() -> Result<String, String> {
             } else {
                 exe_dir.join("Sound_checking")
             }
-        } else if let Ok(cwd) = std::env::current_dir() {
-            cwd.join("Sound_checking")
         } else {
             PathBuf::from("Sound_checking")
         }
-    } else if let Ok(cwd) = std::env::current_dir() {
-        cwd.join("Sound_checking")
     } else {
         PathBuf::from("Sound_checking")
     };
@@ -470,12 +577,7 @@ async fn http_get(url: String, token: String) -> Result<String, String> {
 
 // Helper function to establish PostgreSQL DB connection efficiently
 async fn get_db_client() -> Result<tokio_postgres::Client, String> {
-    let conn_str = "host=ep-restless-wave-aytxak6k-pooler.c-5.us-east-2.aws.neon.tech \
-        port=5432 \
-        dbname=neondb \
-        user=neondb_owner \
-        password=npg_3xEmveHMs5za \
-        sslmode=require";
+    let conn_str = "host=ep-restless-wave-aytxak6k-pooler.c-5.us-east-2.aws.neon.tech port=5432 dbname=neondb user=neondb_owner password=npg_3xEmveHMs5za sslmode=require";
 
     let connector = native_tls::TlsConnector::builder()
         .danger_accept_invalid_certs(false)
@@ -766,8 +868,156 @@ async fn delete_qc_device_record(batch_code: String, serial_number: String) -> R
     Ok(format!("Deleted {} device record from qc_device_upload", count))
 }
 
+// Auto-discover bundled fixed-version WebView2 runtime if present (for Live OS / WinPE / offline environments)
+fn init_environment() {
+    #[cfg(windows)]
+    {
+        // 1. Always set WebView2 user data folder to a safe writable temporary directory
+        // In WinPE / Live OS, the OS drive (X:) RAM disk is writable (%TEMP% = X:\Temp or X:\Users\Default\AppData\Local\Temp).
+        // Setting user data folder here prevents crashes on read-only USBs / CD-ROMs.
+        if std::env::var("WEBVIEW2_USER_DATA_FOLDER").is_err() {
+            let temp_udf = std::env::temp_dir().join("BCEliteQC_WebView2");
+            let _ = fs::create_dir_all(&temp_udf);
+            std::env::set_var("WEBVIEW2_USER_DATA_FOLDER", &temp_udf);
+        }
+
+        // 2. Discover local fixed WebView2 runtime folder if present (e.g. for WinPE / Live OS USB)
+        if std::env::var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER").is_err() {
+            let mut search_roots = Vec::new();
+
+            // Check current executable hierarchy
+            if let Ok(exe_path) = std::env::current_exe() {
+                if let Some(exe_dir) = exe_path.parent() {
+                    search_roots.push(exe_dir.to_path_buf());
+                    if let Some(p1) = exe_dir.parent() {
+                        search_roots.push(p1.to_path_buf());
+                        if let Some(p2) = p1.parent() {
+                            search_roots.push(p2.to_path_buf());
+                        }
+                    }
+                }
+            }
+
+            // Check current working directory hierarchy
+            if let Ok(cwd) = std::env::current_dir() {
+                if !search_roots.contains(&cwd) {
+                    search_roots.push(cwd.clone());
+                }
+                if let Some(p) = cwd.parent() {
+                    let p_buf = p.to_path_buf();
+                    if !search_roots.contains(&p_buf) {
+                        search_roots.push(p_buf);
+                    }
+                }
+            }
+
+            // Check standard Live OS drives (X:\, U:\, E:\, D:\, etc.)
+            for &drive in &[b'X', b'U', b'Y', b'Z', b'D', b'E', b'F', b'G', b'H', b'C'] {
+                let drive_root = PathBuf::from(format!("{}:\\", drive as char));
+                if drive_root.exists() {
+                    search_roots.push(drive_root.join("BC Elite QC"));
+                    search_roots.push(drive_root.join("BizzCoHub QC"));
+                    search_roots.push(drive_root.join("Programs"));
+                    search_roots.push(drive_root);
+                }
+            }
+
+            let fixed_folder_names = [
+                "WebView2Runtime",
+                "EBWebView",
+                "FixedRuntime",
+                "Microsoft.WebView2.FixedVersionRuntime",
+                "webview2",
+                "runtime",
+            ];
+
+            fn check_runtime_dir(dir: &Path) -> Option<PathBuf> {
+                if !dir.exists() || !dir.is_dir() {
+                    return None;
+                }
+                // Check if msedgewebview2.exe / msedge.dll is directly inside
+                if dir.join("msedgewebview2.exe").exists() || dir.join("msedge.dll").exists() {
+                    return Some(dir.to_path_buf());
+                }
+                // Check if there is a versioned subfolder (e.g. 154.0.4258.37\msedgewebview2.exe)
+                if let Ok(entries) = fs::read_dir(dir) {
+                    for entry in entries.flatten() {
+                        let sub = entry.path();
+                        if sub.is_dir() && (sub.join("msedgewebview2.exe").exists() || sub.join("msedge.dll").exists()) {
+                            return Some(sub);
+                        }
+                    }
+                }
+                None
+            }
+
+            let mut found_fixed = None;
+            for root in &search_roots {
+                for name in &fixed_folder_names {
+                    if let Some(valid_path) = check_runtime_dir(&root.join(name)) {
+                        found_fixed = Some(valid_path);
+                        break;
+                    }
+                }
+                if found_fixed.is_some() {
+                    break;
+                }
+            }
+
+            if let Some(fixed_dir) = found_fixed {
+                std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", &fixed_dir);
+                return;
+            }
+
+            // 3. If no local fixed runtime is bundled, verify if system Evergreen WebView2 is installed
+            let keys = [
+                r"HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}",
+                r"HKLM\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}",
+                r"HKCU\Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}",
+            ];
+            let mut is_installed = false;
+            for key in &keys {
+                if let Ok(output) = std::process::Command::new("reg")
+                    .args(&["query", key, "/v", "pv"])
+                    .output()
+                {
+                    if output.status.success() {
+                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        if stdout.contains("REG_SZ") && !stdout.contains("0.0.0.0") {
+                            is_installed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 4. If system WebView2 is NOT installed, run offline standalone or bootstrapper installer silently
+            if !is_installed {
+                for root in &search_roots {
+                    let standalone = root.join("MicrosoftEdgeWebView2RuntimeInstallerX64.exe");
+                    if standalone.is_file() {
+                        let _ = std::process::Command::new(&standalone)
+                            .args(&["/silent", "/install"])
+                            .status();
+                        break;
+                    }
+                    let bootstrapper = root.join("MicrosoftEdgeWebview2Setup.exe");
+                    if bootstrapper.is_file() {
+                        let _ = std::process::Command::new(&bootstrapper)
+                            .args(&["/silent", "/install"])
+                            .status();
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    init_environment();
+
     tauri::Builder::default()
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -811,6 +1061,7 @@ pub fn run() {
             window_control,
             set_fullscreen,
             get_app_version,
+            get_app_mode,
             get_sound_folder_path,
             get_sound_files,
             open_sound_folder,

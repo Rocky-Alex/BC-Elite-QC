@@ -6,34 +6,74 @@ const path = require('path');
 const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
 const version = pkg.version;
 console.log(`\n==================================================`);
-console.log(`Packaging BC Elite QC version ${version}...`);
+console.log(`Packaging BC Elite QC - Split Editions v${version}...`);
 console.log(`==================================================\n`);
 
 const sourceDir = __dirname;
-const outputDir = 'f:\\Company Software\\Builded Setups';
-const tempDir = path.join(sourceDir, 'temp_portable');
-
-// Ensure output directory exists
-if (!fs.existsSync(outputDir)) {
-  fs.mkdirSync(outputDir, { recursive: true });
+let outputDir = 'e:\\Company Software\\Builded Setups';
+try {
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+} catch (e) {
+  outputDir = path.join(sourceDir, 'dist_setups');
+  if (!fs.existsSync(outputDir)) {
+    fs.mkdirSync(outputDir, { recursive: true });
+  }
+  console.log(`Note: Using fallback output directory: ${outputDir}`);
 }
 
-// Clean temporary directory
-if (fs.existsSync(tempDir)) {
-  fs.rmSync(tempDir, { recursive: true, force: true });
+const tempDirCustomer = path.join(sourceDir, 'temp_portable_customer');
+const tempDirAdmin = path.join(sourceDir, 'temp_portable_admin');
+
+// Clean temporary directories
+[tempDirCustomer, tempDirAdmin].forEach(dir => {
+  try {
+    if (fs.existsSync(dir)) {
+      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 500 });
+    }
+  } catch (e) {
+    console.warn(`Warning: Could not remove directory ${dir} immediately, proceeding.`);
+  }
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  } catch (e) {}
+});
+
+// Helper to find ISCC compiler
+function findISCC() {
+  const candidatePaths = [
+    'iscc',
+    'C:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe',
+    'C:\\Program Files\\Inno Setup 6\\ISCC.exe',
+    'C:\\Users\\' + (process.env.USERNAME || 'Rishad') + '\\AppData\\Local\\Programs\\Inno Setup 6\\ISCC.exe',
+    'C:\\Users\\' + (process.env.USERNAME || 'Z Book Fury G8') + '\\AppData\\Local\\Programs\\Antigravity IDE\\resources\\app\\node_modules\\innosetup\\bin\\ISCC.exe',
+    'C:\\Users\\Z Book Fury G8\\AppData\\Local\\Programs\\Antigravity IDE\\resources\\app\\node_modules\\innosetup\\bin\\ISCC.exe',
+    'C:\\Users\\Rishad\\AppData\\Local\\Programs\\Inno Setup 6\\ISCC.exe',
+    'C:\\Users\\Z Book Fury G8\\AppData\\Local\\Programs\\Inno Setup 6\\ISCC.exe'
+  ];
+
+  for (const p of candidatePaths) {
+    if (p === 'iscc') {
+      try {
+        execSync('iscc /?', { stdio: 'ignore' });
+        return 'iscc';
+      } catch (e) { }
+    } else if (fs.existsSync(p)) {
+      return `"${p}"`;
+    }
+  }
+  return null;
 }
-fs.mkdirSync(tempDir, { recursive: true });
 
 // 2. Build fresh Tauri release binary
 console.log('--- Step 1: Compiling fresh Tauri Release Binary ---');
 try {
   const distSoundDir = path.join(sourceDir, 'dist', 'Sound_checking');
-  const srcSoundDir = path.join(sourceDir, 'Sound_checking');
-  if (!fs.existsSync(distSoundDir)) {
-    fs.mkdirSync(distSoundDir, { recursive: true });
-  }
-  if (fs.existsSync(srcSoundDir)) {
-    fs.cpSync(srcSoundDir, distSoundDir, { recursive: true });
+  if (fs.existsSync(distSoundDir)) {
+    fs.rmSync(distSoundDir, { recursive: true, force: true });
   }
 
   execSync('npm run build', {
@@ -47,24 +87,39 @@ try {
   process.exit(1);
 }
 
-// Temporarily overwrite version to "1.5.1" for setup compiling and zip archiving
-const releasePkg = { ...pkg, version: '1.5.1' };
+// Temporarily ensure version is formatted for setup compiling
+const releasePkg = { ...pkg, version };
 fs.writeFileSync('package.json', JSON.stringify(releasePkg, null, 2), 'utf8');
 
 try {
-  // 3. Compile the Inno Setup Installer
-  console.log('\n--- Step 2: Compiling Inno Setup Installer ---');
-  try {
-    const isccPath = '"C:\\Users\\Rishad\\AppData\\Local\\Programs\\Inno Setup 6\\ISCC.exe"';
-    execSync(`${isccPath} setup.iss`, { stdio: 'inherit' });
-    console.log('\nInno Setup Installer compiled successfully.');
-  } catch (err) {
-    console.error('\nInno Setup compilation failed:', err.message);
-    throw err;
+  // 3. Compile Inno Setup Installers
+  console.log('\n--- Step 2: Compiling Inno Setup Installers ---');
+  const isccPath = findISCC();
+
+  if (isccPath) {
+    // A. Customer Full Setup Installer
+    console.log('\n-> Compiling Customer Edition Setup Installer (setup_customer.iss)...');
+    try {
+      execSync(`${isccPath} setup_customer.iss`, { stdio: 'inherit' });
+      console.log('Customer Edition Installer compiled successfully.');
+    } catch (err) {
+      console.error('Customer Edition Inno Setup compilation failed:', err.message);
+    }
+
+    // B. Admin Full Setup Installer
+    console.log('\n-> Compiling Admin & Staff Edition Setup Installer (setup_admin.iss)...');
+    try {
+      execSync(`${isccPath} setup_admin.iss`, { stdio: 'inherit' });
+      console.log('Admin Edition Installer compiled successfully.');
+    } catch (err) {
+      console.error('Admin Edition Inno Setup compilation failed:', err.message);
+    }
+  } else {
+    console.warn('Warning: ISCC (Inno Setup Compiler) was not located. Skipping installer .exe creation.');
   }
 
-  // 3. Replicate the Directory Structure for Portable Version
-  console.log('\n--- Step 2: Preparing Portable Version files ---');
+  // 4. Prepare Portable Packages (Customer & Admin)
+  console.log('\n--- Step 3: Preparing Portable Versions ---');
 
   const copyTargets = [
     { src: 'Battery_checking', dest: 'Battery_checking' },
@@ -73,23 +128,9 @@ try {
     { src: 'Keyboard_checking', dest: 'Keyboard_checking' },
     { src: 'cpuz', dest: 'cpuz' },
     { src: 'HDSentinel', dest: 'HDSentinel' },
-    { src: 'icon.ico', dest: 'icon.ico' }
+    { src: 'icon.ico', dest: 'icon.ico' },
+    { src: 'Sound Checking.ico', dest: 'Sound Checking.ico' }
   ];
-
-  for (const target of copyTargets) {
-    const srcPath = path.join(sourceDir, target.src);
-    const destPath = path.join(tempDir, target.dest);
-    if (fs.existsSync(srcPath)) {
-      console.log(`Copying ${target.src}...`);
-      fs.cpSync(srcPath, destPath, { recursive: true });
-    } else {
-      console.warn(`Warning: Source path not found: ${target.src}`);
-    }
-  }
-
-  // Create Master Checker folder and copy launcher / binaries
-  const masterCheckerDest = path.join(tempDir, 'Master Checker');
-  fs.mkdirSync(masterCheckerDest, { recursive: true });
 
   const binTargets = [
     { src: 'src-tauri/target/release/app.exe', dest: 'BizzCoHubQC.exe' },
@@ -97,47 +138,67 @@ try {
     { src: 'BizzCoHub QC File.bat', dest: 'BizzCoHub QC File.bat' }
   ];
 
-  for (const target of binTargets) {
-    const srcPath = path.join(sourceDir, target.src);
-    const destPath = path.join(masterCheckerDest, target.dest);
-    if (fs.existsSync(srcPath)) {
-      console.log(`Copying binary: ${target.dest}...`);
-      fs.copyFileSync(srcPath, destPath);
-    } else {
-      console.error(`\nError: Critical build binary not found: ${target.src}`);
-      console.error('Please verify you have run "npm run build" first to compile the release binary.');
-      throw new Error('Critical binary missing.');
+  function populatePortableDir(targetDir, modeConfig) {
+    for (const target of copyTargets) {
+      const srcPath = path.join(sourceDir, target.src);
+      const destPath = path.join(targetDir, target.dest);
+      if (fs.existsSync(srcPath)) {
+        fs.cpSync(srcPath, destPath, { recursive: true });
+      }
     }
+
+    const masterCheckerDest = path.join(targetDir, 'Master Checker');
+    fs.mkdirSync(masterCheckerDest, { recursive: true });
+
+    // Copy binaries to BOTH root directory and Master Checker directory
+    for (const target of binTargets) {
+      const srcPath = path.join(sourceDir, target.src);
+      if (fs.existsSync(srcPath)) {
+        fs.copyFileSync(srcPath, path.join(masterCheckerDest, target.dest));
+        fs.copyFileSync(srcPath, path.join(targetDir, target.dest));
+      }
+    }
+
+    // Write mode configuration to both root and Master Checker
+    fs.writeFileSync(path.join(targetDir, 'app_mode.json'), JSON.stringify(modeConfig, null, 2), 'utf8');
+    fs.writeFileSync(path.join(masterCheckerDest, 'app_mode.json'), JSON.stringify(modeConfig, null, 2), 'utf8');
   }
 
-  // 4. Zip the Portable Version using PowerShell
-  // Use "1.5.1" directly for the archive name
-  const zipName = `QC_Software_Portable_v1.5.1.zip`;
-  const zipPath = path.join(outputDir, zipName);
+  // Customer Portable
+  console.log('Populating Customer Portable directory...');
+  populatePortableDir(tempDirCustomer, { mode: 'customer', edition: 'Customer Edition' });
+  const customerZipName = `QC_Software_Portable_Customer_v${version}.zip`;
+  const customerZipPath = path.join(outputDir, customerZipName);
+  console.log(`Compressing ${customerZipName}...`);
+  execSync(`tar -a -c -f "${customerZipPath}" -C "${tempDirCustomer}" *`, { stdio: 'inherit' });
+  console.log(`Created: ${customerZipPath}`);
 
-  console.log(`\n--- Step 3: Compressing Portable Version into ${zipName} ---`);
-  try {
-    execSync(`powershell -Command "Set-Location -Path '${tempDir}'; Compress-Archive -Path '*' -DestinationPath '${zipPath}' -Force"`, { stdio: 'inherit' });
-    console.log(`\nPortable version packaged successfully: ${zipName}`);
-  } catch (err) {
-    console.error('\nFailed to create portable zip archive:', err.message);
-    throw err;
-  }
+  // Admin Portable
+  console.log('Populating Admin Portable directory...');
+  populatePortableDir(tempDirAdmin, { mode: 'admin', edition: 'Admin & Staff Edition' });
+  const adminZipName = `QC_Software_Portable_Admin_v${version}.zip`;
+  const adminZipPath = path.join(outputDir, adminZipName);
+  console.log(`Compressing ${adminZipName}...`);
+  execSync(`tar -a -c -f "${adminZipPath}" -C "${tempDirAdmin}" *`, { stdio: 'inherit' });
+  console.log(`Created: ${adminZipPath}`);
+
 } catch (err) {
-  // Restore package.json version on error and exit
+  console.error('\nPackaging error:', err);
   fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2), 'utf8');
   process.exit(1);
 } finally {
-  // 5. Clean up temp folder
-  console.log('\nCleaning up temporary files...');
-  if (fs.existsSync(tempDir)) {
-    fs.rmSync(tempDir, { recursive: true, force: true });
-  }
-  // Restore package.json version to standard SemVer 1.5.1.0
+  console.log('\nCleaning up temporary directories...');
+  [tempDirCustomer, tempDirAdmin].forEach(dir => {
+    try {
+      if (fs.existsSync(dir)) {
+        fs.rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 500 });
+      }
+    } catch (e) {}
+  });
   fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2), 'utf8');
 }
 
 console.log('\n==================================================');
-console.log('Packaging workflow completed successfully!');
+console.log('Dual-Edition Packaging workflow completed successfully!');
 console.log(`Outputs located in: ${outputDir}`);
 console.log('==================================================\n');

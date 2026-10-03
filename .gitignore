@@ -38,10 +38,9 @@ BizzCoHub QC File.bat
 *.dat
 *.chm
 *.lng
-log.txt
-DriveAddRemoveLog.txt
-winsched.txt
-hdsversion.txt
-hds_eula_en.txt
-hds_eula_en.txt
-README.md
+# Temporary build & packaging directories
+temp_portable_customer/
+temp_portable_admin/
+dist_setups/
+.agents/
+

@@ -6,41 +6,49 @@
 #define AppVersion Copy(Line3, 15, Pos(",", Line3) - 16)
 
 [Setup]
-AppName=BC Elite QC
+AppName=BC Elite QC (Admin Edition)
 AppPublisher=Bizz Co Hub LLC
 AppVersion={#AppVersion}
 DefaultDirName=C:\BC Elite QC
-DefaultGroupName=BC Elite QC
-OutputDir=f:\Company Software\Builded Setups
-OutputBaseFilename=BC_Elite_QC_Setup_Version_v1.5.1
+DefaultGroupName=BC Elite QC Admin
+UsePreviousAppDir=no
+UsePreviousGroup=no
+UsePreviousTasks=no
+OutputDir=E:\Company Software\Builded Setups
+OutputBaseFilename=BC_Elite_QC_Admin_Setup_v{#AppVersion}
 Compression=lzma2/max
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
-SetupIconFile=f:\Company Software\QC Software - Remaster\src-tauri\icons\icon.ico
-WizardSmallImageFile=f:\Company Software\QC Software - Remaster\installer_logo.bmp
+PrivilegesRequiredOverridesAllowed=dialog commandline
+UsedUserAreasWarning=no
+CloseApplications=yes
+SetupIconFile={#SourcePath}src-tauri\icons\icon.ico
+WizardSmallImageFile={#SourcePath}installer_logo.bmp
 DisableWelcomePage=no
 
 [Files]
-Source: "f:\Company Software\QC Software - Remaster\Battery_checking\Battery_checking.exe"; DestDir: "{app}\Battery_checking"; Flags: ignoreversion
-Source: "f:\Company Software\QC Software - Remaster\Battery_checking\Battery_checking.cfg"; DestDir: "{app}\Battery_checking"; Flags: ignoreversion
-Source: "f:\Company Software\QC Software - Remaster\LCD_checking\LCD_checking.exe"; DestDir: "{app}\LCD_checking"; Flags: ignoreversion
-Source: "f:\Company Software\QC Software - Remaster\Sound_checking\*"; DestDir: "{app}\Sound_checking"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "f:\Company Software\QC Software - Remaster\Keyboard_checking\Keyboard_checking.exe"; DestDir: "{app}\Keyboard_checking"; Flags: ignoreversion
-Source: "f:\Company Software\QC Software - Remaster\cpuz\cpuz_x64.exe"; DestDir: "{app}\cpuz"; Flags: ignoreversion
-Source: "f:\Company Software\QC Software - Remaster\cpuz\cpuz.ini"; DestDir: "{app}\cpuz"; Flags: ignoreversion
-Source: "f:\Company Software\QC Software - Remaster\BizzCoHub QC File.bat"; DestDir: "{app}\Master Checker"; Flags: ignoreversion
-Source: "f:\Company Software\QC Software - Remaster\src-tauri\target\release\app.exe"; DestName: "BizzCoHubQC.exe"; DestDir: "{app}\Master Checker"; Flags: ignoreversion
-Source: "f:\Company Software\QC Software - Remaster\src-tauri\target\release\WebView2Loader.dll"; DestDir: "{app}\Master Checker"; Flags: ignoreversion
-Source: "f:\Company Software\QC Software - Remaster\icon.ico"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{srcexe}"; DestDir: "{app}\Setup"; DestName: "QC_Setup.exe"; Flags: external ignoreversion
-Source: "f:\Company Software\QC Software - Remaster\HDSentinel\*"; DestDir: "{app}\HDSentinel"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "f:\Company Software\QC Software - Remaster\installer_logo.bmp"; Flags: dontcopy
-Source: "f:\Company Software\QC Software - Remaster\installation_bg.bmp"; Flags: dontcopy
+Source: "{#SourcePath}Battery_checking\Battery_checking.exe"; DestDir: "{app}\Battery_checking"; Flags: ignoreversion
+Source: "{#SourcePath}Battery_checking\Battery_checking.cfg"; DestDir: "{app}\Battery_checking"; Flags: ignoreversion
+Source: "{#SourcePath}LCD_checking\LCD_checking.exe"; DestDir: "{app}\LCD_checking"; Flags: ignoreversion
+Source: "{#SourcePath}Sound_checking\*"; DestDir: "{app}\Sound_checking"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourcePath}Keyboard_checking\Keyboard_checking.exe"; DestDir: "{app}\Keyboard_checking"; Flags: ignoreversion
+Source: "{#SourcePath}cpuz\cpuz_x64.exe"; DestDir: "{app}\cpuz"; Flags: ignoreversion
+Source: "{#SourcePath}cpuz\cpuz.ini"; DestDir: "{app}\cpuz"; Flags: ignoreversion
+Source: "{#SourcePath}BizzCoHub QC File.bat"; DestDir: "{app}\Master Checker"; Flags: ignoreversion
+Source: "{#SourcePath}src-tauri\target\release\app.exe"; DestName: "BizzCoHubQC.exe"; DestDir: "{app}\Master Checker"; Flags: ignoreversion
+Source: "{#SourcePath}src-tauri\target\release\WebView2Loader.dll"; DestDir: "{app}\Master Checker"; Flags: ignoreversion
+Source: "{#SourcePath}icon.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourcePath}Sound Checking.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourcePath}app_mode_admin.json"; DestName: "app_mode.json"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourcePath}app_mode_admin.json"; DestName: "app_mode.json"; DestDir: "{app}\Master Checker"; Flags: ignoreversion
+Source: "{#SourcePath}HDSentinel\*"; DestDir: "{app}\HDSentinel"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourcePath}installer_logo.bmp"; Flags: dontcopy
+Source: "{#SourcePath}installation_bg.bmp"; Flags: dontcopy
 
 [Tasks]
 Name: "desktopicon"; Description: "Create Desktop Shortcuts"; GroupDescription: "Additional shortcuts:"
-Name: "desktopicon\master"; Description: "BizzCoHub QC Software (Master Checker)"
+Name: "desktopicon\master"; Description: "BC Elite QC (Admin Edition)"
 Name: "desktopicon\battery"; Description: "Battery Checker"
 Name: "desktopicon\cpuz"; Description: "CPU-Z Hardware Info"
 Name: "desktopicon\hdsentinel"; Description: "Hard Disk Sentinel"
@@ -49,25 +57,24 @@ Name: "desktopicon\lcd"; Description: "LCD Pixel Checker"
 Name: "desktopicon\sound"; Description: "Sound Output Checker"
 
 [Icons]
-Name: "{commondesktop}\BC Elite QC"; Filename: "{app}\Master Checker\BizzCoHubQC.exe"; IconFilename: "{app}\icon.ico"; WorkingDir: "{app}\Master Checker"; Comment: "Run Quality Control Diagnostics"; Tasks: desktopicon\master
-Name: "{commondesktop}\Battery Checker"; Filename: "{app}\Battery_checking\Battery_checking.exe"; WorkingDir: "{app}\Battery_checking"; Tasks: desktopicon\battery
-Name: "{commondesktop}\CPU-Z Hardware Info"; Filename: "{app}\cpuz\cpuz_x64.exe"; WorkingDir: "{app}\cpuz"; Tasks: desktopicon\cpuz
-Name: "{commondesktop}\Hard Disk Sentinel"; Filename: "{app}\HDSentinel\HDSentinel.exe"; WorkingDir: "{app}\HDSentinel"; Tasks: desktopicon\hdsentinel
-Name: "{commondesktop}\Keyboard Checker"; Filename: "{app}\Keyboard_checking\Keyboard_checking.exe"; WorkingDir: "{app}\Keyboard_checking"; Tasks: desktopicon\keyboard
-Name: "{commondesktop}\LCD Pixel Checker"; Filename: "{app}\LCD_checking\LCD_checking.exe"; WorkingDir: "{app}\LCD_checking"; Tasks: desktopicon\lcd
-Name: "{commondesktop}\Sound Output Checker"; Filename: "{app}\Master Checker\BizzCoHubQC.exe"; IconFilename: "{app}\icon.ico"; WorkingDir: "{app}\Master Checker"; Tasks: desktopicon\sound
-Name: "{group}\Master Checker\BC Elite QC"; Filename: "{app}\Master Checker\BizzCoHubQC.exe"; IconFilename: "{app}\icon.ico"; WorkingDir: "{app}\Master Checker"
+Name: "{userdesktop}\BC Elite QC (Admin Edition)"; Filename: "{app}\Master Checker\BizzCoHubQC.exe"; IconFilename: "{app}\icon.ico"; WorkingDir: "{app}\Master Checker"; Comment: "Run Quality Control Diagnostics (Admin & Staff Edition)"; Tasks: desktopicon\master
+Name: "{userdesktop}\Battery Checker"; Filename: "{app}\Battery_checking\Battery_checking.exe"; WorkingDir: "{app}\Battery_checking"; Tasks: desktopicon\battery
+Name: "{userdesktop}\CPU-Z Hardware Info"; Filename: "{app}\cpuz\cpuz_x64.exe"; WorkingDir: "{app}\cpuz"; Tasks: desktopicon\cpuz
+Name: "{userdesktop}\Hard Disk Sentinel"; Filename: "{app}\HDSentinel\HDSentinel.exe"; WorkingDir: "{app}\HDSentinel"; Tasks: desktopicon\hdsentinel
+Name: "{userdesktop}\Keyboard Checker"; Filename: "{app}\Keyboard_checking\Keyboard_checking.exe"; WorkingDir: "{app}\Keyboard_checking"; Tasks: desktopicon\keyboard
+Name: "{userdesktop}\LCD Pixel Checker"; Filename: "{app}\LCD_checking\LCD_checking.exe"; WorkingDir: "{app}\LCD_checking"; Tasks: desktopicon\lcd
+Name: "{userdesktop}\Sound Output Checker"; Filename: "{app}\Master Checker\BizzCoHubQC.exe"; IconFilename: "{app}\Sound Checking.ico"; WorkingDir: "{app}\Master Checker"; Tasks: desktopicon\sound
+Name: "{group}\Master Checker\BC Elite QC (Admin Edition)"; Filename: "{app}\Master Checker\BizzCoHubQC.exe"; IconFilename: "{app}\icon.ico"; WorkingDir: "{app}\Master Checker"
 Name: "{group}\Battery_checking\Battery Checker"; Filename: "{app}\Battery_checking\Battery_checking.exe"; WorkingDir: "{app}\Battery_checking"
 Name: "{group}\cpuz\CPU-Z Hardware Info"; Filename: "{app}\cpuz\cpuz_x64.exe"; WorkingDir: "{app}\cpuz"
 Name: "{group}\HDSentinel\Hard Disk Sentinel"; Filename: "{app}\HDSentinel\HDSentinel.exe"; WorkingDir: "{app}\HDSentinel"
 Name: "{group}\Keyboard_checking\Keyboard Checker"; Filename: "{app}\Keyboard_checking\Keyboard_checking.exe"; WorkingDir: "{app}\Keyboard_checking"
 Name: "{group}\LCD_checking\LCD Pixel Checker"; Filename: "{app}\LCD_checking\LCD_checking.exe"; WorkingDir: "{app}\LCD_checking"
-Name: "{group}\Sound_checking\Sound Output Checker"; Filename: "{app}\Master Checker\BizzCoHubQC.exe"; IconFilename: "{app}\icon.ico"; WorkingDir: "{app}\Master Checker"
-Name: "{group}\Setup\QC Setup Update"; Filename: "{app}\Setup\QC_Setup.exe"; WorkingDir: "{app}\Setup"
+Name: "{group}\Sound_checking\Sound Output Checker"; Filename: "{app}\Master Checker\BizzCoHubQC.exe"; IconFilename: "{app}\Sound Checking.ico"; WorkingDir: "{app}\Master Checker"
 Name: "{group}\Uninstaller\Uninstall QC Software Suite"; Filename: "{uninstallexe}"; WorkingDir: "{app}"
 
 [Run]
-Filename: "{app}\Master Checker\BizzCoHubQC.exe"; Description: "Launch BC Elite QC"; Flags: postinstall nowait skipifsilent; Check: ShouldLaunchQC
+Filename: "{app}\Master Checker\BizzCoHubQC.exe"; Description: "Launch BC Elite QC (Admin Edition)"; Flags: postinstall nowait skipifsilent; Check: ShouldLaunchQC
 
 [Code]
 var
@@ -84,7 +91,6 @@ var
   CustomLaunchCheckBox: TNewCheckBox;
   MyFinishedHeadingLabel: TLabel;
   MyFinishedLabel: TLabel;
-  BypassPages: Boolean;
   ClearAllData: Boolean;
 
 function ShouldLaunchQC: Boolean;
@@ -92,31 +98,36 @@ begin
   Result := CustomLaunchCheckBox.Checked;
 end;
 
-procedure WizardFormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+function InitializeSetup: Boolean;
+var
+  ResultCode: Integer;
 begin
-  if (Key = 117) and (Shift = [ssShift]) then
-  begin
-    if WizardForm.CurPageID = wpWelcome then
-    begin
-      BypassPages := True;
-      WizardForm.NextButton.OnClick(WizardForm.NextButton);
-    end;
-  end;
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im BizzCoHubQC.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im Battery_checking.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im LCD_checking.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im Keyboard_checking.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im cpuz_x64.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im HDSentinel.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im HDSentinelTray.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im HDSCtrl.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im HDSAction.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Result := True;
 end;
 
-function ShouldSkipPage(PageID: Integer): Boolean;
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
 begin
-  Result := False;
-  if BypassPages then
-  begin
-    if (PageID = wpSelectDir) or 
-       (PageID = wpSelectProgramGroup) or 
-       (PageID = wpSelectTasks) or 
-       (PageID = wpReady) then
-    begin
-      Result := True;
-    end;
-  end;
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im BizzCoHubQC.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im Battery_checking.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im LCD_checking.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im Keyboard_checking.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im cpuz_x64.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im HDSentinel.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im HDSentinelTray.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im HDSCtrl.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im HDSAction.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Result := '';
 end;
 
 procedure CurInstallProgressChanged(Progress, MaxProgress: Integer);
@@ -131,13 +142,11 @@ procedure CurPageChanged(CurPageID: Integer);
 var
   LabelHeight: Integer;
 begin
-  // Set notebook positions parented to FloatingCard
   WizardForm.InnerNotebook.Left := ScaleX(15);
   WizardForm.InnerNotebook.Width := FloatingCard.Width - ScaleX(30);
   WizardForm.InnerNotebook.Top := ScaleY(45);
   WizardForm.InnerNotebook.Height := FloatingCard.Height - ScaleY(60);
 
-  // Force page container matching to prevent clipping
   WizardForm.WelcomePage.Width := WizardForm.OuterNotebook.Width;
   WizardForm.WelcomePage.Height := WizardForm.OuterNotebook.Height;
   WizardForm.FinishedPage.Width := WizardForm.OuterNotebook.Width;
@@ -163,7 +172,6 @@ begin
   WizardForm.ReadyPage.Width := WizardForm.InnerNotebook.Width;
   WizardForm.ReadyPage.Height := WizardForm.InnerNotebook.Height;
 
-  // Reset standard button sizes and positions
   WizardForm.BackButton.Width := ScaleX(90);
   WizardForm.NextButton.Width := ScaleX(90);
   WizardForm.CancelButton.Width := ScaleX(90);
@@ -172,15 +180,12 @@ begin
   WizardForm.NextButton.Left := WizardForm.CancelButton.Left - WizardForm.NextButton.Width - ScaleX(10);
   WizardForm.BackButton.Left := WizardForm.NextButton.Left - WizardForm.BackButton.Width - ScaleX(10);
 
-  // Manage visibility of FloatingCard and update card header titles
   case CurPageID of
     wpWelcome:
     begin
       FloatingCard.Visible := False;
-      
-      // Style Next Button as "Agree and Install"
-      WizardForm.NextButton.Caption := 'Agree and Install';
-      WizardForm.NextButton.Width := ScaleX(180);
+      WizardForm.NextButton.Caption := SetupMessage(msgButtonNext);
+      WizardForm.NextButton.Width := ScaleX(90);
       WizardForm.NextButton.Left := WizardForm.CancelButton.Left - WizardForm.NextButton.Width - ScaleX(10);
       WizardForm.BackButton.Visible := False;
       WizardForm.NextButton.Visible := True;
@@ -190,9 +195,7 @@ begin
     begin
       FloatingCard.Visible := True;
       CardTitleLabel.Caption := 'Select Destination Location';
-      CardDescLabel.Caption := 'Where should QC Software Suite be installed?';
-      
-      // Restore standard button layout
+      CardDescLabel.Caption := 'Where should QC Software Suite (Admin) be installed?';
       WizardForm.NextButton.Caption := SetupMessage(msgButtonNext);
       WizardForm.BackButton.Visible := True;
       WizardForm.NextButton.Visible := True;
@@ -203,8 +206,6 @@ begin
       FloatingCard.Visible := True;
       CardTitleLabel.Caption := 'Select Start Menu Folder';
       CardDescLabel.Caption := 'Where should Setup place the program''s shortcuts?';
-      
-      // Keep standard buttons
       WizardForm.BackButton.Visible := True;
       WizardForm.NextButton.Visible := True;
       WizardForm.CancelButton.Visible := True;
@@ -214,8 +215,6 @@ begin
       FloatingCard.Visible := True;
       CardTitleLabel.Caption := 'Select Additional Tasks';
       CardDescLabel.Caption := 'Which additional shortcuts should be created?';
-      
-      // Keep standard buttons
       WizardForm.BackButton.Visible := True;
       WizardForm.NextButton.Visible := True;
       WizardForm.CancelButton.Visible := True;
@@ -224,9 +223,7 @@ begin
     begin
       FloatingCard.Visible := True;
       CardTitleLabel.Caption := 'Ready to Install';
-      CardDescLabel.Caption := 'Setup is now ready to begin installing QC Software Suite.';
-      
-      // Keep standard buttons
+      CardDescLabel.Caption := 'Setup is now ready to begin installing QC Software Suite (Admin & Staff).';
       WizardForm.BackButton.Visible := True;
       WizardForm.NextButton.Visible := True;
       WizardForm.CancelButton.Visible := True;
@@ -241,30 +238,24 @@ begin
     wpFinished:
     begin
       FloatingCard.Visible := False;
-      
-      // Hide Back and Cancel buttons, use NextButton as Finish button
       WizardForm.BackButton.Visible := False;
       WizardForm.CancelButton.Visible := False;
       WizardForm.NextButton.Visible := True;
       WizardForm.NextButton.Left := BottomPanel.Width - ScaleX(110);
       WizardForm.NextButton.Width := ScaleX(90);
       
-      // Populate custom transparent labels with real runtime localized text
       MyFinishedHeadingLabel.Caption := WizardForm.FinishedHeadingLabel.Caption;
       MyFinishedLabel.Caption := WizardForm.FinishedLabel.Caption;
-      
-      // Override engine visibility force to hide default RunList checklist box
       WizardForm.RunList.Visible := False;
     end;
   else
-  begin
-    FloatingCard.Visible := True;
-    CardTitleLabel.Caption := 'QC Software Suite Setup';
-    CardDescLabel.Caption := 'Please follow the steps to configure your software.';
-  end;
+    begin
+      FloatingCard.Visible := True;
+      CardTitleLabel.Caption := 'QC Software Suite Admin Setup';
+      CardDescLabel.Caption := 'Please follow the steps to configure your software.';
+    end;
   end;
 
-  // Show/Hide progress controls based on page
   if (CurPageID = wpPreparing) or (CurPageID = wpInstalling) then
   begin
     WizardForm.StatusLabel.Visible := True;
@@ -280,7 +271,6 @@ begin
     PercentLabel.Visible := False;
   end;
 
-  // Align Select Dir controls relative to page container
   if CurPageID = wpSelectDir then
   begin
     WizardForm.SelectDirLabel.Left := ScaleX(10);
@@ -312,7 +302,6 @@ begin
     WizardForm.DiskSpaceLabel.Font.Color := $AAAAAA;
   end;
 
-  // Align Select Program Group controls relative to page container
   if CurPageID = wpSelectProgramGroup then
   begin
     WizardForm.SelectStartMenuFolderLabel.Left := ScaleX(10);
@@ -344,7 +333,6 @@ begin
     WizardForm.NoIconsCheck.Font.Color := clWhite;
   end;
 
-  // Align Select Tasks controls relative to page container
   if CurPageID = wpSelectTasks then
   begin
     WizardForm.SelectTasksLabel.Left := ScaleX(10);
@@ -363,7 +351,6 @@ begin
     WizardForm.TasksList.Font.Color := clWhite;
   end;
 
-  // Align Ready controls relative to page container
   if CurPageID = wpReady then
   begin
     WizardForm.ReadyLabel.Left := ScaleX(10);
@@ -382,7 +369,6 @@ begin
     WizardForm.ReadyMemo.Font.Color := clWhite;
   end;
 
-  // Bring buttons to front to ensure they are on top of BottomPanel
   WizardForm.BackButton.BringToFront;
   WizardForm.NextButton.BringToFront;
   WizardForm.CancelButton.BringToFront;
@@ -390,11 +376,11 @@ end;
 
 procedure InitializeWizard;
 begin
-  // Set window size to match modern gaming launchers (680x480)
   WizardForm.ClientWidth := ScaleX(680);
   WizardForm.ClientHeight := ScaleY(480);
+  WizardForm.DirEdit.Text := 'C:\BC Elite QC';
   
-  WizardForm.Color := $111625; // Dark Navy background for the base form
+  WizardForm.Color := $111625;
   WizardForm.WelcomePage.Color := $111625;
   WizardForm.InnerPage.Color := $111625;
   WizardForm.SelectDirPage.Color := $111625;
@@ -415,7 +401,6 @@ begin
 
   ExtractTemporaryFile('installation_bg.bmp');
 
-  // Welcome page background image
   WelcomeBgImg := TBitmapImage.Create(WizardForm);
   WelcomeBgImg.Parent := WizardForm.WelcomePage;
   WelcomeBgImg.Bitmap.LoadFromFile(ExpandConstant('{tmp}\installation_bg.bmp'));
@@ -426,7 +411,6 @@ begin
   WelcomeBgImg.Stretch := True;
   WelcomeBgImg.SendToBack;
   
-  // Inner page background image
   InnerBgImg := TBitmapImage.Create(WizardForm);
   InnerBgImg.Parent := WizardForm.InnerPage;
   InnerBgImg.Bitmap.LoadFromFile(ExpandConstant('{tmp}\installation_bg.bmp'));
@@ -436,10 +420,7 @@ begin
   InnerBgImg.Height := ScaleY(380);
   InnerBgImg.Stretch := True;
   InnerBgImg.SendToBack;
-  
-  // Finished page background image (none, inherits white solid color)
 
-  // Custom Bottom Panel spanning 380px to 480px
   BottomPanel := TPanel.Create(WizardForm);
   BottomPanel.Parent := WizardForm;
   BottomPanel.Left := 0;
@@ -451,7 +432,6 @@ begin
   BottomPanel.BevelOuter := bvNone;
   BottomPanel.BevelInner := bvNone;
 
-  // Copy-Friendly Logo on Bottom Left Panel
   LeftPanelLogo := TBitmapImage.Create(WizardForm);
   LeftPanelLogo.Parent := BottomPanel;
   ExtractTemporaryFile('installer_logo.bmp');
@@ -462,12 +442,11 @@ begin
   LeftPanelLogo.Height := ScaleY(50);
   LeftPanelLogo.Stretch := True;
 
-  // Branding labels on Bottom Left Panel
   LeftPanelTitle := TLabel.Create(WizardForm);
   LeftPanelTitle.Parent := BottomPanel;
   LeftPanelTitle.Left := ScaleX(75);
   LeftPanelTitle.Top := ScaleY(28);
-  LeftPanelTitle.Caption := 'QC Software Suite';
+  LeftPanelTitle.Caption := 'QC Software Suite (Admin & Staff)';
   LeftPanelTitle.Font.Name := 'Segoe UI';
   LeftPanelTitle.Font.Size := 11;
   LeftPanelTitle.Font.Style := [fsBold];
@@ -484,7 +463,6 @@ begin
   LeftPanelVer.Font.Color := $888888;
   LeftPanelVer.Transparent := True;
 
-  // Custom Floating Card for settings pages parented to InnerPage (above background)
   FloatingCard := TPanel.Create(WizardForm);
   FloatingCard.Parent := WizardForm.InnerPage;
   FloatingCard.Left := ScaleX(40);
@@ -496,7 +474,6 @@ begin
   FloatingCard.BevelOuter := bvNone;
   FloatingCard.BevelInner := bvNone;
 
-  // Floating Card Header Title Label
   CardTitleLabel := TLabel.Create(WizardForm);
   CardTitleLabel.Parent := FloatingCard;
   CardTitleLabel.Left := ScaleX(15);
@@ -516,19 +493,14 @@ begin
   CardDescLabel.Font.Color := clWhite;
   CardDescLabel.Transparent := True;
 
-  // Parent Standard inner notebook and controls to the FloatingCard
   WizardForm.InnerNotebook.Parent := FloatingCard;
-  
-  // Apply Anchoring constraints so controls stretch automatically with the page container
   WizardForm.TasksList.Anchors := [akLeft, akTop, akRight, akBottom];
   WizardForm.ReadyMemo.Anchors := [akLeft, akTop, akRight, akBottom];
 
-  // Re-parent bottom buttons to BottomPanel for modern visual alignment
   WizardForm.BackButton.Parent := BottomPanel;
   WizardForm.NextButton.Parent := BottomPanel;
   WizardForm.CancelButton.Parent := BottomPanel;
 
-  // Align buttons on BottomPanel
   WizardForm.CancelButton.Left := BottomPanel.Width - ScaleX(110);
   WizardForm.CancelButton.Top := ScaleY(35);
   WizardForm.CancelButton.Width := ScaleX(90);
@@ -544,7 +516,6 @@ begin
   WizardForm.BackButton.Width := ScaleX(90);
   WizardForm.BackButton.Height := ScaleY(30);
 
-  // Parent installation progress controls directly to BottomPanel
   WizardForm.StatusLabel.Parent := BottomPanel;
   WizardForm.StatusLabel.Left := ScaleX(230);
   WizardForm.StatusLabel.Top := ScaleY(15);
@@ -562,7 +533,6 @@ begin
   WizardForm.ProgressGauge.Top := ScaleY(40);
   WizardForm.ProgressGauge.Width := WizardForm.CancelButton.Left - ScaleX(10) - WizardForm.ProgressGauge.Left;
 
-  // Custom installation progress percentage label
   PercentLabel := TLabel.Create(WizardForm);
   PercentLabel.Parent := BottomPanel;
   PercentLabel.Left := WizardForm.CancelButton.Left - ScaleX(60);
@@ -574,18 +544,15 @@ begin
   PercentLabel.Alignment := taRightJustify;
   PercentLabel.Caption := '0%';
 
-  // Hide Inno Setup default full page illustrations
   WizardForm.WizardBitmapImage.Visible := False;
   WizardForm.WizardBitmapImage2.Visible := False;
   WizardForm.WizardSmallBitmapImage.Visible := False;
 
-  // Hide Inno Setup default welcome/finished labels which draw with default opaque container colors
   WizardForm.WelcomeLabel1.Visible := False;
   WizardForm.WelcomeLabel2.Visible := False;
   WizardForm.FinishedHeadingLabel.Visible := False;
   WizardForm.FinishedLabel.Visible := False;
 
-  // Create custom transparent Finished Page labels
   MyFinishedHeadingLabel := TLabel.Create(WizardForm);
   MyFinishedHeadingLabel.Parent := WizardForm.FinishedPage;
   MyFinishedHeadingLabel.AutoSize := False;
@@ -615,7 +582,6 @@ begin
   MyFinishedLabel.WordWrap := True;
   MyFinishedLabel.Transparent := True;
 
-  // Hide default checklist box and replace with custom transparent checkbox
   WizardForm.RunList.Visible := False;
   
   CustomLaunchCheckBox := TNewCheckBox.Create(WizardForm);
@@ -624,23 +590,18 @@ begin
   CustomLaunchCheckBox.Top := ScaleY(250);
   CustomLaunchCheckBox.Width := ScaleX(320);
   CustomLaunchCheckBox.Height := ScaleY(30);
-  CustomLaunchCheckBox.Caption := 'Launch BC Elite QC';
+  CustomLaunchCheckBox.Caption := 'Launch BC Elite QC (Admin Edition)';
   CustomLaunchCheckBox.Font.Name := 'Segoe UI';
   CustomLaunchCheckBox.Font.Size := 9;
   CustomLaunchCheckBox.Font.Style := [fsBold];
   CustomLaunchCheckBox.Font.Color := clBlack;
   CustomLaunchCheckBox.Checked := True;
-
-  BypassPages := False;
-  WizardForm.KeyPreview := True;
-  WizardForm.OnKeyDown := @WizardFormKeyDown;
 end;
 
 function InitializeUninstall: Boolean;
 var
   ResultCode: Integer;
 begin
-  // Force terminate any running processes of the diagnostics suite
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im BizzCoHubQC.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im Battery_checking.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec(ExpandConstant('{sys}\taskkill.exe'), '/f /im LCD_checking.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
@@ -659,14 +620,12 @@ var
 begin
   if (UninstallStep = usPostUninstall) and ClearAllData then
   begin
-    // 1. Delete WebView2 Cache & LocalStorage folder
     LocalAppFolder := ExpandConstant('{localappdata}\com.bcelite.qc');
     if DirExists(LocalAppFolder) then
     begin
       DelTree(LocalAppFolder, True, True, True);
     end;
 
-    // 2. Delete the entire installation folder and any residual files (e.g. HDSentinel.sta, configs, log files)
     AppFolder := ExpandConstant('{app}');
     if DirExists(AppFolder) then
     begin

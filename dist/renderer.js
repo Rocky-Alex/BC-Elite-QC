@@ -69,6 +69,14 @@ function init() {
         return { success: false, error: err };
       }
     },
+    getAppMode: async () => {
+      try {
+        const mode = await window.__TAURI__.core.invoke('get_app_mode');
+        return { success: true, mode };
+      } catch (err) {
+        return { success: false, error: err, mode: 'customer' };
+      }
+    },
     readFileContent: async (filePath) => {
       try {
         const content = await window.__TAURI__.core.invoke('read_file_content', { filePath });
@@ -173,6 +181,125 @@ function init() {
   };
   window.electronAPI = electronAPI;
 
+
+  // ==========================================================================
+  // APPLICATION MODE & STARTUP LOADER MANAGEMENT (Customer vs Admin Editions)
+  // ==========================================================================
+  let currentAppMode = 'customer';
+  let startupLoaderHidden = false;
+
+  function updateStartupLoader(percent, statusText) {
+    if (startupLoaderHidden) return;
+    const bar = document.getElementById('startup-loader-bar');
+    const percentEl = document.getElementById('startup-loader-percent');
+    const statusEl = document.getElementById('startup-loader-status-text');
+
+    if (bar && percent !== null && percent !== undefined) {
+      bar.style.width = `${Math.min(100, Math.max(0, percent))}%`;
+    }
+    if (percentEl && percent !== null && percent !== undefined) {
+      percentEl.textContent = `${Math.round(percent)}%`;
+    }
+    if (statusEl && statusText) {
+      statusEl.textContent = statusText;
+    }
+
+    // Dynamic Hardware Pipeline Chips Progression
+    const chipCore = document.getElementById('pipe-chip-core');
+    const chipRam = document.getElementById('pipe-chip-ram');
+    const chipSsd = document.getElementById('pipe-chip-ssd');
+    const chipGpu = document.getElementById('pipe-chip-gpu');
+    const chipBat = document.getElementById('pipe-chip-bat');
+
+    if (percent >= 20) {
+      if (chipCore) { chipCore.classList.remove('active'); chipCore.classList.add('completed'); }
+      if (chipRam) chipRam.classList.add('active');
+    }
+    if (percent >= 45) {
+      if (chipRam) { chipRam.classList.remove('active'); chipRam.classList.add('completed'); }
+      if (chipSsd) chipSsd.classList.add('active');
+    }
+    if (percent >= 70) {
+      if (chipSsd) { chipSsd.classList.remove('active'); chipSsd.classList.add('completed'); }
+      if (chipGpu) chipGpu.classList.add('active');
+    }
+    if (percent >= 88) {
+      if (chipGpu) { chipGpu.classList.remove('active'); chipGpu.classList.add('completed'); }
+      if (chipBat) chipBat.classList.add('active');
+    }
+    if (percent >= 100) {
+      if (chipBat) { chipBat.classList.remove('active'); chipBat.classList.add('completed'); }
+    }
+  }
+
+  function hideStartupLoader() {
+    if (startupLoaderHidden) return;
+    startupLoaderHidden = true;
+    const loader = document.getElementById('app-startup-loader');
+    if (loader) {
+      updateStartupLoader(100, 'Diagnostics Ready!');
+      setTimeout(() => {
+        loader.classList.add('loader-hidden');
+        setTimeout(() => {
+          loader.style.display = 'none';
+        }, 450);
+      }, 250);
+    }
+  }
+
+  async function detectAndApplyAppMode() {
+    let mode = 'customer';
+
+    // 1. Check window.APP_EDITION if explicitly set (and not "auto")
+    if (typeof window !== 'undefined' && window.APP_EDITION && window.APP_EDITION !== 'auto') {
+      mode = window.APP_EDITION.toLowerCase();
+    } else {
+      // 2. Query Tauri backend get_app_mode
+      try {
+        const res = await electronAPI.getAppMode();
+        if (res.success && res.mode) {
+          mode = res.mode.toLowerCase();
+        }
+      } catch (err) {
+        console.warn('Failed to query app mode from backend:', err);
+      }
+    }
+
+    currentAppMode = mode === 'admin' ? 'admin' : 'customer';
+    log(`Application Edition detected: ${currentAppMode.toUpperCase()} MODE`, 'ready');
+
+    const navDbPortal = document.getElementById('nav-database-portal');
+    const sideBadge = document.querySelector('.version-badge');
+    const windowTitle = document.querySelector('.window-title');
+    const appVer = systemSpecs.appVersion || (typeof window !== 'undefined' && window.APP_VERSION) || '1.6';
+
+    if (currentAppMode === 'admin') {
+      if (navDbPortal) {
+        navDbPortal.style.display = 'flex';
+        navDbPortal.style.pointerEvents = 'auto';
+      }
+      if (sideBadge) {
+        sideBadge.textContent = `ADMIN & STAFF V${appVer}`;
+      }
+      if (windowTitle) {
+        windowTitle.textContent = `Bizz Co Hub Quality Checking Software - Admin Edition - V${appVer}`;
+      }
+    } else {
+      // Customer Mode: Portal is completely hidden and disabled
+      if (navDbPortal) {
+        navDbPortal.style.display = 'none';
+        navDbPortal.style.pointerEvents = 'none';
+      }
+      if (sideBadge) {
+        sideBadge.textContent = `SYSTEM V${appVer}`;
+      }
+      if (windowTitle) {
+        windowTitle.textContent = `Bizz Co Hub Quality Checking Software - V${appVer}`;
+      }
+    }
+
+    return currentAppMode;
+  }
 
   // MULTIPLE ISSUES STATE & UTILITIES
   let previewIssues = [];
@@ -630,7 +757,7 @@ function init() {
   }
 
   // One-time cache bust: clear SSD cache when design version changes
-  const SSD_DESIGN_VERSION = 'v2';
+  const SSD_DESIGN_VERSION = 'v3';
   if (localStorage.getItem('ssd_design_version') !== SSD_DESIGN_VERSION) {
     localStorage.removeItem('qc_detailed_ssd');
     localStorage.setItem('ssd_design_version', SSD_DESIGN_VERSION);
@@ -771,12 +898,16 @@ function init() {
       return fetchAllPromise;
     }
 
+    const SPEC_CACHE_VERSION = '1.7.0';
+    const cachedVersion = localStorage.getItem('qc_cache_version');
+    const isCacheVersionValid = cachedVersion === SPEC_CACHE_VERSION;
+
     const cacheMode = localStorage.getItem('setting_cache_mode') || 'permanently';
-    const cachedBasic = cacheMode === 'permanently' ? localStorage.getItem('qc_basic_specs') : null;
-    const cachedRam = cacheMode === 'permanently' ? localStorage.getItem('qc_detailed_ram') : null;
-    const cachedSsd = cacheMode === 'permanently' ? localStorage.getItem('qc_detailed_ssd') : null;
-    const cachedGpu = cacheMode === 'permanently' ? localStorage.getItem('qc_detailed_graphics') : null;
-    const cachedBat = cacheMode === 'permanently' ? localStorage.getItem('qc_detailed_battery') : null;
+    const cachedBasic = (cacheMode === 'permanently' && isCacheVersionValid) ? localStorage.getItem('qc_basic_specs') : null;
+    const cachedRam = (cacheMode === 'permanently' && isCacheVersionValid) ? localStorage.getItem('qc_detailed_ram') : null;
+    const cachedSsd = (cacheMode === 'permanently' && isCacheVersionValid) ? localStorage.getItem('qc_detailed_ssd') : null;
+    const cachedGpu = (cacheMode === 'permanently' && isCacheVersionValid) ? localStorage.getItem('qc_detailed_graphics') : null;
+    const cachedBat = (cacheMode === 'permanently' && isCacheVersionValid) ? localStorage.getItem('qc_detailed_battery') : null;
 
     if (cachedBasic && !force) {
       log('Loaded specifications from persistent cache. Fetched details displayed at ' + new Date().toLocaleString() + '.', 'debug');
@@ -790,7 +921,11 @@ function init() {
         if (cachedGpu) renderGraphicsDetails(cachedGpu);
         if (cachedBat) renderBatteryDetails(cachedBat);
 
-        if (cachedRam && cachedSsd && cachedGpu && cachedBat) {
+        const isRamValid = cachedRam && !cachedRam.includes('Generic 0 GB');
+        const isGpuValid = cachedGpu && cachedGpu.trim().length > 0 && !cachedGpu.includes('(4 GB)');
+        const isBatValid = cachedBat && cachedBat !== 'N/A';
+
+        if (isRamValid && cachedSsd && isGpuValid && isBatValid) {
           return;
         }
       } catch (e) {
@@ -805,6 +940,7 @@ function init() {
     fetchAllPromise = (async () => {
       try {
         log('Pre-fetching detailed hardware configurations in a single run (3-6s)...', 'debug');
+        updateStartupLoader(50, 'Reading CPU, RAM, GPU and Storage topology...');
 
         // Highly-optimized, ultra-fast CIM / Registry hardware discovery script (<0.3s runtime)
         const script = `\$specs = @{}
@@ -826,12 +962,12 @@ try {
         \$ramSum = (\$ramSlotsObjs | Measure-Object -Property Capacity -Sum).Sum
         \$specs.ram = "\$([Math]::Round(\$ramSum / 1GB)) GB"
         \$ramSlots = \$ramSlotsObjs | ForEach-Object {
-            \$dev = if (\$_['DeviceLocator']) { \$_['DeviceLocator'].Trim() } else { "Slot" }
-            \$mfg = if (\$_['Manufacturer']) { \$_['Manufacturer'].Trim() } else { "Generic" }
-            \$cap = [Math]::Round(\$_['Capacity'] / 1GB)
-            \$speed = if (\$_['Speed']) { \$_['Speed'] } else { 0 }
-            \$part = if (\$_['PartNumber']) { \$_['PartNumber'].Trim() } else { "N/A" }
-            \$volt = if (\$_['ConfiguredVoltage']) { \$_['ConfiguredVoltage'] } else { 0 }
+            \$dev = if (\$_.DeviceLocator) { \$_.DeviceLocator.Trim() } else { "Slot" }
+            \$mfg = if (\$_.Manufacturer) { \$_.Manufacturer.Trim() } else { "Generic" }
+            \$cap = [Math]::Round(\$_.Capacity / 1GB)
+            \$speed = if (\$_.Speed) { \$_.Speed } else { 0 }
+            \$part = if (\$_.PartNumber) { \$_.PartNumber.Trim() } else { "N/A" }
+            \$volt = if (\$_.ConfiguredVoltage) { \$_.ConfiguredVoltage } else { 0 }
             "\$dev|\$mfg|\$cap GB|\$(\$speed)MHz|\$part|\$(\$volt)mV"
         }
         \$specs.detailed_ram = \$ramSlots -join "\`n"
@@ -843,11 +979,52 @@ try {
 } catch { \$specs.ram = "8 GB"; \$specs.detailed_ram = "" }
 
 try {
+    function Get-AdvertisedDiskSize([double]\$bytes) {
+        if (\$bytes -le 0) { return "Unknown" }
+        \$binGb = \$bytes / 1073741824.0
+        \$decGb = \$bytes / 1000000000.0
+
+        if (\$binGb -ge 6500 -or \$decGb -ge 7000) { return "8 TB" }
+        if (\$binGb -ge 3200 -or \$decGb -ge 3500) { return "4 TB" }
+        if (\$binGb -ge 1600 -or \$decGb -ge 1750) { return "2 TB" }
+        if (\$binGb -ge 850 -or \$decGb -ge 920) {
+            if (\$binGb -le 905 -and \$decGb -le 975) { return "960 GB" }
+            return "1 TB"
+        }
+        if (\$binGb -ge 420 -or \$decGb -ge 460) {
+            if (\$binGb -lt 455 -or (\$decGb -ge 465 -and \$decGb -lt 490)) { return "480 GB" }
+            if (\$binGb -ge 455 -and \$binGb -lt 470 -and \$decGb -lt 506) { return "500 GB" }
+            return "512 GB"
+        }
+        if (\$binGb -ge 210 -or \$decGb -ge 230) {
+            if (\$binGb -lt 227 -or (\$decGb -ge 232 -and \$decGb -lt 245)) { return "240 GB" }
+            if (\$binGb -ge 227 -and \$binGb -lt 235 -and \$decGb -lt 253) { return "250 GB" }
+            return "256 GB"
+        }
+        if (\$binGb -ge 270 -or \$decGb -ge 295) { return "320 GB" }
+        if (\$binGb -ge 140 -or \$decGb -ge 150) {
+            if (\$binGb -ge 160 -or \$decGb -ge 175) { return "180 GB" }
+            return "160 GB"
+        }
+        if (\$binGb -ge 105 -or \$decGb -ge 115) {
+            if (\$binGb -lt 116 -or \$decGb -lt 124) { return "120 GB" }
+            return "128 GB"
+        }
+        if (\$binGb -ge 52 -or \$decGb -ge 58) {
+            if (\$binGb -lt 58 -or \$decGb -lt 62) { return "60 GB" }
+            return "64 GB"
+        }
+        if (\$binGb -ge 26 -or \$decGb -ge 28) { return "32 GB" }
+        if (\$binGb -ge 13 -or \$decGb -ge 14) { return "16 GB" }
+
+        if (\$binGb -ge 900) { return "\$([Math]::Round(\$binGb / 1024 * 10) / 10) TB" }
+        return "\$([Math]::Round(\$binGb)) GB"
+    }
+
     \$disks = Get-CimInstance Win32_DiskDrive -ErrorAction SilentlyContinue
     if (\$disks) {
         \$ssdSum = (\$disks | Measure-Object -Property Size -Sum).Sum
-        \$totalGb = [Math]::Round(\$ssdSum / 1GB)
-        \$specs.ssd = if (\$totalGb -ge 900) { "\$([Math]::Round(\$totalGb / 1024 * 10) / 10) TB" } else { "\$totalGb GB" }
+        \$specs.ssd = Get-AdvertisedDiskSize \$ssdSum
 
         \$staContent = \$null
         \$staPaths = @("C:\\QC_Software\\HDSentinel\\HDSentinel.sta", "HDSentinel.sta", "F:\\Company Software\\QC Software\\HDSentinel.sta")
@@ -885,8 +1062,8 @@ try {
                 }
             }
 
-            \$sizeGb = [Math]::Round(\$disk.Size / 1GB)
-            "\$(\$disk.Index)|\$(\$disk.Model.Trim())|\$sizeGb GB|\$(\$disk.InterfaceType)|\$(\$disk.SerialNumber.Trim())|\$mediaType|\$(\$disk.Partitions)|\$health|\$life"
+            \$advSize = Get-AdvertisedDiskSize \$disk.Size
+            "\$(\$disk.Index)|\$(\$disk.Model.Trim())|\$advSize|\$(\$disk.InterfaceType)|\$(\$disk.SerialNumber.Trim())|\$mediaType|\$(\$disk.Partitions)|\$health|\$life"
         }
         \$specs.detailed_ssd = \$diskList -join "\`n"
     } else {
@@ -898,21 +1075,65 @@ try {
 try {
     \$gpuObjs = Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue
     if (\$gpuObjs) {
-        \$gpus = \$gpuObjs | ForEach-Object {
-            \$n = \$_['Name'].Trim(); \$r = \$_['AdapterRAM']; if (\$r -lt 0) { \$r = [uint32]\$r }; \$g = [Math]::Round(\$r / 1GB)
-            if ((\$n -match 'NVIDIA|GeForce|RTX|GTX|Quadro|Arc' -or (\$n -match 'AMD|Radeon' -and \$n -notmatch 'Radeon.*Graphics|Vega|Processor|Integrated')) -and \$g -gt 0) { "\$n (\$g GB)" } else { \$n }
-        }
-        \$specs.graphics = \$gpus -join ' + '
+        \$regGpus = @{}
+        try {
+            \$regKeys = Get-ItemProperty 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}\\000*' -ErrorAction SilentlyContinue
+            foreach (\$rk in \$regKeys) {
+                if (\$rk.DriverDesc) {
+                    \$vramBytes = 0
+                    if (\$rk.'HardwareInformation.qwMemorySize') {
+                        \$vramBytes = [int64]\$rk.'HardwareInformation.qwMemorySize'
+                    } elseif (\$rk.'HardwareInformation.MemorySize') {
+                        \$vramBytes = [int64]\$rk.'HardwareInformation.MemorySize'
+                    }
+                    if (\$vramBytes -gt 0) {
+                        \$regGpus[\$rk.DriverDesc.Trim()] = \$vramBytes
+                    }
+                }
+            }
+        } catch {}
 
-        \$gpuDetails = \$gpuObjs | ForEach-Object {
-            \$name = \$_['Name'].Trim()
-            \$proc = if (\$_['VideoProcessor']) { \$_['VideoProcessor'].Trim() } else { "N/A" }
-            \$drv = if (\$_['DriverVersion']) { \$_['DriverVersion'].Trim() } else { "N/A" }
-            \$ram = \$_['AdapterRAM']; if (\$ram -lt 0) { \$ram = [uint32]\$ram }; \$gb = "\$([Math]::Round(\$ram / 1GB)) GB"
-            \$res = "\$(\$_['CurrentHorizontalResolution']) x \$(\$_['CurrentVerticalResolution'])"
-            \$ref = "\$(\$_['CurrentRefreshRate']) Hz"
-            "\$name|\$proc|\$drv|\$gb|\$res|\$ref"
+        \$gpusSummary = @()
+        \$gpuDetails = @()
+
+        foreach (\$gpu in \$gpuObjs) {
+            \$name = \$gpu.Name.Trim()
+            \$isDedicated = (\$name -match 'NVIDIA|GeForce|RTX|GTX|Quadro|Arc' -or (\$name -match 'AMD|Radeon' -and \$name -notmatch 'Radeon.*Graphics|Vega|Processor|Integrated'))
+            
+            \$vramBytes = 0
+            if (\$regGpus.ContainsKey(\$name)) {
+                \$vramBytes = \$regGpus[\$name]
+            } elseif (\$gpu.AdapterRAM) {
+                \$r = \$gpu.AdapterRAM
+                if (\$r -lt 0) { \$r = [uint32]\$r }
+                \$vramBytes = [int64]\$r
+            }
+
+            \$vramGb = [Math]::Round(\$vramBytes / 1GB)
+            \$vramFormatted = if (\$vramGb -ge 1) { "\$vramGb GB" } elseif (\$vramBytes -gt 0) { "\$([Math]::Round(\$vramBytes / 1MB)) MB" } else { "Shared" }
+            
+            \$memLabel = if (\$isDedicated) {
+                if (\$vramGb -ge 1) { "\$vramGb GB Dedicated" } else { "\$vramFormatted Dedicated" }
+            } else {
+                "Shared System Memory"
+            }
+
+            if (\$isDedicated -and \$vramGb -ge 1) {
+                \$gpusSummary += "\$name (\$vramGb GB Dedicated)"
+            } else {
+                \$gpusSummary += \$name
+            }
+
+            \$proc = if (\$gpu.VideoProcessor) { \$gpu.VideoProcessor.Trim() } else { "N/A" }
+            \$drv = if (\$gpu.DriverVersion) { \$gpu.DriverVersion.Trim() } else { "N/A" }
+            \$res = if (\$gpu.CurrentHorizontalResolution) { "\$(\$gpu.CurrentHorizontalResolution) x \$(\$gpu.CurrentVerticalResolution)" } else { "N/A" }
+            \$ref = if (\$gpu.CurrentRefreshRate) { "\$(\$gpu.CurrentRefreshRate) Hz" } else { "N/A" }
+            \$type = if (\$isDedicated) { "Dedicated GPU" } else { "Integrated GPU" }
+
+            \$gpuDetails += "\$name|\$proc|\$drv|\$memLabel|\$res|\$ref|\$type|\$vramFormatted"
         }
+
+        \$specs.graphics = \$gpusSummary -join ' + '
         \$specs.detailed_graphics = \$gpuDetails -join "\`n"
     } else {
         \$specs.graphics = "Intel HD Graphics"
@@ -921,7 +1142,7 @@ try {
 } catch { \$specs.graphics = "Intel HD Graphics"; \$specs.detailed_graphics = "" }
 
 try {
-    \$vc = Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | Where-Object { \$_['CurrentHorizontalResolution'] -gt 0 } | Select-Object -First 1
+    \$vc = Get-CimInstance Win32_VideoController -ErrorAction SilentlyContinue | Where-Object { \$_.CurrentHorizontalResolution -gt 0 } | Select-Object -First 1
     \$specs.displayRes = if (\$vc) { "\$(\$vc.CurrentHorizontalResolution) x \$(\$vc.CurrentVerticalResolution)" } else { "1920 x 1080 FHD" }
 } catch { \$specs.displayRes = "1920 x 1080 FHD" }
 
@@ -934,65 +1155,119 @@ try {
 try {
     \$winObj = Get-ItemProperty 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion' -ErrorAction SilentlyContinue
     if (\$winObj) {
-        \$winCap = if (\$winObj.ProductName) { \$winObj.ProductName -replace 'Microsoft ', '' } else { "Windows 11" }
-        \$specs.windowsVer = "\$winCap (Build \$(\$winObj.CurrentBuildNumber))".Trim()
+        \$bNum = 0
+        if (\$winObj.CurrentBuildNumber) { \$bNum = [int]\$winObj.CurrentBuildNumber }
+        elseif (\$winObj.CurrentBuild) { \$bNum = [int]\$winObj.CurrentBuild }
+        
+        \$baseName = if (\$winObj.ProductName) { \$winObj.ProductName -replace 'Microsoft ', '' } else { "Windows" }
+        
+        if (\$bNum -ge 22000) {
+            \$baseName = \$baseName -replace 'Windows 10', 'Windows 11'
+        }
+        
+        \$specs.windowsVer = if (\$bNum -gt 0) { "\$baseName (Build \$bNum)".Trim() } else { \$baseName }
     } else {
         \$specs.windowsVer = "Windows 11"
     }
 } catch { \$specs.windowsVer = "Windows 11" }
 
 \$batList = @()
+\$tmpBat = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), ('bat_' + [System.Guid]::NewGuid().ToString('N') + '.xml'))
+
 try {
-    \$batStatic = Get-CimInstance -Namespace root\\wmi -ClassName BatteryStaticData -ErrorAction SilentlyContinue
-    \$batFull = Get-CimInstance -Namespace root\\wmi -ClassName BatteryFullChargedCapacity -ErrorAction SilentlyContinue
-    \$batStatus = Get-CimInstance -Namespace root\\wmi -ClassName BatteryStatus -ErrorAction SilentlyContinue
-    
-    if (\$batStatic -and \$batFull) {
-        for (\$i = 0; \$i -lt \$batStatic.Count; \$i++) {
-            \$s = \$batStatic[\$i]
-            \$f = if (\$batFull[\$i]) { \$batFull[\$i].FullChargedCapacity } else { \$s.DesignedCapacity }
-            \$st = if (\$batStatus[\$i]) { \$batStatus[\$i] } else { \$null }
-            \$mfg = if (\$s.ManufactureName) { [System.Text.Encoding]::ASCII.GetString(\$s.ManufactureName).Trim("\`0", " ") } else { "Generic" }
-            \$ser = if (\$s.SerialNumber) { [System.Text.Encoding]::ASCII.GetString(\$s.SerialNumber).Trim("\`0", " ") } else { "N/A" }
-            \$chem = if (\$s.DeviceName) { [System.Text.Encoding]::ASCII.GetString(\$s.DeviceName).Trim("\`0", " ") } else { "LIon" }
-            \$des = \$s.DesignedCapacity
-            \$cyc = 0
-            \$volt = if (\$st) { \$st.Voltage } else { 0 }
-            if (\$des -gt 0) {
-                \$batList += "\$mfg|\$ser|\$chem|\$des|\$f|\$cyc|\$volt"
+    & powercfg /batteryreport /xml /output \$tmpBat | Out-Null
+    if (Test-Path \$tmpBat) {
+        [xml]\$x = Get-Content \$tmpBat -Encoding UTF8 -ErrorAction SilentlyContinue
+        Remove-Item \$tmpBat -Force -ErrorAction SilentlyContinue
+        if (\$x -and \$x.BatteryReport -and \$x.BatteryReport.Batteries -and \$x.BatteryReport.Batteries.Battery) {
+            \$bats = @(\$x.BatteryReport.Batteries.Battery)
+            \$wmiVolt = 0
+            try {
+                \$wb = Get-CimInstance Win32_Battery -ErrorAction SilentlyContinue | Select-Object -First 1
+                if (\$wb -and \$wb.DesignVoltage) { \$wmiVolt = \$wb.DesignVoltage }
+            } catch {}
+
+            foreach (\$b in \$bats) {
+                \$mfg = if (\$b.Manufacturer) { "\$(\$b.Manufacturer)".Trim() } else { "Generic" }
+                \$ser = if (\$b.SerialNumber) { "\$(\$b.SerialNumber)".Trim() } else { "N/A" }
+                \$chem = if (\$b.Chemistry) { "\$(\$b.Chemistry)".Trim() } else { "LIon" }
+                \$des = if (\$b.DesignCapacity) { [int64]"\$(\$b.DesignCapacity)" } else { 0 }
+                \$f = if (\$b.FullChargeCapacity) { [int64]"\$(\$b.FullChargeCapacity)" } else { \$des }
+                \$cyc = if (\$b.CycleCount -and "\$(\$b.CycleCount)".Trim() -ne "") { "\$(\$b.CycleCount)".Trim() } else { "0" }
+                \$volt = \$wmiVolt
+                if (\$des -gt 0) {
+                    \$batList += "\$mfg|\$ser|\$chem|\$des|\$f|\$cyc|\$volt"
+                }
             }
         }
     }
-} catch {}
+} catch {} finally {
+    if (Test-Path \$tmpBat) { Remove-Item \$tmpBat -Force -ErrorAction SilentlyContinue }
+}
+
+if (\$batList.Count -eq 0) {
+    try {
+        \$batStatic = Get-CimInstance -Namespace root\\wmi -ClassName BatteryStaticData -ErrorAction SilentlyContinue
+        \$batFull = Get-CimInstance -Namespace root\\wmi -ClassName BatteryFullChargedCapacity -ErrorAction SilentlyContinue
+        \$batStatus = Get-CimInstance -Namespace root\\wmi -ClassName BatteryStatus -ErrorAction SilentlyContinue
+        
+        if (\$batStatic -and \$batFull) {
+            \$batStaticArr = @(\$batStatic)
+            \$batFullArr = @(\$batFull)
+            \$batStatusArr = @(\$batStatus)
+            for (\$i = 0; \$i -lt \$batStaticArr.Count; \$i++) {
+                \$s = \$batStaticArr[\$i]
+                \$fObj = if (\$i -lt \$batFullArr.Count) { \$batFullArr[\$i] } else { \$null }
+                \$stObj = if (\$i -lt \$batStatusArr.Count) { \$batStatusArr[\$i] } else { \$null }
+                \$f = if (\$fObj -and \$fObj.FullChargedCapacity) { \$fObj.FullChargedCapacity } else { \$s.DesignedCapacity }
+                \$mfg = if (\$s.ManufactureName) { [System.Text.Encoding]::ASCII.GetString(\$s.ManufactureName).Trim([char]0, [char]32) } else { "Generic" }
+                \$ser = if (\$s.SerialNumber) { [System.Text.Encoding]::ASCII.GetString(\$s.SerialNumber).Trim([char]0, [char]32) } else { "N/A" }
+                \$chem = if (\$s.DeviceName) { [System.Text.Encoding]::ASCII.GetString(\$s.DeviceName).Trim([char]0, [char]32) } else { "LIon" }
+                \$des = \$s.DesignedCapacity
+                \$cyc = "0"
+                \$volt = if (\$stObj -and \$stObj.Voltage) { \$stObj.Voltage } else { 0 }
+                if (\$des -gt 0) {
+                    \$batList += "\$mfg|\$ser|\$chem|\$des|\$f|\$cyc|\$volt"
+                }
+            }
+        }
+    } catch {}
+}
 
 if (\$batList.Count -eq 0) {
     try {
         \$wmiBats = Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue
-        foreach (\$wb in \$wmiBats) {
-            \$mfg = if (\$wb.Manufacturer) { \$wb.Manufacturer.Trim() } else { "Generic" }
-            \$ser = if (\$wb.SerialNumber) { \$wb.SerialNumber.Trim() } else { "N/A" }
-            \$chem = if (\$wb.Chemistry) { \$wb.Chemistry } else { "LIon" }
-            \$des = if (\$wb.DesignCapacity) { \$wb.DesignCapacity } else { 0 }
-            \$f = if (\$wb.FullChargedCapacity) { \$wb.FullChargedCapacity } else { \$des }
-            \$volt = if (\$wb.DesignVoltage) { \$wb.DesignVoltage } else { 0 }
-            if (\$des -gt 0) {
-                \$batList += "\$mfg|\$ser|\$chem|\$des|\$f|0|\$volt"
+        if (\$wmiBats) {
+            foreach (\$wb in @(\$wmiBats)) {
+                \$mfg = if (\$wb.Manufacturer) { "\$(\$wb.Manufacturer)".Trim() } else { "Generic" }
+                \$ser = if (\$wb.SerialNumber) { "\$(\$wb.SerialNumber)".Trim() } else { "N/A" }
+                \$chem = if (\$wb.Chemistry) { "\$(\$wb.Chemistry)" } else { "LIon" }
+                \$des = if (\$wb.DesignCapacity) { [int64]\$wb.DesignCapacity } else { 0 }
+                \$f = if (\$wb.FullChargedCapacity) { [int64]\$wb.FullChargedCapacity } else { \$des }
+                \$volt = if (\$wb.DesignVoltage) { \$wb.DesignVoltage } else { 0 }
+                if (\$des -gt 0) {
+                    \$batList += "\$mfg|\$ser|\$chem|\$des|\$f|0|\$volt"
+                } elseif (\$wb.EstimatedChargeRemaining) {
+                    \$batList += "\$mfg|\$ser|\$chem|100|\$(\$wb.EstimatedChargeRemaining)|0|\$volt"
+                }
             }
         }
     } catch {}
 }
 
 if (\$batList.Count -gt 0) {
-    \$tDesign = 0; \$tFull = 0
+    \$tDesign = 0; \$tFull = 0; \$tCycles = 0
     foreach (\$item in \$batList) {
         \$parts = \$item.Split('|')
         \$tDesign += [double]\$parts[3]
         \$tFull += [double]\$parts[4]
+        \$tCycles += [int64]\$parts[5]
     }
     if (\$tDesign -gt 0) {
         \$h = [Math]::Round((\$tFull / \$tDesign) * 100)
         \$bCountLabel = if (\$batList.Count -gt 1) { " [\$(\$batList.Count) Batteries]" } else { "" }
-        \$specs.battery = "\$h% (0 cycles)\$bCountLabel"
+        \$cycleLabel = if (\$tCycles -gt 0) { "\$tCycles cycles" } else { "0 cycles" }
+        \$specs.battery = "\$h% (\$cycleLabel)\$bCountLabel"
         \$specs.detailed_battery = \$batList -join "::"
     } else {
         \$specs.battery = "N/A"
@@ -1022,13 +1297,14 @@ if (\$batList.Count -gt 0) {
           systemSpecs.productName = data.productName || 'Generic Laptop';
           systemSpecs.cpu = data.cpu || 'Intel Core i7';
           systemSpecs.ram = data.ram || '8 GB';
-          systemSpecs.ssd = data.ssd || '256 GB';
+          systemSpecs.ssd = formatAdvertisedDiskSize(data.ssd) || '256 GB';
           systemSpecs.graphics = data.graphics || 'Intel HD Graphics';
           systemSpecs.displayRes = data.displayRes || '1920 x 1080 FHD';
           systemSpecs.serialNumber = data.serialNumber || 'PC1356548';
           systemSpecs.windowsVer = data.windowsVer || 'Windows 11';
           systemSpecs.battery = data.battery || 'N/A';
 
+          updateStartupLoader(85, 'Rendering hardware metrics and diagnostics...');
           renderBasicSpecsUI();
 
           if (data.detailed_ram) renderRAMDetails(data.detailed_ram);
@@ -1037,6 +1313,7 @@ if (\$batList.Count -gt 0) {
           if (data.detailed_battery) renderBatteryDetails(data.detailed_battery);
 
           if (cacheMode !== 'temporary') {
+            localStorage.setItem('qc_cache_version', '1.6.0');
             localStorage.setItem('qc_detailed_ram', data.detailed_ram || 'N/A');
             localStorage.setItem('qc_detailed_ssd', data.detailed_ssd || 'N/A');
             localStorage.setItem('qc_detailed_graphics', data.detailed_graphics || 'N/A');
@@ -1084,7 +1361,7 @@ if (\$batList.Count -gt 0) {
   // Query and update version
   async function updateAppVersion() {
     try {
-      let ver = '1.5.1';
+      let ver = '1.6';
       if (typeof window !== 'undefined' && window.APP_VERSION) {
         ver = window.APP_VERSION;
       } else {
@@ -1100,14 +1377,16 @@ if (\$batList.Count -gt 0) {
       if (verVal) verVal.textContent = ver;
 
       const sideBadge = document.querySelector('.version-badge');
-      if (sideBadge) sideBadge.textContent = `SYSTEM V${ver}`;
-
       const updateCurrentVersionLabel = document.getElementById('update-current-version-label');
       if (updateCurrentVersionLabel) updateCurrentVersionLabel.textContent = ver;
 
       const windowTitle = document.querySelector('.window-title');
-      if (windowTitle) {
-        windowTitle.textContent = `Bizz Co Hub Quality Checking Software - V${ver}`;
+      if (currentAppMode === 'admin') {
+        if (sideBadge) sideBadge.textContent = `ADMIN & STAFF V${ver}`;
+        if (windowTitle) windowTitle.textContent = `Bizz Co Hub Quality Checking Software - Admin Edition - V${ver}`;
+      } else {
+        if (sideBadge) sideBadge.textContent = `SYSTEM V${ver}`;
+        if (windowTitle) windowTitle.textContent = `Bizz Co Hub Quality Checking Software - V${ver}`;
       }
 
       // Trigger auto-updater check if set to auto update mode
@@ -1120,13 +1399,54 @@ if (\$batList.Count -gt 0) {
     }
   }
 
+  // Helper to accurately match the setup installer for the active edition
+  function getMatchingUpdateAsset(assets, mode) {
+    if (!assets || !Array.isArray(assets) || assets.length === 0) return null;
+
+    const exeAssets = assets.filter(a => a.name && a.name.toLowerCase().endsWith('.exe'));
+    if (exeAssets.length === 0) return null;
+
+    const targetMode = (mode || 'customer').toLowerCase();
+
+    if (targetMode === 'admin') {
+      // 1. Strict priority for Admin: executable containing 'admin' and ('setup' or 'qc' or 'installer')
+      const adminSetup = exeAssets.find(a => {
+        const name = a.name.toLowerCase();
+        return name.includes('admin') && (name.includes('setup') || name.includes('installer') || name.includes('qc'));
+      });
+      if (adminSetup) return adminSetup;
+
+      // 2. Fallback: Any exe with 'admin' in name
+      return exeAssets.find(a => a.name.toLowerCase().includes('admin')) || null;
+    } else {
+      // Customer mode: MUST NOT match any admin package
+      // 1. Strict priority for Customer: executable containing 'customer' and ('setup' or 'qc' or 'installer')
+      const customerSetup = exeAssets.find(a => {
+        const name = a.name.toLowerCase();
+        return name.includes('customer') && (name.includes('setup') || name.includes('installer') || name.includes('qc'));
+      });
+      if (customerSetup) return customerSetup;
+
+      // 2. Generic setup exe that does NOT contain 'admin' and does NOT contain 'portable'
+      const genericSetup = exeAssets.find(a => {
+        const name = a.name.toLowerCase();
+        return !name.includes('admin') && !name.includes('portable') && (name.includes('setup') || name.includes('installer') || name.includes('qc'));
+      });
+      if (genericSetup) return genericSetup;
+
+      // 3. Fallback: Any exe that does not contain 'admin'
+      return exeAssets.find(a => !a.name.toLowerCase().includes('admin')) || null;
+    }
+  }
+
   // Auto-Updater Check using GitHub Releases REST API
   async function checkForUpdates(currentVersion) {
     try {
       const repoOwner = 'Rocky-Alex';
       const repoName = 'BC-Elite-QC';
+      const appMode = (typeof currentAppMode !== 'undefined' && currentAppMode) ? currentAppMode : 'customer';
 
-      log(`Checking for updates (current version: ${currentVersion})...`, 'info');
+      log(`Checking for updates (current version: ${currentVersion}, edition: ${appMode.toUpperCase()})...`, 'info');
 
       const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/releases/latest`);
       if (!response.ok) {
@@ -1135,16 +1455,19 @@ if (\$batList.Count -gt 0) {
       }
 
       const release = await response.json();
-      const latestVersion = release.tag_name.replace('v', '').trim();
+      const latestVersion = (release.tag_name || '').replace(/^v/i, '').trim();
 
       log(`Latest version on GitHub: ${latestVersion}`, 'debug');
 
       if (isNewerVersion(currentVersion, latestVersion)) {
-        const asset = release.assets.find(a => a.name.endsWith('.exe') || a.name.includes('Setup'));
+        const asset = getMatchingUpdateAsset(release.assets, appMode);
         if (asset) {
           const downloadUrl = asset.browser_download_url;
-          log(`New update available: Version ${latestVersion}`, 'info');
-          showUpdatePrompt(latestVersion, downloadUrl);
+          const assetName = asset.name;
+          log(`New ${appMode.toUpperCase()} update available: Version ${latestVersion} (${assetName})`, 'info');
+          showUpdatePrompt(latestVersion, downloadUrl, assetName, appMode);
+        } else {
+          log(`Update v${latestVersion} found, but no matching ${appMode.toUpperCase()} installer asset was found in release.`, 'warn');
         }
       } else {
         log('Application is up to date.', 'info');
@@ -1166,7 +1489,7 @@ if (\$batList.Count -gt 0) {
     return false;
   }
 
-  function showUpdatePrompt(version, downloadUrl) {
+  function showUpdatePrompt(version, downloadUrl, assetFileName, appMode) {
     const modal = document.getElementById('modal-update-prompt');
     const verLabel = document.getElementById('update-modal-ver');
     const btnCancel = document.getElementById('btn-cancel-update');
@@ -1175,66 +1498,79 @@ if (\$batList.Count -gt 0) {
     const progressContainer = document.getElementById('update-progress-container');
     const progressStatus = document.getElementById('update-progress-status');
 
-    verLabel.textContent = `v${version}`;
-    modal.style.display = 'flex';
-    setTimeout(() => { modal.classList.add('open'); }, 10);
+    const editionLabel = (appMode === 'admin') ? 'Admin Edition' : 'Customer Edition';
+    if (verLabel) {
+      verLabel.textContent = `v${version} (${editionLabel})`;
+    }
+    if (modal) {
+      modal.style.display = 'flex';
+      setTimeout(() => { modal.classList.add('open'); }, 10);
+    }
 
     const closeModal = () => {
-      modal.classList.remove('open');
-      setTimeout(() => { modal.style.display = 'none'; }, 300);
-    };
-
-    btnCancel.onclick = closeModal;
-    btnClose.onclick = closeModal;
-
-    btnStart.onclick = async () => {
-      btnStart.disabled = true;
-      btnCancel.disabled = true;
-      btnClose.style.display = 'none';
-      progressContainer.style.display = 'block';
-      progressStatus.textContent = 'Downloading setup files...';
-
-      try {
-        log('Starting update download...', 'info');
-
-        const downloadCmd = `
-          $downloadUrl = "${downloadUrl}"
-          $tempPath = "$env:TEMP\\BC_Elite_QC_Setup.exe"
-          try {
-              $webClient = New-Object System.Net.WebClient
-              $webClient.DownloadFile($downloadUrl, $tempPath)
-              if (Test-Path $tempPath) {
-                  Start-Process -FilePath $tempPath -Verb RunAs
-                  "Success"
-              } else {
-                  "Download failed: file not created"
-              }
-          } catch {
-              "Error: $_"
-          }
-        `.trim();
-
-        const result = await electronAPI.getSystemSpec(downloadCmd);
-        if (result.success && result.data && result.data.trim() === 'Success') {
-          log('Update downloaded successfully. Launching installer...', 'info');
-          progressStatus.textContent = 'Launching installer... Closing app.';
-
-          setTimeout(async () => {
-            await electronAPI.windowControl('close');
-          }, 1500);
-        } else {
-          const errMsg = result.data ? result.data.trim() : 'Unknown download error';
-          throw new Error(errMsg);
-        }
-      } catch (err) {
-        log(`Update failed: ${err.message}`, 'error');
-        alert(`Update download failed:\\n${err.message}\\n\\nPlease try again or download manually.`);
-        btnStart.disabled = false;
-        btnCancel.disabled = false;
-        btnClose.style.display = 'block';
-        progressContainer.style.display = 'none';
+      if (modal) {
+        modal.classList.remove('open');
+        setTimeout(() => { modal.style.display = 'none'; }, 300);
       }
     };
+
+    if (btnCancel) btnCancel.onclick = closeModal;
+    if (btnClose) btnClose.onclick = closeModal;
+
+    if (btnStart) {
+      btnStart.onclick = async () => {
+        btnStart.disabled = true;
+        if (btnCancel) btnCancel.disabled = true;
+        if (btnClose) btnClose.style.display = 'none';
+        if (progressContainer) progressContainer.style.display = 'block';
+        if (progressStatus) progressStatus.textContent = `Downloading ${assetFileName || 'setup files'}...`;
+
+        try {
+          log(`Starting ${editionLabel} update download: ${assetFileName || 'Setup.exe'}...`, 'info');
+
+          const safeFileName = (assetFileName && assetFileName.endsWith('.exe')) 
+            ? assetFileName.replace(/[^a-zA-Z0-9._-]/g, '_') 
+            : (appMode === 'admin' ? 'BC_Elite_QC_Admin_Setup.exe' : 'BC_Elite_QC_Customer_Setup.exe');
+
+          const downloadCmd = `
+            $downloadUrl = "${downloadUrl}"
+            $tempPath = "$env:TEMP\\${safeFileName}"
+            try {
+                $webClient = New-Object System.Net.WebClient
+                $webClient.DownloadFile($downloadUrl, $tempPath)
+                if (Test-Path $tempPath) {
+                    Start-Process -FilePath $tempPath -Verb RunAs
+                    "Success"
+                } else {
+                    "Download failed: file not created"
+                }
+            } catch {
+                "Error: $_"
+            }
+          `.trim();
+
+          const result = await electronAPI.getSystemSpec(downloadCmd);
+          if (result.success && result.data && result.data.trim() === 'Success') {
+            log('Update downloaded successfully. Launching installer...', 'info');
+            if (progressStatus) progressStatus.textContent = 'Launching installer... Closing app.';
+
+            setTimeout(async () => {
+              await electronAPI.windowControl('close');
+            }, 1500);
+          } else {
+            const errMsg = result.data ? result.data.trim() : 'Unknown download error';
+            throw new Error(errMsg);
+          }
+        } catch (err) {
+          log(`Update failed: ${err.message}`, 'error');
+          alert(`Update download failed:\n${err.message}\n\nPlease try again or download manually.`);
+          btnStart.disabled = false;
+          if (btnCancel) btnCancel.disabled = false;
+          if (btnClose) btnClose.style.display = 'block';
+          if (progressContainer) progressContainer.style.display = 'none';
+        }
+      };
+    }
   }
 
   // Local database helper to persist test runs in LocalStorage
@@ -1316,6 +1652,114 @@ Battery Status  : ${systemSpecs.battery}
     });
   }
 
+  // Helper to map detected raw/binary disk sizes to Commercial Advertised Sizes (e.g. 238.4 GB -> 256 GB, 476.8 GB -> 512 GB, 931.3 GB -> 1 TB)
+  function formatAdvertisedDiskSize(val) {
+    if (!val) return '256 GB';
+    const str = String(val).trim();
+    if (!str || str === 'N/A' || str === 'Unknown' || str === 'No Storage') return str || '256 GB';
+
+    // Handle combinations if already present (e.g. "256 GB SSD + 1 TB HDD")
+    if (str.includes('+')) {
+      return str.split('+').map(part => {
+        const trimmed = part.trim();
+        const m = trimmed.match(/^([A-Za-z0-9\s._-]+?)?\s*(\d+(?:\.\d+)?\s*(?:GB|TB|MB|GiB|TiB|Bytes|B)?)\s*(SSD|HDD|NVMe|SATA)?$/i);
+        if (m) {
+          const brand = m[1] ? m[1].trim() : '';
+          const rawSize = m[2] ? m[2].trim() : '';
+          const type = m[3] ? m[3].trim() : '';
+          const adv = formatSingleDiskAdvertisedSize(rawSize);
+          return [brand, adv, type].filter(Boolean).join(' ');
+        }
+        return formatSingleDiskAdvertisedSize(trimmed);
+      }).join(' + ');
+    }
+
+    return formatSingleDiskAdvertisedSize(str);
+  }
+
+  function formatSingleDiskAdvertisedSize(val) {
+    if (!val) return '256 GB';
+    if (typeof val === 'number') {
+      let binGb = val;
+      if (binGb > 100000000) {
+        binGb = binGb / (1024 * 1024 * 1024);
+      }
+      return matchAdvertisedDiskSize(binGb);
+    }
+
+    const str = String(val).trim();
+    const numMatch = str.match(/(\d+(?:\.\d+)?)\s*(GB|TB|MB|GiB|TiB|Bytes|B)?/i);
+    if (!numMatch) return str;
+
+    let num = parseFloat(numMatch[1]);
+    const unit = (numMatch[2] || 'GB').toUpperCase();
+
+    if (unit === 'TB' || unit === 'TIB') {
+      num = num * 1024;
+    } else if (unit === 'MB' || unit === 'MIB') {
+      num = num / 1024;
+    } else if (unit === 'B' || unit === 'BYTES') {
+      num = num / (1024 * 1024 * 1024);
+    }
+
+    return matchAdvertisedDiskSize(num);
+  }
+
+  function matchAdvertisedDiskSize(binGb) {
+    if (!binGb || isNaN(binGb) || binGb <= 0) return '256 GB';
+
+    const table = [
+      { name: '16 GB',  bin: 14.9,   dec: 16 },
+      { name: '32 GB',  bin: 29.8,   dec: 32 },
+      { name: '60 GB',  bin: 55.8,   dec: 60 },
+      { name: '64 GB',  bin: 59.6,   dec: 64 },
+      { name: '120 GB', bin: 111.8,  dec: 120 },
+      { name: '128 GB', bin: 119.2,  dec: 128 },
+      { name: '160 GB', bin: 149.0,  dec: 160 },
+      { name: '180 GB', bin: 167.6,  dec: 180 },
+      { name: '240 GB', bin: 223.5,  dec: 240 },
+      { name: '250 GB', bin: 232.8,  dec: 250 },
+      { name: '256 GB', bin: 238.4,  dec: 256 },
+      { name: '320 GB', bin: 298.0,  dec: 320 },
+      { name: '480 GB', bin: 447.0,  dec: 480 },
+      { name: '500 GB', bin: 465.7,  dec: 500 },
+      { name: '512 GB', bin: 476.8,  dec: 512 },
+      { name: '960 GB', bin: 894.1,  dec: 960 },
+      { name: '1 TB',   bin: 931.3,  dec: 1000 },
+      { name: '2 TB',   bin: 1862.6, dec: 2000 },
+      { name: '3 TB',   bin: 2794.0, dec: 3000 },
+      { name: '4 TB',   bin: 3725.3, dec: 4000 },
+      { name: '6 TB',   bin: 5587.9, dec: 6000 },
+      { name: '8 TB',   bin: 7450.6, dec: 8000 },
+      { name: '10 TB',  bin: 9313.2, dec: 10000 },
+      { name: '12 TB',  bin: 11175.9,dec: 12000 },
+      { name: '16 TB',  bin: 14901.2,dec: 16000 }
+    ];
+
+    let closest = table[0];
+    let minDiff = Math.min(Math.abs(binGb - table[0].bin), Math.abs(binGb - table[0].dec));
+
+    for (let i = 1; i < table.length; i++) {
+      const diffBin = Math.abs(binGb - table[i].bin);
+      const diffDec = Math.abs(binGb - table[i].dec);
+      const diff = Math.min(diffBin, diffDec);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closest = table[i];
+      }
+    }
+
+    const threshold = Math.max(10, closest.bin * 0.15);
+    if (minDiff <= threshold) {
+      return closest.name;
+    }
+
+    if (binGb >= 900) {
+      return `${Math.round((binGb / 1024) * 10) / 10} TB`;
+    }
+    return `${Math.round(binGb)} GB`;
+  }
+
   // Helper to format CPU Core name like "Core i7-8650U" matching reference design
   function formatCpuCoreName(cpuStr) {
     if (!cpuStr) return '';
@@ -1344,6 +1788,11 @@ Battery Status  : ${systemSpecs.battery}
 
   // Helper to open specifications upload preview
   function openSpecsUploadPreview() {
+    if (currentAppMode !== 'admin') {
+      showCustomAlert('Database upload and server synchronization are reserved for Admin & Staff operations.', 'Admin Authorization Required', 'info');
+      return;
+    }
+
     if (!currentOperator) {
       log('Operator authorization is required. Redirecting to Database Portal.', 'warn');
       showCustomAlert('Please authorize your operator account on the Database Portal first.', 'Authorization Required', 'warn');
@@ -1502,7 +1951,7 @@ Battery Status  : ${systemSpecs.battery}
         const parts = line.split('|');
         if (parts.length >= 3) {
           const model = parts[1].trim();
-          const size = parts[2].trim();
+          const size = formatAdvertisedDiskSize(parts[2].trim());
           const brand = getSsdBrand(model);
           const type = /hdd/i.test(model) || /hdd/i.test(parts[5]) ? 'HDD' : 'SSD';
           if (size) {
@@ -1514,7 +1963,7 @@ Battery Status  : ${systemSpecs.battery}
         ssdVal = driveStrings.join(' + ');
       }
     }
-    if (!ssdVal) ssdVal = systemSpecs.ssd || '';
+    if (!ssdVal) ssdVal = formatAdvertisedDiskSize(systemSpecs.ssd || '');
 
     // Populate inputs
     document.getElementById('preview-inp-product-name').value = systemSpecs.productName || '';
@@ -1579,7 +2028,7 @@ Battery Status  : ${systemSpecs.battery}
           const parts = line.split('|');
           if (parts.length >= 3) {
             const model = parts[1].trim();
-            const size = parts[2].trim();
+            const size = formatAdvertisedDiskSize(parts[2].trim());
             const brand = getSsdBrand(model);
             if (size) {
               ssdEntries.push({ brand: brand, size: size.toUpperCase() });
@@ -1594,7 +2043,7 @@ Battery Status  : ${systemSpecs.battery}
         const ssdSizeMatch = ssdVal.match(/(\d+(?:\.\d+)?\s*(?:GB|TB))/i);
         ssdEntries.push({
           brand: matchedSsdB === 'Western Digital' ? 'WD' : (matchedSsdB || 'Kioxia'),
-          size: ssdSizeMatch ? ssdSizeMatch[1].replace(/\s+/g, ' ').toUpperCase() : '256 GB'
+          size: ssdSizeMatch ? formatAdvertisedDiskSize(ssdSizeMatch[1]).toUpperCase() : '256 GB'
         });
       }
 
@@ -3327,7 +3776,9 @@ Common Issues: ${commonIssues}`;
       else if (item.id === 'nav-settings-details') targetViewId = 'view-settings-details';
       else if (item.id === 'nav-support-details') targetViewId = 'view-support-details';
       else if (item.id === 'nav-update-check') targetViewId = 'view-update-check';
-      else if (item.id === 'nav-database-portal') targetViewId = 'view-database-portal';
+      else if (item.id === 'nav-database-portal') {
+        targetViewId = currentAppMode === 'admin' ? 'view-database-portal' : 'view-system-health';
+      }
       else if (item.id === 'nav-camera-test') targetViewId = 'view-camera-test';
 
       // Hide all views and show target view
@@ -3421,20 +3872,13 @@ Common Issues: ${commonIssues}`;
   if (btnRefreshRam) {
     btnRefreshRam.addEventListener('click', async () => {
       log('Refreshing RAM specs...', 'info');
-      await Promise.all([
-        loadDetailedRAM(true),
-        fetchRamBasic()
-      ]);
+      await loadDetailedRAM(true);
     });
   }
 
   if (btnRefreshSsd) {
     btnRefreshSsd.addEventListener('click', async () => {
       log('Refreshing drive specs...', 'info');
-      await Promise.all([
-        loadDetailedSSD(true),
-        fetchSsdBasic()
-      ]);
       await loadDetailedSSD(true);
     });
   }
@@ -3499,7 +3943,7 @@ Common Issues: ${commonIssues}`;
 
   async function loadDetailedSSD(force = false) {
     const detailSsdTotal = document.getElementById('detail-ssd-total');
-    if (detailSsdTotal) detailSsdTotal.textContent = systemSpecs.ssd || 'Detecting...';
+    if (detailSsdTotal) detailSsdTotal.textContent = formatAdvertisedDiskSize(systemSpecs.ssd) || 'Detecting...';
 
     const cacheMode = localStorage.getItem('setting_cache_mode') || 'permanently';
     const cached = cacheMode !== 'temporary' ? localStorage.getItem('qc_detailed_ssd') : null;
@@ -3533,7 +3977,7 @@ Common Issues: ${commonIssues}`;
       if (parts.length >= 6) {
         const index = parts[0];
         const model = parts[1];
-        const size = parts[2];
+        const size = formatAdvertisedDiskSize(parts[2]);
         const interfaceType = parts[3];
         const serial = parts[4] || 'N/A';
         const mediaType = parts[5] || 'Unknown';
@@ -3596,7 +4040,7 @@ Common Issues: ${commonIssues}`;
 
     const cacheMode = localStorage.getItem('setting_cache_mode') || 'permanently';
     const cached = cacheMode !== 'temporary' ? localStorage.getItem('qc_detailed_graphics') : null;
-    if (cached && !force) {
+    if (cached && cached.trim().length > 0 && !force) {
       renderGraphicsDetails(cached);
       return;
     }
@@ -3606,29 +4050,40 @@ Common Issues: ${commonIssues}`;
 
   function renderGraphicsDetails(data) {
     const detailGraphicsList = document.getElementById('detail-graphics-list');
+    if (!detailGraphicsList) return;
     const gpus = data.split('\n').map(g => g.trim()).filter(g => g);
     detailGraphicsList.innerHTML = '';
 
+    if (gpus.length === 0) {
+      detailGraphicsList.innerHTML = '<div class="spec-row"><span class="spec-label">No GPU adapters detected.</span></div>';
+      return;
+    }
+
     gpus.forEach(gpuStr => {
       const parts = gpuStr.split('|');
-      if (parts.length >= 5) {
+      if (parts.length >= 4) {
         const name = parts[0];
         const processor = parts[1] || 'N/A';
         const driver = parts[2] || 'N/A';
-        const memory = parts[3];
+        const memory = parts[3] || 'Shared';
         const resolution = parts[4] || 'N/A';
         const refresh = parts[5] || 'N/A';
+        const type = parts[6] || (name.match(/NVIDIA|GeForce|RTX|GTX|Quadro|Arc/i) || (name.match(/AMD|Radeon/i) && !name.match(/Radeon.*Graphics|Vega/i)) ? 'Dedicated GPU' : 'Integrated GPU');
 
-        const isDedicated = name.match(/NVIDIA|GeForce|RTX|GTX|Quadro|Arc/i) || (name.match(/AMD|Radeon/i) && !name.match(/Radeon.*Graphics|Vega/i));
+        const isDedicated = type.includes('Dedicated') || name.match(/NVIDIA|GeForce|RTX|GTX|Quadro|Arc/i) || (name.match(/AMD|Radeon/i) && !name.match(/Radeon.*Graphics|Vega/i));
         const icon = isDedicated ? 'fa-solid fa-gamepad' : 'fa-solid fa-desktop';
+        const badgeColor = isDedicated ? 'var(--color-orange, #f97316)' : 'var(--color-blue, #3b82f6)';
+        const memDisplay = isDedicated ? memory : `Shared (${memory})`;
 
         const gpuDiv = document.createElement('div');
         gpuDiv.className = 'spec-row';
         gpuDiv.innerHTML = `
-          <span class="spec-label"><i class="${icon}" style="color: var(--color-orange); margin-right: 6px;"></i> ${name}</span>
+          <span class="spec-label"><i class="${icon}" style="color: ${badgeColor}; margin-right: 6px;"></i> ${name}</span>
           <span class="spec-value">
-            <strong>${processor}</strong> (${memory})
-            <span style="display: block; font-size: 11.5.1px; color: var(--text-muted); margin-top: 3px; font-weight: 400;">Driver: ${driver} | Mode: ${resolution} @ ${refresh}</span>
+            <strong>${processor}</strong> <span style="color: ${badgeColor}; font-weight: 700;">(${memDisplay})</span>
+            <span style="display: block; font-size: 11.5px; color: var(--text-muted); margin-top: 3px; font-weight: 400;">
+              Type: <strong>${type}</strong> | Driver: ${driver} | Mode: ${resolution} @ ${refresh}
+            </span>
           </span>
         `;
         detailGraphicsList.appendChild(gpuDiv);
@@ -3639,7 +4094,7 @@ Common Issues: ${commonIssues}`;
   async function loadDetailedBattery(force = false) {
     const cacheMode = localStorage.getItem('setting_cache_mode') || 'permanently';
     const cached = cacheMode !== 'temporary' ? localStorage.getItem('qc_detailed_battery') : null;
-    if (cached && !force) {
+    if (cached && cached !== 'N/A' && !force) {
       renderBatteryDetails(cached);
       return;
     }
@@ -3767,6 +4222,7 @@ Common Issues: ${commonIssues}`;
   }
 
   let manualDownloadUrl = '';
+  let manualMatchedAssetName = '';
 
   // Function to trigger update checking manually or automatically
   async function triggerManualUpdateCheck() {
@@ -3795,7 +4251,9 @@ Common Issues: ${commonIssues}`;
     try {
       const repoOwner = 'Rocky-Alex';
       const repoName = 'BC-Elite-QC';
-      const currentVer = systemSpecs.appVersion || (typeof window !== 'undefined' && window.APP_VERSION) || '1.0.5';
+      const currentVer = systemSpecs.appVersion || (typeof window !== 'undefined' && window.APP_VERSION) || '1.6';
+      const appMode = (typeof currentAppMode !== 'undefined' && currentAppMode) ? currentAppMode : 'customer';
+      const editionLabel = (appMode === 'admin') ? 'Admin Edition' : 'Customer Edition';
 
       const response = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/releases/latest`);
       if (!response.ok) {
@@ -3803,7 +4261,7 @@ Common Issues: ${commonIssues}`;
       }
 
       const release = await response.json();
-      const latestVer = release.tag_name.replace('v', '').trim();
+      const latestVer = (release.tag_name || '').replace(/^v/i, '').trim();
 
       // Enforce a minimum delay of 800ms for visual feedback
       const elapsed = Date.now() - startTime;
@@ -3812,28 +4270,32 @@ Common Issues: ${commonIssues}`;
       }
 
       if (isNewerVersion(currentVer, latestVer)) {
-        const asset = release.assets.find(a => a.name.endsWith('.exe') || a.name.includes('Setup'));
+        const asset = getMatchingUpdateAsset(release.assets, appMode);
         if (asset) {
           manualDownloadUrl = asset.browser_download_url;
+          manualMatchedAssetName = asset.name;
 
           if (updateIcon && updateTitle && updateDesc) {
             updateIcon.className = 'fa-solid fa-circle-exclamation';
             updateIcon.style.color = 'var(--color-orange)';
-            updateTitle.textContent = 'New Update Available!';
-            updateDesc.innerHTML = `Version <strong>v${latestVer}</strong> is available (Current: v${currentVer}).<br>Click the install button below to begin downloading.`;
+            updateTitle.textContent = `New ${editionLabel} Update Available!`;
+            updateDesc.innerHTML = `Version <strong>v${latestVer}</strong> is available (Current: v${currentVer}).<br><span style="color:var(--text-muted); font-size:12px;">Matched Package: ${asset.name}</span><br>Click the install button below to begin downloading.`;
           }
 
           btnManualCheck.style.display = 'none';
-          if (btnManualStartUpdate) btnManualStartUpdate.style.display = 'block';
+          if (btnManualStartUpdate) {
+            btnManualStartUpdate.style.display = 'block';
+            btnManualStartUpdate.innerHTML = `<i class="fa-solid fa-download"></i> Install ${editionLabel} v${latestVer}`;
+          }
         } else {
-          throw new Error('No setup executable asset found in latest release.');
+          throw new Error(`Release v${latestVer} found, but no matching installer asset for ${editionLabel} was found in the release.`);
         }
       } else {
         if (updateIcon && updateTitle && updateDesc) {
           updateIcon.className = 'fa-solid fa-circle-check';
           updateIcon.style.color = 'var(--color-green)';
           updateTitle.textContent = 'Up to Date';
-          updateDesc.innerHTML = `You are running the latest version of <strong>BC Elite QC</strong> (v${currentVer}).`;
+          updateDesc.innerHTML = `You are running the latest ${editionLabel} of <strong>BC Elite QC</strong> (v${currentVer}).`;
         }
 
         btnManualCheck.disabled = false;
@@ -3862,7 +4324,7 @@ Common Issues: ${commonIssues}`;
   function loadUpdateView(force = false) {
     const currentVersionLabel = document.getElementById('update-current-version-label');
     if (currentVersionLabel) {
-      currentVersionLabel.textContent = systemSpecs.appVersion || (typeof window !== 'undefined' && window.APP_VERSION) || '1.0.5';
+      currentVersionLabel.textContent = systemSpecs.appVersion || (typeof window !== 'undefined' && window.APP_VERSION) || '1.6';
     }
 
     const updateMode = localStorage.getItem('setting_update_mode') || 'auto';
@@ -3928,15 +4390,19 @@ Common Issues: ${commonIssues}`;
   if (btnManualStartUpdate) {
     btnManualStartUpdate.addEventListener('click', async () => {
       btnManualStartUpdate.disabled = true;
-      inlineProgressContainer.style.display = 'block';
-      inlineProgressStatus.textContent = 'Downloading setup files...';
+      if (inlineProgressContainer) inlineProgressContainer.style.display = 'block';
+      if (inlineProgressStatus) inlineProgressStatus.textContent = `Downloading ${manualMatchedAssetName || 'setup files'}...`;
 
       try {
-        log('Starting manual update download...', 'info');
+        log(`Starting manual update download: ${manualMatchedAssetName || 'Setup.exe'}...`, 'info');
+
+        const safeFileName = (manualMatchedAssetName && manualMatchedAssetName.endsWith('.exe')) 
+          ? manualMatchedAssetName.replace(/[^a-zA-Z0-9._-]/g, '_') 
+          : (currentAppMode === 'admin' ? 'BC_Elite_QC_Admin_Setup.exe' : 'BC_Elite_QC_Customer_Setup.exe');
 
         const downloadCmd = `
           $downloadUrl = "${manualDownloadUrl}"
-          $tempPath = "$env:TEMP\\BC_Elite_QC_Setup.exe"
+          $tempPath = "$env:TEMP\\${safeFileName}"
           try {
               $webClient = New-Object System.Net.WebClient
               $webClient.DownloadFile($downloadUrl, $tempPath)
@@ -3945,7 +4411,7 @@ Common Issues: ${commonIssues}`;
                   "Success"
               } else {
                   "Download failed: file not created"
-              }
+                }
           } catch {
               "Error: $_"
           }
@@ -3954,7 +4420,7 @@ Common Issues: ${commonIssues}`;
         const result = await electronAPI.getSystemSpec(downloadCmd);
         if (result.success && result.data && result.data.trim() === 'Success') {
           log('Manual update downloaded successfully. Spawning installer...', 'info');
-          inlineProgressStatus.textContent = 'Launching installer... Closing app.';
+          if (inlineProgressStatus) inlineProgressStatus.textContent = 'Launching installer... Closing app.';
 
           setTimeout(async () => {
             await electronAPI.windowControl('close');
@@ -3967,7 +4433,7 @@ Common Issues: ${commonIssues}`;
         log(`Manual update failed: ${err.message}`, 'error');
         showCustomAlert(`Update download failed:\n${err.message}\n\nPlease try again or download manually.`, 'Update Failed', 'error');
         btnManualStartUpdate.disabled = false;
-        inlineProgressContainer.style.display = 'none';
+        if (inlineProgressContainer) inlineProgressContainer.style.display = 'none';
       }
     });
   }
@@ -5439,46 +5905,159 @@ Common Issues: ${commonIssues}`;
     });
   }
 
-  // Start initialization
-  loadSettings();
-  loadSpecifications();
-  updateAppVersion();
-  loadRememberedCredentials();
-  bindSpecRowCopyEvents();
-
-  // Hidden hotkey to toggle Database Portal tab: Shift + F6
+  // Shift + F6 hotkey handling: Completely disabled in Customer mode & while Keyboard Tester is active
   window.addEventListener('keydown', (e) => {
+    if (typeof window.isKeyboardTesterActive === 'function' && window.isKeyboardTesterActive()) {
+      return;
+    }
     if (e.shiftKey && e.key === 'F6') {
       e.preventDefault();
+      // In Customer mode, Database Portal is completely inaccessible
+      if (currentAppMode !== 'admin') {
+        return;
+      }
       const navDb = document.getElementById('nav-database-portal');
       if (navDb) {
-        if (navDb.style.display === 'none') {
-          navDb.style.display = 'flex';
-          log('Database Portal sidebar tab activated.', 'info');
-          showToast('Database Portal Revealed!');
-        } else {
-          navDb.style.display = 'none';
-          log('Database Portal sidebar tab hidden.', 'info');
-          showToast('Database Portal Hidden!');
-
-          // Switch view if current active tab is hidden
-          if (navDb.classList.contains('active')) {
-            const navSystem = document.getElementById('nav-system-health');
-            if (navSystem) navSystem.click();
-          }
-        }
+        navDb.style.display = 'flex';
+        showToast('Database Portal Active (Admin Mode)');
       }
     }
   });
 
+  // Orchestrated startup workflow with loading screen and direct edition routing
+  async function runStartupSequence() {
+    try {
+      updateStartupLoader(15, 'Initializing application subsystems...');
+      if (typeof loadSettings === 'function') loadSettings();
+
+      // 1. Detect and apply app mode (Customer vs Admin)
+      const mode = await detectAndApplyAppMode();
+      updateStartupLoader(30, `Configuring ${mode === 'admin' ? 'Admin & Staff' : 'Customer'} workspace...`);
+
+      // 2. Set App version and title/badges based on mode
+      try {
+        await updateAppVersion();
+      } catch (verErr) {
+        console.warn('Error updating app version:', verErr);
+      }
+      if (typeof bindSpecRowCopyEvents === 'function') bindSpecRowCopyEvents();
+
+      // 3. Admin specific background loading
+      if (mode === 'admin') {
+        if (typeof loadRememberedCredentials === 'function') loadRememberedCredentials();
+        if (typeof loadPortalBatches === 'function') loadPortalBatches();
+      }
+      if (typeof window.populateSoundFiles === 'function') {
+        window.populateSoundFiles(false);
+      }
+
+      // 4. Background hardware diagnostics discovery
+      updateStartupLoader(45, 'Discovering system hardware & components...');
+
+      // Safety timeout in case WMI takes exceptionally long
+      const loaderSafetyTimer = setTimeout(() => {
+        hideStartupLoader();
+      }, 7000);
+
+      try {
+        await loadSpecifications();
+      } catch (err) {
+        console.error('Error during startup hardware discovery:', err);
+      } finally {
+        clearTimeout(loaderSafetyTimer);
+      }
+
+      updateStartupLoader(100, 'Diagnostics Ready!');
+
+      // Smoothly remove startup overlay
+      hideStartupLoader();
+
+      // 5. Direct view routing based on edition
+      setTimeout(() => {
+        if (mode === 'admin') {
+          // In Admin mode: directly open Database Login Portal!
+          log('Admin mode: Opening Database Portal directly...', 'info');
+          const navDb = document.getElementById('nav-database-portal');
+          if (navDb) {
+            navDb.click();
+          } else {
+            const portalView = document.getElementById('view-database-portal');
+            if (portalView) {
+              document.querySelectorAll('.app-view').forEach(v => { v.style.display = 'none'; v.classList.remove('active'); });
+              portalView.style.display = 'flex';
+              portalView.classList.add('active');
+              if (typeof loadDatabasePortalView === 'function') loadDatabasePortalView();
+            }
+          }
+        } else {
+          // In Customer mode: open System Health view
+          log('Customer mode: Opening System Health view...', 'info');
+          const navSys = document.getElementById('nav-system-health');
+          if (navSys) {
+            navSys.click();
+          }
+        }
+      }, 100);
+
+    } catch (globalErr) {
+      console.error('Error in startup sequence:', globalErr);
+      hideStartupLoader();
+    }
+  }
+
   /* ==========================================================================
-     NATIVE KEYBOARD TESTER INTERACTIVE LOGIC
+     NATIVE KEYBOARD TESTER INTERACTIVE LOGIC (BC ELITE KEYBOARD TESTER)
      ========================================================================== */
   (function () {
     let latencyTimes = [];
     let isKeyboardActive = false;
     let animFrameIndicator = null;
     let animFrameGlow = null;
+    let currentKeyboardThemeIndex = 0;
+    let soundEnabled = true;
+    let audioCtx = null;
+    let cachedKeys = [];
+
+    // Audio Click Synthesis (Mechanical Switch Sound)
+    function playKeyClick() {
+      if (!soundEnabled || !isKeyboardActive) return;
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(750, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 0.04);
+        gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.04);
+      } catch (e) {}
+    }
+
+    // Audit Progress Statistics
+    function updateStats() {
+      const allKeys = document.querySelectorAll('#view-keyboard-test .key-cap');
+      const testedKeys = document.querySelectorAll('#view-keyboard-test .key-cap.tested');
+      const total = allKeys.length || 104;
+      const tested = testedKeys.length;
+      const percent = Math.round((tested / total) * 100);
+
+      const countEl = document.getElementById('tested-count');
+      const percentEl = document.getElementById('tested-percent');
+      const fillEl = document.getElementById('stats-fill');
+
+      if (countEl) countEl.textContent = `${tested} / ${total} Keys`;
+      if (percentEl) percentEl.textContent = `${percent}%`;
+      if (fillEl) fillEl.style.width = `${percent}%`;
+    }
 
     // Helper to send message back to parent window
     function exitTest(status, remark) {
@@ -5491,10 +6070,12 @@ Common Issues: ${commonIssues}`;
     const failBtn = document.getElementById('fail-btn');
     const resetBtn = document.getElementById('reset-btn');
     const helpBtn = document.getElementById('help-btn');
+    const soundBtn = document.getElementById('sound-btn');
+    const themeSelect = document.getElementById('theme-select');
 
     if (backBtn) {
       backBtn.addEventListener('click', () => {
-        const testedCount = document.querySelectorAll('.key-cap.tested').length;
+        const testedCount = document.querySelectorAll('#view-keyboard-test .key-cap.tested').length;
         const status = testedCount > 0 ? 'passed' : 'idle';
         exitTest(status);
       });
@@ -5541,20 +6122,41 @@ Common Issues: ${commonIssues}`;
       });
     }
 
+    // Audio Click FX Toggle Button
+    if (soundBtn) {
+      soundBtn.addEventListener('click', () => {
+        soundEnabled = !soundEnabled;
+        soundBtn.querySelector('span').textContent = soundEnabled ? '🔊 Audio Click: ON' : '🔇 Audio Click: OFF';
+        if (soundEnabled) soundBtn.classList.add('active');
+        else soundBtn.classList.remove('active');
+      });
+    }
+
+    // Theme Selector
+    if (themeSelect) {
+      themeSelect.addEventListener('change', (e) => {
+        currentKeyboardThemeIndex = parseInt(e.target.value, 10);
+        const kbCase = document.getElementById('keyboard-case-container');
+        if (kbCase) {
+          kbCase.classList.remove('theme-white', 'theme-black');
+          if (currentKeyboardThemeIndex === 1) kbCase.classList.add('theme-white');
+          else if (currentKeyboardThemeIndex === 2) kbCase.classList.add('theme-black');
+        }
+        initRGB();
+      });
+    }
+
     // Apply initial RGB Hues based on selected theme
     function initRGB() {
-      const allKeys = document.querySelectorAll('.key-cap');
+      const allKeys = document.querySelectorAll('#view-keyboard-test .key-cap');
       cachedKeys = Array.from(allKeys);
-      const keyboard = document.querySelector('.key-deck');
+      const keyboard = document.querySelector('#view-keyboard-test .key-deck');
       if (!keyboard) return;
       const keyboardRect = keyboard.getBoundingClientRect();
 
       allKeys.forEach(key => {
         const rect = key.getBoundingClientRect();
-        // Calculate relative horizontal position (0 to 1)
         const relativeX = keyboardRect.width > 0 ? (rect.left - keyboardRect.left) / keyboardRect.width : 0.5;
-
-        // Cache relativeX to avoid layout thrashing in rendering loops
         key.dataset.relativeX = relativeX;
 
         let colorStr = '';
@@ -5562,17 +6164,14 @@ Common Issues: ${commonIssues}`;
         let hueVal = 180;
 
         if (currentKeyboardThemeIndex === 0) {
-          // RGB Keyboard (Rainbow Wave)
           hueVal = Math.floor(relativeX * 360);
           colorStr = `hsl(${hueVal}, 80%, 50%)`;
           colorDimStr = `hsla(${hueVal}, 60%, 45%, 0.6)`;
         } else if (currentKeyboardThemeIndex === 1) {
-          // White Keyboard (Ice White backlight)
           hueVal = 200;
           colorStr = `hsl(200, 30%, 85%)`;
           colorDimStr = `hsla(200, 30%, 85%, 0.6)`;
         } else {
-          // Black Keyboard (Subtle White backlight)
           hueVal = 0;
           colorStr = `hsl(0, 0%, 75%)`;
           colorDimStr = `hsla(0, 0%, 75%, 0.6)`;
@@ -5591,18 +6190,17 @@ Common Issues: ${commonIssues}`;
       if (!wrapper || !deck) return;
 
       const availableWidth = wrapper.clientWidth;
-      const naturalWidth = 1010; // Fixed natural unscaled width of keyboard (including padding)
-      const naturalHeight = 280; // Fixed natural unscaled height of keyboard (including padding)
+      const naturalWidth = 1010;
+      const naturalHeight = 286;
 
       if (availableWidth > 0) {
-        // Scale dynamically with the container layout width (supports both scaling up and down)
-        const scale = availableWidth / naturalWidth;
+        const scale = Math.min(1.15, availableWidth / naturalWidth);
         deck.style.transform = `scale(${scale})`;
-        wrapper.style.height = (naturalHeight * scale) + 'px';
+        deck.style.transformOrigin = 'top center';
+        wrapper.style.height = (Math.ceil(naturalHeight * scale) + 4) + 'px';
       }
     }
 
-    // Call initRGB and scaleKeyboard when window size changes
     window.addEventListener('resize', () => {
       if (isKeyboardActive) {
         scaleKeyboard();
@@ -5614,32 +6212,28 @@ Common Issues: ${commonIssues}`;
     const latencyVal = document.getElementById('latency-avg');
 
     function trackLatency(e) {
-      const latency = Math.max(0, performance.now() - e.timeStamp);
-      if (latency < 200) {
+      const latency = Math.max(0, performance.now() - (e && e.timeStamp ? e.timeStamp : performance.now()));
+      if (latency < 250) {
         latencyTimes.push(latency);
         if (latencyTimes.length > 50) {
-          latencyTimes.shift(); // keep last 50 keypresses for rolling average
+          latencyTimes.shift();
         }
         const avg = (latencyTimes.reduce((a, b) => a + b, 0) / latencyTimes.length).toFixed(2);
         if (latencyVal) latencyVal.textContent = avg;
       }
     }
 
-    // Key Mapping Helper to normalize standard web event keys to layout data-key
+    // Key Mapping Helper
     function getLayoutKey(e) {
-      // 1. Direct hardware code matching (allows left/right modifier, main/numpad Enter/period separation)
-      let keyCap = document.querySelector(`.key-cap[data-key="${e.code}"]`);
+      let keyCap = document.querySelector(`#view-keyboard-test .key-cap[data-key="${e.code}"]`);
       if (keyCap) return e.code;
 
-      // 2. Normal key character matches (letters, numbers, space)
-      keyCap = document.querySelector(`.key-cap[data-key="${e.key}"]`);
+      keyCap = document.querySelector(`#view-keyboard-test .key-cap[data-key="${e.key}"]`);
       if (keyCap) return e.key;
 
-      // Case-insensitive key character matches (e.g. data-key="q" and e.key="Q")
-      keyCap = document.querySelector(`.key-cap[data-key="${e.key.toLowerCase()}"]`);
+      keyCap = document.querySelector(`#view-keyboard-test .key-cap[data-key="${e.key.toLowerCase()}"]`);
       if (keyCap) return e.key.toLowerCase();
 
-      // 3. Fallbacks and standard normalization
       if (e.code === 'Space') return ' ';
       if (e.key === 'Control') return e.code.includes('Right') ? 'ControlRight' : 'ControlLeft';
       if (e.key === 'Shift') return e.code.includes('Right') ? 'ShiftRight' : 'ShiftLeft';
@@ -5647,7 +6241,7 @@ Common Issues: ${commonIssues}`;
       if (e.key === 'Meta' || e.key === 'OS' || e.key === 'Super') return 'MetaLeft';
       if (e.key === 'Enter') return e.code === 'NumpadEnter' ? 'NumpadEnter' : 'Enter';
 
-      if (e.code.startsWith('Numpad')) {
+      if (e.code && e.code.startsWith('Numpad')) {
         const numPart = e.code.replace('Numpad', '');
         if (numPart === 'Enter') return 'NumpadEnter';
         if (numPart === 'Decimal') return 'NumpadDecimal';
@@ -5661,53 +6255,37 @@ Common Issues: ${commonIssues}`;
       return e.key;
     }
 
-    // Bind Global keydown/keyup on document
-    document.addEventListener('keydown', (e) => {
-      // ONLY intercept if the Keyboard Tester view is currently active
-      if (!isKeyboardActive) return;
+    function isUserTypingInModal(e) {
+      const activeEl = document.activeElement;
+      if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
+        return true;
+      }
+      const promptModal = document.getElementById('custom-prompt-modal');
+      if (promptModal && (promptModal.classList.contains('open') || promptModal.style.display === 'flex')) {
+        return true;
+      }
+      const alertModal = document.getElementById('custom-alert-modal');
+      if (alertModal && (alertModal.classList.contains('open') || alertModal.style.display === 'flex')) {
+        return true;
+      }
+      const tableModal = document.getElementById('table-modal');
+      if (tableModal && (tableModal.classList.contains('open') || tableModal.style.display === 'flex')) {
+        return true;
+      }
+      if (helpModal && (helpModal.style.display === 'flex' || helpModal.classList.contains('open'))) {
+        return true;
+      }
+      return false;
+    }
 
-      // Prevent default browser behavior (e.g. F5 reloads, tab switches focus, backspace goes back)
-      e.preventDefault();
-
-      trackLatency(e);
-
-      const matchedKey = getLayoutKey(e);
-      const keyCaps = document.querySelectorAll(`.key-cap[data-key="${matchedKey}"]`);
-
+    // Trigger Key Activation Helper
+    function activateKey(dataKeyName, codeStr, hexStr) {
+      const keyCaps = document.querySelectorAll(`#view-keyboard-test .key-cap[data-key="${dataKeyName}"]`);
       if (keyCaps.length > 0) {
-        keyCaps.forEach(keyCap => {
-          keyCap.classList.add('is-pressed');
-          keyCap.classList.add('tested');
-
-          const indicatorBox = document.getElementById('key-indicator-box');
-          if (indicatorBox) {
-            const hue = keyCap.style.getPropertyValue('--hue') || 180;
-            indicatorBox.style.boxShadow = `0 0 25px hsl(${hue}, 80%, 50%)`;
-          }
-        });
-
-        const firstKey = keyCaps[0];
-        const displayCode = document.getElementById('display-code');
-        const displayHex = document.getElementById('display-hex');
-        if (displayCode) displayCode.innerText = `CODE: ${e.code.toUpperCase()}`;
-        if (displayHex) displayHex.innerText = `HEX: 0x${e.keyCode.toString(16).toUpperCase()}`;
-
-        setTimeout(() => {
-          const indicatorBox = document.getElementById('key-indicator-box');
-          if (indicatorBox) indicatorBox.style.boxShadow = '0 0 10px rgba(255,255,255,0.1)';
-        }, 150);
-      }
-    });
-
-    document.addEventListener('keyup', (e) => {
-      if (!isKeyboardActive) return;
-      e.preventDefault();
-      const matchedKey = getLayoutKey(e);
-      const keyCaps = document.querySelectorAll(`.key-cap[data-key="${matchedKey}"]`);
-
-      // Special handling for Print Screen since Windows OS intercepts it and keydown is never fired
-      if (e.code === 'PrintScreen' || e.key === 'PrintScreen') {
-        trackLatency(e);
+        const alreadyPressed = keyCaps[0].classList.contains('is-pressed');
+        if (!alreadyPressed) {
+          playKeyClick();
+        }
         keyCaps.forEach(keyCap => {
           keyCap.classList.add('is-pressed');
           keyCap.classList.add('tested');
@@ -5721,101 +6299,107 @@ Common Issues: ${commonIssues}`;
 
         const displayCode = document.getElementById('display-code');
         const displayHex = document.getElementById('display-hex');
-        if (displayCode) displayCode.innerText = `CODE: ${e.code.toUpperCase()}`;
-        if (displayHex) displayHex.innerText = `HEX: 0x${e.keyCode.toString(16).toUpperCase()}`;
+        if (displayCode) displayCode.innerText = `CODE: ${codeStr}`;
+        if (displayHex) displayHex.innerText = `HEX: ${hexStr}`;
 
         setTimeout(() => {
-          keyCaps.forEach(keyCap => {
-            keyCap.classList.remove('is-pressed');
-          });
           const indicatorBox = document.getElementById('key-indicator-box');
           if (indicatorBox) indicatorBox.style.boxShadow = '0 0 10px rgba(255,255,255,0.1)';
         }, 150);
-        return;
-      }
 
+        updateStats();
+      }
+    }
+
+    // Release Key Helper
+    function releaseKey(dataKeyName) {
+      const keyCaps = document.querySelectorAll(`#view-keyboard-test .key-cap[data-key="${dataKeyName}"]`);
       keyCaps.forEach(keyCap => {
         keyCap.classList.remove('is-pressed');
       });
-    });
+    }
 
-    // Listen for backend global shortcut Print Screen events
-    if (window.__TAURI__) {
-      window.__TAURI__.event.listen('print-screen-pressed', () => {
-        if (!isKeyboardActive) return;
-
-        const keyCaps = document.querySelectorAll('.key-cap[data-key="PrintScreen"]');
-
-        // Record latency (simulated timestamp)
-        trackLatency({ timeStamp: performance.now() });
-
-        keyCaps.forEach(keyCap => {
-          keyCap.classList.add('is-pressed');
-          keyCap.classList.add('tested');
-
-          const indicatorBox = document.getElementById('key-indicator-box');
-          if (indicatorBox) {
-            const hue = keyCap.style.getPropertyValue('--hue') || 180;
-            indicatorBox.style.boxShadow = `0 0 25px hsl(${hue}, 80%, 50%)`;
-          }
-        });
-
-        const displayCode = document.getElementById('display-code');
-        const displayHex = document.getElementById('display-hex');
-        if (displayCode) displayCode.innerText = 'CODE: PRINTSCREEN';
-        if (displayHex) displayHex.innerText = 'HEX: 0x2C';
-
-        setTimeout(() => {
-          keyCaps.forEach(keyCap => {
-            keyCap.classList.remove('is-pressed');
-          });
-          const indicatorBox = document.getElementById('key-indicator-box');
-          if (indicatorBox) indicatorBox.style.boxShadow = '0 0 10px rgba(255,255,255,0.1)';
-        }, 150);
+    // Unified Retest / Reset Handler
+    function resetTester() {
+      document.querySelectorAll('#view-keyboard-test .key-cap').forEach(k => {
+        k.classList.remove('is-pressed');
+        k.classList.remove('tested');
       });
+      const displayCode = document.getElementById('display-code');
+      const displayHex = document.getElementById('display-hex');
+      if (displayCode) displayCode.innerText = 'CODE: N/A';
+      if (displayHex) displayHex.innerText = 'HEX: 0x00';
+      const indicatorBox = document.getElementById('key-indicator-box');
+      if (indicatorBox) indicatorBox.style.boxShadow = '0 0 10px rgba(255,255,255,0.1)';
+      latencyTimes = [];
+      if (latencyVal) latencyVal.textContent = '0.00';
+      updateStats();
     }
 
     if (resetBtn) {
-      resetBtn.addEventListener('click', () => {
-        document.querySelectorAll('.key-cap').forEach(k => {
-          k.classList.remove('is-pressed');
-          k.classList.remove('tested');
-        });
-        const displayCode = document.getElementById('display-code');
-        const displayHex = document.getElementById('display-hex');
-        if (displayCode) displayCode.innerText = 'CODE: N/A';
-        if (displayHex) displayHex.innerText = 'HEX: 0x00';
-        const indicatorBox = document.getElementById('key-indicator-box');
-        if (indicatorBox) indicatorBox.style.boxShadow = '0 0 10px rgba(255,255,255,0.1)';
-        latencyTimes = [];
-        if (latencyVal) latencyVal.textContent = '0.00';
-      });
+      resetBtn.addEventListener('click', resetTester);
     }
 
-    // Bind Keyboard Theme Selector Change event
-    const themeSelect = document.getElementById('kb-theme-select');
-    if (themeSelect) {
-      themeSelect.addEventListener('change', (e) => {
-        currentKeyboardThemeIndex = parseInt(e.target.value, 10);
+    // Keydown Handler
+    function handleKeyDown(e) {
+      if (!isKeyboardActive) return;
+      if (isUserTypingInModal(e)) return;
 
-        // Update keyboard-case container classes for visual frame and cap styling
-        const kbCase = document.querySelector('.keyboard-case');
-        if (kbCase) {
-          kbCase.classList.remove('theme-white', 'theme-black');
-          if (currentKeyboardThemeIndex === 1) {
-            kbCase.classList.add('theme-white');
-          } else if (currentKeyboardThemeIndex === 2) {
-            kbCase.classList.add('theme-black');
-          }
-        }
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
 
-        initRGB();
+      // Shortcut: Ctrl + F4 => Retest
+      if (e.ctrlKey && (e.key === 'F4' || e.code === 'F4')) {
+        resetTester();
+        return;
+      }
+
+      const matchedKey = getLayoutKey(e);
+
+      if (matchedKey === 'PrintScreen' || matchedKey === 'Pause' || e.code === 'PrintScreen' || e.key === 'PrintScreen') {
+        trackLatency(e);
+        activateKey('PrintScreen', 'PRINTSCREEN', '0x2C');
+        setTimeout(() => releaseKey('PrintScreen'), 180);
+        return;
+      }
+
+      trackLatency(e);
+      activateKey(matchedKey, (e.code || e.key || 'UNKNOWN').toUpperCase(), `0x${(e.keyCode || 0).toString(16).toUpperCase()}`);
+    }
+
+    // Keyup Handler
+    function handleKeyUp(e) {
+      if (!isKeyboardActive) return;
+      if (isUserTypingInModal(e)) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+
+      const matchedKey = getLayoutKey(e);
+      if (matchedKey !== 'PrintScreen' && matchedKey !== 'Pause') {
+        releaseKey(matchedKey);
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('keyup', handleKeyUp, true);
+
+    // Listen for backend global shortcut Print Screen events
+    if (window.__TAURI__ && window.__TAURI__.event) {
+      window.__TAURI__.event.listen('print-screen-pressed', () => {
+        if (!isKeyboardActive) return;
+        trackLatency({ timeStamp: performance.now() });
+        activateKey('PrintScreen', 'PRINTSCREEN', '0x2C');
+        setTimeout(() => releaseKey('PrintScreen'), 180);
       });
     }
 
     // Mouse interactivity on key caps
-    document.querySelectorAll('.key-cap').forEach(key => {
+    document.querySelectorAll('#view-keyboard-test .key-cap').forEach(key => {
       key.addEventListener('mousedown', () => {
+        playKeyClick();
         key.classList.add('is-pressed');
         key.classList.add('tested');
 
@@ -5830,6 +6414,8 @@ Common Issues: ${commonIssues}`;
         const displayHex = document.getElementById('display-hex');
         if (displayCode) displayCode.innerText = `CODE: CLICK_${dataKey.toUpperCase()}`;
         if (displayHex) displayHex.innerText = `HEX: MOUSE`;
+
+        updateStats();
       });
       key.addEventListener('mouseup', () => {
         key.classList.remove('is-pressed');
@@ -5840,10 +6426,8 @@ Common Issues: ${commonIssues}`;
     });
 
     // WebGL Shaders Setup
-    let currentKeyboardThemeIndex = 0;
     let glIndicator = null;
     let glGlow = null;
-    let cachedKeys = [];
     let uTimeIndicator = null;
     let uResIndicator = null;
     let uThemeIndicator = null;
@@ -6022,12 +6606,19 @@ void main() {
           if (glGlow) drawGlow(0);
         }, 150);
       } else {
+        // Immediately release all keycap active states
+        document.querySelectorAll('.key-cap.is-pressed').forEach(k => k.classList.remove('is-pressed'));
         if (helpModal) helpModal.style.display = 'none';
         if (animFrameIndicator) cancelAnimationFrame(animFrameIndicator);
         if (animFrameGlow) cancelAnimationFrame(animFrameGlow);
         animFrameIndicator = null;
         animFrameGlow = null;
       }
+    };
+
+    // Global getter for checking if keyboard tester view is capturing keys
+    window.isKeyboardTesterActive = function () {
+      return isKeyboardActive;
     };
 
     // Observe container size changes (e.g. sidebar toggle, window resize)
@@ -6906,8 +7497,7 @@ void main() {
 
     const PRESET_SOUND_FILES = [
       "Sound_checking.mp4",
-      "Song_checking_2.mp3",
-      "Song_checking_3.mp3"
+      "Song_checking_2.mp3"
     ];
 
     let currentSelectedFile = null;
@@ -7333,6 +7923,7 @@ void main() {
 
     // Phase test configurations
     // Global Hooks
+    window.populateSoundFiles = populateSoundFiles;
     window.initSoundCheck = () => {
       createVUBars();
       populateMicSources();
@@ -8073,10 +8664,8 @@ void main() {
     window.addEventListener('resize', closeActivePopover);
     window.addEventListener('scroll', closeActivePopover, true);
 
-    // Populate sound files and load active batches immediately on startup
-    populateSoundFiles(false);
-    loadPortalBatches();
-
+    // Launch orchestrated startup sequence (hardware discovery, edition routing, loading screen)
+    runStartupSequence();
   })();
 }
 

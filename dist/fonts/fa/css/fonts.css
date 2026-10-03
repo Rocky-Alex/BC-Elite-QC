@@ -69,3 +69,28 @@
   font-display: swap;
   src: url('../jetbrains-700.ttf') format('truetype');
 }
+
+/* ----- PT Serif ----- */
+@font-face {
+  font-family: 'PT Serif';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../../ptserif-400.ttf') format('truetype'),
+       url('../ptserif-400.ttf') format('truetype'),
+       url('ptserif-400.ttf') format('truetype'),
+       local('PT Serif'),
+       local('PTSerif-Regular');
+}
+@font-face {
+  font-family: 'PT Serif';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../../ptserif-700.ttf') format('truetype'),
+       url('../ptserif-700.ttf') format('truetype'),
+       url('ptserif-700.ttf') format('truetype'),
+       local('PT Serif Bold'),
+       local('PTSerif-Bold');
+}
+

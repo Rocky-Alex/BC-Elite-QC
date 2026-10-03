@@ -88,6 +88,26 @@ identifier = "allow-delete-qc-device-record"
 description = "Allow delete_qc_device_record command"
 commands.allow = ["delete_qc_device_record"]
 
+[[permission]]
+identifier = "allow-get-app-mode"
+description = "Allow get_app_mode command"
+commands.allow = ["get_app_mode"]
+
+[[permission]]
+identifier = "allow-get-sound-folder-path"
+description = "Allow get_sound_folder_path command"
+commands.allow = ["get_sound_folder_path"]
+
+[[permission]]
+identifier = "allow-get-sound-files"
+description = "Allow get_sound_files command"
+commands.allow = ["get_sound_files"]
+
+[[permission]]
+identifier = "allow-open-sound-folder"
+description = "Allow open_sound_folder command"
+commands.allow = ["open_sound_folder"]
+
 [default]
 description = "Allow all custom commands"
 permissions = [
@@ -101,6 +121,10 @@ permissions = [
   "allow-window-control",
   "allow-set-fullscreen",
   "allow-get-app-version",
+  "allow-get-app-mode",
+  "allow-get-sound-folder-path",
+  "allow-get-sound-files",
+  "allow-open-sound-folder",
   "allow-http-post",
   "allow-http-get",
   "allow-auth-user",
@@ -110,5 +134,6 @@ permissions = [
   "allow-delete-qc-device-batch",
   "allow-delete-qc-device-record"
 ]
+
 
 
